@@ -1,0 +1,7 @@
+"id","name","unit_name","nutrient_nbr","rank"
+"1003","Protein","G","203","600.0"
+"1004","Total lipid (fat)","G","204","800.0"
+"1005","Carbohydrate, by difference","G","205","1110.0"
+"1008","Energy","KCAL","208","300.0"
+"1079","Fiber, total dietary","G","291","1200.0"
+"2047","Energy (Atwater General Factors)","KCAL","957","280.0"

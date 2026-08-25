@@ -82,6 +82,38 @@ Three probes answering three different questions. Do not conflate them.
 A liveness probe that checks the database restarts every replica during a database
 blip, turning a degradation into an outage.
 
+## Corpus
+
+```bash
+# the committed 13-food subset — no download, used by the tests
+npm run ingest -w @nutricheck/ingest -- --fixture
+
+# a real release, unzipped from https://fdc.nal.usda.gov/download-datasets.html
+npm run ingest -w @nutricheck/ingest -- --dir /path/to/FoodData_Central_csv
+```
+
+The CLI takes a **local directory**, not a URL: FDC download filenames carry a
+release date and change every few months, so a hardcoded URL is a 404 waiting to
+happen.
+
+Re-running is an upsert on `(source, source_id)`, so re-ingesting a reissued
+release is safe. Nutrient columns are resolved by the stable `nutrient_nbr`
+(203 / 208 / 291) rather than by the surrogate `id`, and the run prints what it
+skipped — a silent skip must never look like a clean import.
+
+## Tests
+
+```bash
+npm test                  # unit — fast, no Docker
+npm run test:int          # Testcontainers: real Postgres + pgvector + pg_trgm
+```
+
+Integration tests spin up `pgvector/pgvector:pg16` and run the production
+migrations against it. Not SQLite — the entire search subsystem is trigram and
+vector operators SQLite does not have, so a mock would test nothing worth
+testing. Not a shared CI database either: parallel jobs against one database
+produce flakes that get papered over with retries.
+
 ## Migrations
 
 ```bash
@@ -122,11 +154,16 @@ M0 in progress. Verified working end to end (`docker compose up` -> healthy):
 - [x] Local stack with real health gates and a compiled pre-deploy migrator
 - [x] Auth — **email + password only**: Argon2id, 15-min access JWT, rotating
       refresh with family reuse detection, throttled endpoints, `GET /v1/me`
-- [ ] Corpus ingestion (USDA -> Postgres, embeddings)
-- [ ] `/v1/foods/search`
+- [x] Corpus ingestion — USDA Foundation / SR / FNDDS CSV reader, fiber state
+      assigned at ingest, idempotent on `(source, source_id)`
+- [x] `/v1/foods/search` — trigram word-similarity with familiarity and generic
+      boosts, default portion in the result row
+- [x] Tests — 12 unit + 16 Testcontainers integration, all green
+- [ ] Embeddings + RRF fusion (the second half of hybrid search)
 - [ ] CI pipeline
-- [ ] Testcontainers integration suite
+- [ ] Goals, profile and log commit (M1)
 
 Known gaps worth naming: the image is 488MB against a 400MB target (the OTel
-packages and the Debian base dominate), and `apps/api/src/modules` currently holds
-only `health` — every feature module in the design is still to come.
+packages and the Debian base dominate); search is trigram-only, so `food_embeddings`
+and its HNSW index exist but hold no rows yet; and there is no password reset, which
+makes a forgotten password an unrecoverable account.

@@ -10,6 +10,7 @@ import type { AppConfig } from './config/config.schema';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { FoodsModule } from './modules/foods/foods.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -72,6 +73,7 @@ import { UsersModule } from './modules/users/users.module';
     HealthModule,
     AuthModule,
     UsersModule,
+    FoodsModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },
