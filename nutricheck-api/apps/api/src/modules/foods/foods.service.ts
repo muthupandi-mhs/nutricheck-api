@@ -41,6 +41,28 @@ const WORD_SIMILARITY_THRESHOLD = 0.45;
 const WHOLE_STRING_WEIGHT = 0.45;
 
 /**
+ * Minimum blended score for a row to be returned at all.
+ *
+ * Without a floor, search always answers with the best of a bad set. Measured
+ * on the real 8,000-row corpus: genuine matches score 1.06–1.14 while nonsense
+ * scores 0.54–0.75, which is a clean separation. Below the floor these were
+ * being returned as confident answers —
+ *
+ *   maggi         -> Topping, SMUCKER'S MAGIC SHELL   609 kcal
+ *   murukku       -> Drumstick pods, raw               37 kcal
+ *   paruppu usili -> Lentils, RAW                     352 kcal
+ *
+ * A miss is recoverable: the phrase lands in the scoped search box, the user
+ * can create a custom food, and `match_misses` records the exact words so the
+ * dish gets curated. A wrong number that looks plausible is not recoverable —
+ * it is logged, frozen, and discovered a week later, which is the failure that
+ * makes people delete a tracker.
+ *
+ * Returning nothing is the honest answer when there is nothing good to return.
+ */
+const MIN_SCORE = 0.95;
+
+/**
  * Additive rank bonuses. Small enough that a clearly better text match wins.
  *
  * Inlined as SQL literals rather than bound parameters: inside
@@ -163,6 +185,8 @@ export class FoodsService {
           ORDER BY is_default DESC
           LIMIT 1
         ) p ON TRUE
+        -- Below this, "no match" is the honest answer. See MIN_SCORE.
+        WHERE ranked.rank >= ${sql.raw(String(MIN_SCORE))}
         ORDER BY ranked.rank DESC, ranked.name ASC
         LIMIT ${limit}
       `);
@@ -250,6 +274,13 @@ export class FoodsService {
           ORDER BY rank DESC, f.name ASC
           LIMIT ${perPhrase}
         ) AS ranked
+        -- Same floor as single-phrase search, and it matters more here: these
+        -- are the only rows the re-rank may choose from, and it is instructed
+        -- to pick the closest even when none is right. Feeding it implausible
+        -- candidates is how "murukku" becomes drumstick pods with a straight
+        -- face. Returning fewer candidates than asked for is correct; returning
+        -- none sends the words to the miss log, which is where they belong.
+        WHERE ranked.rank >= ${sql.raw(String(MIN_SCORE))}
       `);
 
       for (const row of result.rows) {

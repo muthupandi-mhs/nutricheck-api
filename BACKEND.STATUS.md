@@ -125,6 +125,13 @@ prompt version (a content hash, so it cannot be forgotten) and the model — but
 code change to resolution logic is invisible for the 24-hour TTL unless you bump
 `RESOLVER_VERSION` in `draft-store.service.ts`. This has already caught someone out.
 
+**Search returns nothing rather than something wrong.** MIN_SCORE (0.95) is a
+floor on the blended similarity. Without it, "maggi" answered with SMUCKERS MAGIC
+SHELL at 609 kcal and "murukku" with drumstick pods at 37 -- confident, plausible,
+wrong. A miss is recoverable (search box, custom food, miss log); a wrong frozen
+number discovered a week later is not. If a real food starts missing, curate it or
+lower the floor deliberately -- do not assume the floor is the bug.
+
 **Ranking that works at 13 rows can break at 8,000.** `word_similarity` returns
 1.000 for every row containing the query, so "mango" tied "Mangos, raw" with
 "Babyfood, fruit dessert, mango with tapioca". The fix was blending in whole-string
