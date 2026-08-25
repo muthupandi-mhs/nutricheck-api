@@ -1,21 +1,6 @@
-/**
- * Text normalization for the trigram index.
- *
- * `search_text` is precomputed at ingest rather than derived in the query, so
- * the GIN index is over exactly the bytes the query compares against. Doing it
- * with an expression in the WHERE clause instead would either bypass the index
- * or require a functional index kept in sync by hand.
- */
-export function normalizeSearchText(name: string, brand?: string | null): string {
-  const parts = [name, brand ?? ''].filter(Boolean).join(' ');
-  return parts
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '') // strip accents: "puree" must match "purée"
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+import { normalizeSearchText } from '@nutricheck/contracts';
+
+export { normalizeSearchText };
 
 /**
  * USDA descriptions are written back-to-front for sorting — "Apples, raw, with

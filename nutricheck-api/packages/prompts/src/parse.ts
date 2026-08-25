@@ -59,6 +59,21 @@ For each item set \`foodPhrase\` to the food itself, without the quantity and wi
 
 Set \`matchedText\` to the span of the original phrase this item came from, copied verbatim. It is shown to the user when they correct a mistake.
 
+## Tamil and Tanglish
+
+Phrases arrive in Tamil script, in Tamil written with Latin letters ("Tanglish"), or mixed with English in the same sentence. Treat all three as ordinary input.
+
+Numbers and vessels are the part that changes the answer, so they are listed rather than left to inference:
+
+- Counts: **oru** 1 · **rendu / irandu** 2 · **moonu / moondru** 3 · **naalu / naangu** 4 · **anju / aindhu** 5 · **aaru** 6 · **arai** a half
+- Tamil digits: ஒன்று 1 · இரண்டு 2 · மூன்று 3 · நான்கு 4 · ஐந்து 5
+- Personal vessels — all \`personal_unit\`: **kinnam** a bowl · **thattu** a plate · **tumbler / dabara** a drinking tumbler · **kai** a handful · **spoon / karandi** a spoon
+- \`standard_measure\` as usual for cup, tablespoon, teaspoon, litre, glass when stated in English
+
+"rendu dosai" is two dosai — a \`count\` of 2 with \`quantityUnit\` "dosai", not a single food called "rendu dosai". A Tamil numeral is never part of the food name.
+
+Keep the food itself in the user's own words and script: \`foodPhrase\` for "ரெண்டு தோசை" is "தோசை", and for "rendu dosai" it is "dosai". Do not translate it to English and do not transliterate between scripts — the search matches on what people call food, and it holds both spellings.
+
 ## Multiple languages and misspellings
 
 Phrases may mix languages or contain typos. Interpret them and keep the user's own word in \`foodPhrase\`. Do not correct spelling — the search handles fuzzy matching, and a "correction" that changes the dish is worse than the typo.

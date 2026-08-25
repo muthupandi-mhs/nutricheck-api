@@ -108,3 +108,36 @@ export const foodBarcodes = pgTable(
   },
   (t) => [index('food_barcodes_food_id_idx').on(t.foodId)],
 );
+
+/**
+ * Alternate names for a food.
+ *
+ * One dish, many spellings: "தோசை", "dosai", "dosa", "thosai". Folding them
+ * into `foods.search_text` would work, but curating an alias would then mean
+ * re-ingesting the row — and aliases are exactly the thing you edit weekly from
+ * the miss log. A separate table with its own trigram index keeps that an
+ * insert.
+ *
+ * `locale` is advisory. It records where a name comes from so the curation
+ * queue can be filtered by language; search does not restrict on it, because a
+ * Tamil speaker typing English should still find the dish.
+ */
+export const foodAliases = pgTable(
+  'food_aliases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    foodId: uuid('food_id')
+      .notNull()
+      .references(() => foods.id, { onDelete: 'cascade' }),
+    /** Normalized at write time by the same function the query uses. */
+    alias: text('alias').notNull(),
+    /** BCP-47-ish: 'ta' Tamil script, 'ta-Latn' Tanglish, 'en' English. */
+    locale: text('locale').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('food_aliases_food_alias_uq').on(t.foodId, t.alias),
+    index('food_aliases_trgm_idx').using('gin', sql`${t.alias} gin_trgm_ops`),
+    index('food_aliases_food_id_idx').on(t.foodId),
+  ],
+);

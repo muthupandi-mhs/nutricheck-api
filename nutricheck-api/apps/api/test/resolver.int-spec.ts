@@ -867,3 +867,59 @@ describe('resolver robustness', () => {
     }
   });
 });
+
+describe('personal units against a food that defines them', () => {
+  const parsed = (unit: string, value: number | null) => ({
+    matchedText: 'x',
+    foodPhrase: 'x',
+    quantityType: 'personal_unit' as const,
+    quantityValue: value,
+    quantityUnit: unit,
+  });
+  const unresolved = {
+    type: 'personal_unit' as const,
+    raw: '1 plate',
+    grams: null,
+    source: 'unknown' as const,
+    range: [200, 450] as [number, number],
+  };
+  const biryani = [
+    { label: '1 plate', grams: 350, isDefault: true },
+    { label: '1 cup', grams: 200, isDefault: false },
+  ];
+
+  it('uses the portion the food defines rather than asking', () => {
+    // A curated row shipping "1 plate = 350 g" is corpus data, not a guess.
+    const r = resolveAgainstFood(unresolved, parsed('plate', 1), biryani);
+    expect(r.grams).toBe(350);
+    expect(r.source).toBe('food_portion');
+  });
+
+  it('drops the range once there is a real number behind the chip', () => {
+    const r = resolveAgainstFood(unresolved, parsed('plate', 1), biryani);
+    expect(r.range).toBeNull();
+  });
+
+  it('multiplies by the count', () => {
+    expect(resolveAgainstFood(unresolved, parsed('cup', 2), biryani).grams).toBe(400);
+  });
+
+  it('still asks when the food defines no such vessel', () => {
+    // "A bowl" of something with no bowl-sized portion is exactly the case that
+    // must be asked rather than invented.
+    const r = resolveAgainstFood(unresolved, parsed('bowl', 1), biryani);
+    expect(r.grams).toBeNull();
+    expect(r.range).toEqual([200, 450]);
+  });
+
+  it('never overrides a unit the user has already taught', () => {
+    const learned = {
+      type: 'personal_unit' as const,
+      raw: '1 plate',
+      grams: 300,
+      source: 'user_portion' as const,
+      range: null,
+    };
+    expect(resolveAgainstFood(learned, parsed('plate', 1), biryani)).toEqual(learned);
+  });
+});

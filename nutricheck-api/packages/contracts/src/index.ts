@@ -9,6 +9,7 @@
  * There is no second definition of any of these shapes anywhere in the repo.
  */
 export * from './common';
+export * from './text';
 export * from './nutrition';
 export * from './food';
 export * from './resolve';

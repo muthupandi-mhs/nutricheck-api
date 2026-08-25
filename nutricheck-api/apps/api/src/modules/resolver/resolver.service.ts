@@ -387,7 +387,13 @@ export function resolveAgainstFood(
   portions: ReadonlyArray<{ label: string; grams: number; isDefault: boolean }>,
 ): Quantity {
   if (quantity.grams !== null) return quantity;
-  if (quantity.type !== 'count' && quantity.type !== 'standard_measure') return quantity;
+  if (
+    quantity.type !== 'count' &&
+    quantity.type !== 'standard_measure' &&
+    quantity.type !== 'personal_unit'
+  ) {
+    return quantity;
+  }
   if (portions.length === 0) return quantity;
 
   const count = item.quantityValue ?? 1;
@@ -399,12 +405,24 @@ export function resolveAgainstFood(
     : undefined;
 
   if (byUnit) {
+    // Reached by a personal unit too, when the food itself defines that vessel:
+    // a curated biryani row ships "1 plate = 350 g", which is corpus data, not
+    // a guess. Prefilling it and letting the user correct beats asking — and
+    // the correction is what writes user_portions, so the next "plate" is
+    // theirs rather than the recipe's. The range is dropped because there is
+    // now a real number behind the chip.
     return {
       ...quantity,
       grams: round2(byUnit.grams * count),
       source: 'food_portion',
+      range: null,
     };
   }
+
+  // A personal unit the food does not define stays unanswered. "A bowl" of
+  // something with no bowl-sized portion is exactly the case that must be
+  // asked rather than invented.
+  if (quantity.type === 'personal_unit') return quantity;
 
   // A count of a food with no matching label means "that many of them", so the
   // default portion is the right unit: two rotis is two of whatever one roti is.

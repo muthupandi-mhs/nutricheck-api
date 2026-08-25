@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type {
-  CreateCustomFood,
-  FoodDetail,
-  FoodSearchResult,
-  FoodSummary,
+import {
+  normalizeSearchText,
+  type CreateCustomFood,
+  type FoodDetail,
+  type FoodSearchResult,
+  type FoodSummary,
 } from '@nutricheck/contracts';
 import { schema, sql, type Database } from '@nutricheck/database';
 import { NotFoundProblem } from '../../common/problems';
@@ -100,7 +101,13 @@ export class FoodsService {
               WHEN logged.food_id IS NOT NULL THEN 'logged'
               ELSE 'none'
             END AS familiarity,
-            word_similarity(${normalized}, f.search_text)
+            GREATEST(
+                word_similarity(${normalized}, f.search_text),
+                COALESCE((
+                  SELECT MAX(word_similarity(${normalized}, a.alias))
+                  FROM food_aliases a WHERE a.food_id = f.id
+                ), 0)
+              )
               + CASE WHEN f.source = 'user' THEN ${BONUS_CUSTOM} ELSE 0.0 END
               + CASE WHEN logged.food_id IS NOT NULL THEN ${BONUS_LOGGED} ELSE 0.0 END
               + CASE WHEN f.is_generic THEN ${BONUS_GENERIC} ELSE 0.0 END
@@ -108,7 +115,16 @@ export class FoodsService {
           FROM foods f
           JOIN food_nutrients n ON n.food_id = f.id
           LEFT JOIN logged ON logged.food_id = f.id
-          WHERE f.search_text %> ${normalized}
+          -- A dish answers to its aliases as well as its name: "தோசை",
+          -- "dosai" and "dosa" are one row. EXISTS rather than a join so a
+          -- food with six aliases does not appear six times.
+          WHERE (
+              f.search_text %> ${normalized}
+              OR EXISTS (
+                SELECT 1 FROM food_aliases a
+                WHERE a.food_id = f.id AND a.alias %> ${normalized}
+              )
+            )
             -- Corpus rows are owned by nobody; a custom food belongs to exactly
             -- one user. Without this filter one person's "Mum's dal" shows up
             -- in every other account's search.
@@ -185,14 +201,26 @@ export class FoodsService {
             f.name,
             f.brand,
             n.kcal AS kcal_per_100g,
-            word_similarity(phrases.phrase, f.search_text)
+            GREATEST(
+              word_similarity(phrases.phrase, f.search_text),
+              COALESCE((
+                SELECT MAX(word_similarity(phrases.phrase, a.alias))
+                FROM food_aliases a WHERE a.food_id = f.id
+              ), 0)
+            )
               + CASE WHEN f.source = 'user' THEN ${BONUS_CUSTOM} ELSE 0.0 END
               + CASE WHEN logged.food_id IS NOT NULL THEN ${BONUS_LOGGED} ELSE 0.0 END
               + CASE WHEN f.is_generic THEN ${BONUS_GENERIC} ELSE 0.0 END AS rank
           FROM foods f
           JOIN food_nutrients n ON n.food_id = f.id
           LEFT JOIN logged ON logged.food_id = f.id
-          WHERE f.search_text %> phrases.phrase
+          WHERE (
+              f.search_text %> phrases.phrase
+              OR EXISTS (
+                SELECT 1 FROM food_aliases a
+                WHERE a.food_id = f.id AND a.alias %> phrases.phrase
+              )
+            )
             AND (f.created_by_user_id IS NULL OR f.created_by_user_id = ${userId})
           ORDER BY rank DESC, f.name ASC
           LIMIT ${perPhrase}
@@ -283,7 +311,7 @@ export class FoodsService {
           name: input.name.trim(),
           brand: input.brand,
           isGeneric: false,
-          searchText: normalizeQuery(`${input.name} ${input.brand ?? ''}`),
+          searchText: normalizeSearchText(input.name, input.brand),
           createdByUserId: userId,
         })
         .returning({ id: schema.foods.id });
@@ -340,15 +368,12 @@ function toSearchResult(row: SearchRow): FoodSearchResult {
 }
 
 /**
- * Must match the normalization the ingest applied to `search_text`, or the
- * query compares against bytes the index was never built over.
+ * Delegates to the shared normalizer in @nutricheck/contracts.
+ *
+ * The ingest uses the same function. A local reimplementation drifted once
+ * already — it stripped every non-Latin character, so a Tamil query normalized
+ * to the empty string and could never match anything.
  */
 function normalizeQuery(query: string): string {
-  return query
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return normalizeSearchText(query);
 }
