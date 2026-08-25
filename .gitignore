@@ -25,3 +25,6 @@ Thumbs.db
 
 # Mobile app — tracked separately in nutricheck-mobile
 nutricheck/
+
+# USDA bulk downloads — large, re-fetchable, not ours to redistribute
+.usda/

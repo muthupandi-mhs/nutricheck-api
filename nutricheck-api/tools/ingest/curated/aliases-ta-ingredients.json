@@ -1,0 +1,49 @@
+{
+  "$comment": [
+    "Tamil and Indian-English names attached to EXISTING USDA rows.",
+    "",
+    "This file creates no foods. USDA already has mango, banana, brinjal and",
+    "prawn -- what it does not have is the words a Tamil speaker types. Adding a",
+    "duplicate 'Mangoes (Indian)' row would fork the nutrition data for no",
+    "reason; attaching an alias points the existing row at a new name.",
+    "",
+    "That distinction is the whole layering: USDA supplies ingredients, curated",
+    "files supply composite dishes, and aliases supply the vocabulary for both.",
+    "",
+    "One disambiguation trap worth knowing: USDA 'drumstick' overwhelmingly means",
+    "CHICKEN drumstick. முருங்கைக்காய் is 'Drumstick pods'. The aliases below",
+    "bind the Tamil words to the vegetable, so a Tamil speaker cannot silently",
+    "log poultry."
+  ],
+  "source": "curated",
+  "attachTo": [
+    { "sourceId": "169910", "aliases": { "ta": ["மாம்பழம்", "மாங்காய்"], "ta-Latn": ["maampazham", "mangai", "manga"], "en": ["mango"] } },
+    { "sourceId": "173944", "aliases": { "ta": ["வாழைப்பழம்"], "ta-Latn": ["vaazhaipazham", "vazhaipazham", "pazham"], "en": ["banana"] } },
+    { "sourceId": "173044", "aliases": { "ta": ["கொய்யாப்பழம்"], "ta-Latn": ["koyyapazham", "koiya"], "en": ["guava"] } },
+    { "sourceId": "169926", "aliases": { "ta": ["பப்பாளி"], "ta-Latn": ["pappali", "pappaya"], "en": ["papaya"] } },
+    { "sourceId": "174687", "aliases": { "ta": ["பலாப்பழம்"], "ta-Latn": ["palapazham", "chakka"], "en": ["jackfruit"] } },
+    { "sourceId": "169134", "aliases": { "ta": ["மாதுளை"], "ta-Latn": ["mathulai", "madhulai"], "en": ["pomegranate"] } },
+    { "sourceId": "167765", "aliases": { "ta": ["தர்பூசணி"], "ta-Latn": ["tharboosani"], "en": ["watermelon"] } },
+
+    { "sourceId": "169228", "aliases": { "ta": ["கத்திரிக்காய்"], "ta-Latn": ["kathirikkai", "kathrikai", "brinjal"], "en": ["brinjal", "aubergine", "eggplant"] } },
+    { "sourceId": "170483", "aliases": { "ta": ["முருங்கைக்காய்"], "ta-Latn": ["murungakkai", "murungai kai"], "en": ["drumstick vegetable", "moringa pod"] } },
+    { "sourceId": "168416", "aliases": { "ta": ["முருங்கை கீரை"], "ta-Latn": ["murungai keerai"], "en": ["moringa leaves", "drumstick leaves"] } },
+    { "sourceId": "169260", "aliases": { "ta": ["வெண்டைக்காய்"], "ta-Latn": ["vendakkai", "vendaikai"], "en": ["ladies finger", "okra", "bhindi"] } },
+    { "sourceId": "170000", "aliases": { "ta": ["வெங்காயம்"], "ta-Latn": ["vengayam"], "en": ["onion"] } },
+    { "sourceId": "170457", "aliases": { "ta": ["தக்காளி"], "ta-Latn": ["thakkali"], "en": ["tomato"] } },
+    { "sourceId": "170393", "aliases": { "ta": ["கேரட்"], "ta-Latn": ["carrot"], "en": ["carrot"] } },
+    { "sourceId": "168462", "aliases": { "ta": ["கீரை", "பசலைக்கீரை"], "ta-Latn": ["keerai", "pasalai keerai"], "en": ["spinach", "greens"] } },
+
+    { "sourceId": "169702", "aliases": { "ta": ["கேழ்வரகு", "ராகி"], "ta-Latn": ["ragi", "kezhvaragu", "kelvaragu"], "en": ["finger millet", "millet"] } },
+    { "sourceId": "169655", "aliases": { "ta": ["வெல்லம்", "சர்க்கரை"], "ta-Latn": ["vellam", "jaggery", "sarkarai"], "en": ["jaggery", "sugar"] } },
+    { "sourceId": "172430", "aliases": { "ta": ["வேர்க்கடலை"], "ta-Latn": ["verkadalai", "kadalai"], "en": ["peanut", "groundnut"] } },
+    { "sourceId": "169756", "aliases": { "ta": ["பச்சரிசி"], "ta-Latn": ["pacharisi", "raw rice"], "en": ["raw rice"] } },
+    { "sourceId": "172420", "aliases": { "ta": ["பருப்பு"], "ta-Latn": ["paruppu", "dal raw"], "en": ["lentils raw"] } },
+    { "sourceId": "173756", "aliases": { "ta": ["கொண்டைக்கடலை"], "ta-Latn": ["kondaikadalai", "chana"], "en": ["chickpea", "bengal gram"] } },
+
+    { "sourceId": "171265", "aliases": { "ta": ["பால்"], "ta-Latn": ["paal"], "en": ["milk"] } },
+    { "sourceId": "171284", "aliases": { "ta": ["தயிர் சாதா"], "ta-Latn": ["thayir plain"], "en": ["plain yoghurt"] } },
+    { "sourceId": "171287", "aliases": { "ta": ["முட்டை"], "ta-Latn": ["muttai"], "en": ["egg"] } },
+    { "sourceId": "175176", "aliases": { "ta": ["மீன்"], "ta-Latn": ["meen"], "en": ["fish"] } }
+  ]
+}

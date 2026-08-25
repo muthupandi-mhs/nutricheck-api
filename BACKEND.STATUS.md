@@ -18,7 +18,7 @@ of that rather than instead of it.
 | Routes | 31, versioned under `/v1` |
 | Tests | **156 green** — 60 unit, 96 Testcontainers integration |
 | Migrations | 4 applied (`0000`–`0003`) |
-| Corpus | 92 foods (13 USDA fixture + 79 curated), 415 aliases, 8 locales |
+| Corpus | **~8,000 foods** (7,929 USDA + 79 curated), 522 aliases, 8 locales |
 | Live AI | Verified against OpenAI. **$0.000385/resolve**, ~2.2 s |
 | Image | One OCI image, three commands (api / worker / migrate), non-root, 488 MB |
 
@@ -28,7 +28,8 @@ of that rather than instead of it.
 - Config validated at boot, pino logging with redaction, RFC 9457 errors, 3 health probes
 - **Auth** — email + password only. Argon2id, 15-min access JWT, rotating refresh with
   family reuse detection, throttled
-- **Corpus** — USDA CSV ingest, curated dish ingest, trigram search, custom foods
+- **Corpus** — full USDA Foundation + SR Legacy ingested (~7,900 ingredient rows),
+  curated Indian dishes, Tamil aliases attached to USDA rows, trigram search, custom foods
 - **Goals** — Mifflin–St Jeor, append-only with `effective_from`
 - **Logs** — commit with server-side arithmetic frozen at write, idempotent on
   `clientId`, batch drain, edit, timezone-correct day view
@@ -46,7 +47,6 @@ of that rather than instead of it.
 | **Eval harness** | The highest-value missing thing. Without it "the model picked the wrong chicken" is an anecdote, not a number |
 | **CI pipeline** | 156 tests that only run when someone remembers. A remote exists (`muthupandi-mhs/nutricheck-api`); nothing has ever gone through a pipeline |
 | Embeddings + RRF | Search is trigram-only. `food_embeddings` exists and is empty |
-| Full USDA ingest | Only the 13-row test fixture is loaded |
 | Insights / weight (M3) | Not started |
 | Password reset | Email+password with no recovery = a forgotten password is a lost account |
 | Server-side transcription | Backend does no speech recognition — by design, see §5 |
@@ -66,7 +66,8 @@ curl localhost:3000/health/ready
 Then seed a corpus — without this, search returns nothing:
 
 ```bash
-npm run ingest -w @nutricheck/ingest -- --fixture    # 13 USDA rows, used by tests
+npm run ingest -w @nutricheck/ingest -- --dir <unzipped USDA csv dir>   # ~7,900 ingredients
+npm run ingest -w @nutricheck/ingest -- --fixture    # 13-row test fixture only
 npm run ingest -w @nutricheck/ingest -- --curated    # 79 Indian dishes + aliases
 ```
 
@@ -197,7 +198,7 @@ Not bugs — things that are true and should not be discovered by surprise.
   **kcal and protein carry no such marker**, so a curated dish's calories look
   exactly as authoritative as a measured USDA row. That is the biggest honesty gap
   in the corpus.
-- **79 dishes is a seed, not coverage.** PLAN §5 reckons ~200 well-chosen dishes
+- **79 *dishes* is a seed** (ingredients are covered by USDA). PLAN §5 reckons ~200 well-chosen dishes
   covers a startling share of logs. `match_misses` records the exact words of every
   failed lookup — that is the curation queue, and it is already filling.
 - **`effort` is not wired.** The SDK on npm has no parameter for it, so both model

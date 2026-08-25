@@ -18,9 +18,22 @@ interface CuratedFood {
   aliases: Record<string, string[]>;
 }
 
+/**
+ * Attaches aliases to a food that already exists, identified by its source id.
+ *
+ * USDA already has mango and brinjal; what it lacks is the words a Tamil
+ * speaker types. Creating a duplicate row would fork the nutrition data for no
+ * reason — this points the existing row at more names.
+ */
+interface AliasAttachment {
+  sourceId: string;
+  aliases: Record<string, string[]>;
+}
+
 interface CuratedFile {
   source: string;
-  foods: CuratedFood[];
+  foods?: CuratedFood[];
+  attachTo?: AliasAttachment[];
 }
 
 export interface CuratedReport {
@@ -36,11 +49,18 @@ export async function ingestCurated(
   const file = JSON.parse(readFileSync(filePath, 'utf8')) as CuratedFile;
   const report: CuratedReport = { foods: 0, aliases: 0, portions: 0 };
 
+  if (file.attachTo?.length) {
+    report.aliases += await attachAliases(db, file.attachTo);
+  }
+
+  const foods = file.foods ?? [];
+  if (foods.length === 0) return report;
+
   await db.transaction(async (tx) => {
     const inserted = await tx
       .insert(schema.foods)
       .values(
-        file.foods.map((food) => ({
+        foods.map((food) => ({
           source: 'curated' as const,
           sourceId: food.key,
           name: food.name,
@@ -73,7 +93,7 @@ export async function ingestCurated(
     await tx
       .insert(schema.foodNutrients)
       .values(
-        file.foods.map((food) => ({
+        foods.map((food) => ({
           foodId: idByKey.get(food.key)!,
           kcal: food.per100g.kcal,
           proteinG: food.per100g.proteinG,
@@ -105,7 +125,7 @@ export async function ingestCurated(
     await tx.delete(schema.foodPortions).where(inArray(schema.foodPortions.foodId, foodIds));
     await tx.delete(schema.foodAliases).where(inArray(schema.foodAliases.foodId, foodIds));
 
-    const portionRows = file.foods.flatMap((food) =>
+    const portionRows = foods.flatMap((food) =>
       food.portions.map((p) => ({
         foodId: idByKey.get(food.key)!,
         label: p.label,
@@ -120,7 +140,7 @@ export async function ingestCurated(
 
     // Normalized with the SAME function the query uses. If these diverge the
     // alias index is built over bytes the query never produces.
-    const aliasRows = file.foods.flatMap((food) =>
+    const aliasRows = foods.flatMap((food) =>
       Object.entries(food.aliases).flatMap(([locale, names]) =>
         names.map((alias) => ({
           foodId: idByKey.get(food.key)!,
@@ -147,4 +167,58 @@ export async function ingestCurated(
   });
 
   return report;
+}
+
+/**
+ * Attach aliases to existing rows.
+ *
+ * A sourceId that matches nothing is reported rather than skipped: USDA
+ * reissues data and ids do move, and an alias silently attached to nothing is
+ * a search that quietly stops working.
+ */
+async function attachAliases(
+  db: Database,
+  attachments: AliasAttachment[],
+): Promise<number> {
+  const ids = attachments.map((a) => a.sourceId);
+  const rows = await db
+    .select({ id: schema.foods.id, sourceId: schema.foods.sourceId })
+    .from(schema.foods)
+    .where(inArray(schema.foods.sourceId, ids));
+
+  const bySourceId = new Map(rows.map((r) => [r.sourceId, r.id]));
+  const missing = ids.filter((id) => !bySourceId.has(id));
+  if (missing.length > 0) {
+    console.warn(
+      `  [warn] ${missing.length} alias target(s) not in the corpus: ${missing.join(', ')}`,
+    );
+  }
+
+  const values: Array<{ foodId: string; alias: string; locale: string }> = [];
+  const seen = new Set<string>();
+
+  for (const attachment of attachments) {
+    const foodId = bySourceId.get(attachment.sourceId);
+    if (!foodId) continue;
+    for (const [locale, names] of Object.entries(attachment.aliases)) {
+      for (const name of names) {
+        const alias = normalizeSearchText(name);
+        const key = `${foodId}:${alias}`;
+        if (!alias || seen.has(key)) continue;
+        seen.add(key);
+        values.push({ foodId, alias, locale });
+      }
+    }
+  }
+
+  if (values.length === 0) return 0;
+
+  await db
+    .insert(schema.foodAliases)
+    .values(values)
+    .onConflictDoNothing({
+      target: [schema.foodAliases.foodId, schema.foodAliases.alias],
+    });
+
+  return values.length;
 }

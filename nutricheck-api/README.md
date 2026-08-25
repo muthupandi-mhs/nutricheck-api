@@ -114,7 +114,7 @@ their Latin transliterations**, plus English. `தோசை`, `dosai`, `dosa` an
 npm run ingest -w @nutricheck/ingest -- --curated   # every file in curated/
 ```
 
-79 dishes, 415 aliases, 8 locales. Every `.json` in
+79 dishes, 522 aliases, 8 locales, on top of ~7,900 USDA ingredient rows. Every `.json` in
 [tools/ingest/curated/](tools/ingest/curated/) is loaded — adding a region is
 dropping in a file, not editing a list.
 
@@ -135,6 +135,24 @@ lookup. That is the curation queue, and it is already filling up.
 script; a miss means the dish is absent or its alias is. Both are an insert.
 
 ## Corpus
+
+Coverage is **layered**, and knowing which layer a gap belongs to is how you fix it:
+
+| Layer | Covers | Source | Rows |
+|---|---|---|---|
+| Ingredients | fruit, vegetables, meat, fish, dairy, grains | USDA Foundation + SR Legacy | ~7,900 |
+| Composite dishes | dosai, sambar, biryani, dal makhani | curated JSON | 79 |
+| Vocabulary | Tamil / Tanglish / Hindi / Bengali names for **both** layers | `food_aliases` | 522 |
+| What is still missing | — | `match_misses` | grows with use |
+
+You do not hand-curate mango. USDA has it; what it lacks is the word
+`மாம்பழம்`, which is an alias attached to the existing row — not a duplicate
+food. A file with `attachTo` adds names to rows that already exist.
+
+**A disambiguation trap worth knowing:** USDA "drumstick" overwhelmingly means
+*chicken* drumstick. முருங்கைக்காய் is "Drumstick pods". The Tamil aliases bind
+to the vegetable so a Tamil speaker cannot silently log poultry.
+
 
 ```bash
 # the committed 13-food subset — no download, used by the tests
