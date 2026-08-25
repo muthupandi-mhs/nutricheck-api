@@ -1,0 +1,671 @@
+import { eq, schema } from '@nutricheck/database';
+import { ingestUsda } from '@nutricheck/ingest';
+import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
+import Redis from 'ioredis';
+import { ConfigService } from '@nestjs/config';
+import { AiRunsService } from '../src/modules/ai/ai-runs.service';
+import {
+  AiRefusedError,
+  AiService,
+  AiUnavailableError,
+  type AiCallResult,
+  type RerankItem,
+} from '../src/modules/ai/ai.service';
+import type { ParseResult, RerankResult } from '../src/modules/ai/ai.schemas';
+import { FoodsService } from '../src/modules/foods/foods.service';
+import { GoalsService } from '../src/modules/goals/goals.service';
+import { LogsService } from '../src/modules/logs/logs.service';
+import { QuotaService } from '../src/modules/quota/quota.service';
+import { DraftStoreService } from '../src/modules/resolver/draft-store.service';
+import { PortionPrefillService } from '../src/modules/resolver/portion-prefill.service';
+import { ResolverService } from '../src/modules/resolver/resolver.service';
+import { startTestPostgres, type TestDatabase } from './postgres';
+
+const FIXTURES = join(__dirname, '..', '..', '..', 'tools', 'ingest', 'fixtures');
+
+/**
+ * A scripted stand-in for the model.
+ *
+ * The entire point of AiService being an abstract class: the pipeline — portion
+ * prefill, batched candidate search, the constrained pick, the arithmetic, the
+ * cache, the miss log — is exercised end to end against real Postgres and real
+ * Redis, with zero network and zero cost, and the failure modes that must not
+ * crash the resolver can be produced on demand.
+ */
+class FakeAi extends AiService {
+  parseCalls = 0;
+  rerankCalls = 0;
+  lastKnownUnits: ReadonlyArray<{ label: string; grams: number }> = [];
+  parseResult: ParseResult = { items: [], unresolved: [] };
+  /** Chooses a candidate id per item index. Defaults to the first. */
+  chooser: (item: RerankItem) => { foodId: string; confidence: 'high' | 'low' } = (item) => ({
+    foodId: item.candidates[0]!.id,
+    confidence: 'high',
+  });
+  failWith: Error | null = null;
+
+  get isConfigured(): boolean {
+    return true;
+  }
+
+  async parse(
+    _phrase: string,
+    knownUnits: ReadonlyArray<{ label: string; grams: number }>,
+  ): Promise<AiCallResult<ParseResult>> {
+    this.parseCalls += 1;
+    this.lastKnownUnits = knownUnits;
+    if (this.failWith) throw this.failWith;
+    return wrap(this.parseResult, 'parse-v1');
+  }
+
+  async rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>> {
+    this.rerankCalls += 1;
+    if (this.failWith) throw this.failWith;
+    return wrap(
+      {
+        picks: items.map((item) => ({ itemIndex: item.index, ...this.chooser(item) })),
+      },
+      'rerank-v1',
+    );
+  }
+}
+
+function wrap<T>(value: T, promptVersion: string): AiCallResult<T> {
+  return {
+    value,
+    usage: {
+      inputTokens: 50,
+      cacheReadTokens: 1200,
+      cacheWriteTokens: 0,
+      outputTokens: 150,
+    },
+    latencyMs: 5,
+    stopReason: 'end_turn',
+    model: 'claude-opus-5',
+    promptVersion,
+    raw: { fake: true },
+  };
+}
+
+describe('resolver', () => {
+  let pg: TestDatabase;
+  let redis: Redis;
+  let ai: FakeAi;
+  let resolver: ResolverService;
+  let foods: FoodsService;
+  let logs: LogsService;
+  let userId: string;
+  let lentilsId: string;
+  let rotiId: string;
+  let chickenId: string;
+
+  beforeAll(async () => {
+    pg = await startTestPostgres();
+    redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+      db: 15, // a scratch database, so a test run cannot evict real cache keys
+      maxRetriesPerRequest: null,
+    });
+
+    await ingestUsda(pg.db, FIXTURES);
+
+    const config = {
+      get: (key: string) =>
+        ({ RESOLVE_DAILY_QUOTA: 50, RESOLVE_USER_DAILY_SPEND_USD: 1 })[key],
+    } as unknown as ConfigService<never, true>;
+
+    ai = new FakeAi();
+    foods = new FoodsService(pg.db);
+    logs = new LogsService(pg.db, new GoalsService(pg.db));
+    const drafts = new DraftStoreService(redis);
+    const portions = new PortionPrefillService(pg.db);
+    const quota = new QuotaService(pg.db, redis, config);
+
+    resolver = new ResolverService(
+      pg.db,
+      ai,
+      new AiRunsService(pg.db),
+      foods,
+      portions,
+      drafts,
+      quota,
+    );
+
+    lentilsId = await foodIdBySourceId('169705');
+    rotiId = await foodIdBySourceId('172730');
+    chickenId = await foodIdBySourceId('747447');
+  });
+
+  afterAll(async () => {
+    await redis?.flushdb();
+    await redis?.quit();
+    await pg?.stop();
+  });
+
+  beforeEach(async () => {
+    await redis.flushdb();
+    ai.failWith = null;
+    ai.parseCalls = 0;
+    ai.rerankCalls = 0;
+    ai.chooser = (item) => ({ foodId: item.candidates[0]!.id, confidence: 'high' });
+    userId = await newUser();
+  });
+
+  async function newUser(): Promise<string> {
+    const [user] = await pg.db
+      .insert(schema.users)
+      .values({ email: `resolve-${randomUUID()}@example.com` })
+      .returning({ id: schema.users.id });
+    return user!.id;
+  }
+
+  async function foodIdBySourceId(sourceId: string): Promise<string> {
+    const [row] = await pg.db
+      .select({ id: schema.foods.id })
+      .from(schema.foods)
+      .where(eq(schema.foods.sourceId, sourceId));
+    return row!.id;
+  }
+
+  describe('the happy path', () => {
+    beforeEach(() => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: '180g chicken',
+            foodPhrase: 'chicken',
+            quantityType: 'exact_mass',
+            quantityValue: 180,
+            quantityUnit: 'g',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: chickenId, confidence: 'high' });
+    });
+
+    it('turns a phrase into a resolved item with computed nutrients', async () => {
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: '180g chicken',
+        source: 'text',
+      });
+
+      expect(draft.items).toHaveLength(1);
+      expect(draft.items[0]?.food?.id).toBe(chickenId);
+      // 120 kcal/100g x 180 g. Arithmetic, not generation.
+      expect(draft.items[0]?.nutrients?.kcal).toBe(216);
+    });
+
+    it('carries unmeasured fiber through as unknown rather than zero', async () => {
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: '180g chicken',
+        source: 'text',
+      });
+      expect(draft.items[0]?.nutrients?.fiberG).toBeNull();
+      expect(draft.items[0]?.nutrients?.fiberState).toBe('unknown');
+    });
+
+    it('ships every candidate so the runner-up expander is instant', async () => {
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: '180g chicken',
+        source: 'text',
+      });
+      expect(draft.items[0]?.candidates.length).toBeGreaterThan(1);
+    });
+
+    it('writes nothing to the log — a draft is not an entry', async () => {
+      await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      const entries = await pg.db
+        .select({ id: schema.logEntries.id })
+        .from(schema.logEntries)
+        .where(eq(schema.logEntries.userId, userId));
+      expect(entries).toEqual([]);
+    });
+
+    it('records an ai_run per model call with a cost', async () => {
+      await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      const runs = await pg.db
+        .select()
+        .from(schema.aiRuns)
+        .where(eq(schema.aiRuns.userId, userId));
+
+      expect(runs.map((r) => r.step).sort()).toEqual(['parse', 'rerank']);
+      expect(Number(runs[0]!.costUsd)).toBeGreaterThan(0);
+      expect(runs[0]!.cacheReadTokens).toBe(1200);
+    });
+
+    it('streams parsed before resolved so the sheet fills in', async () => {
+      const order: string[] = [];
+      for await (const event of resolver.resolve(userId, {
+        phrase: '180g chicken',
+        source: 'text',
+      })) {
+        order.push(event.event);
+      }
+      expect(order).toEqual(['parsed', 'resolved', 'done']);
+    });
+  });
+
+  describe('quantities', () => {
+    it('never invents an amount when the phrase gives none', async () => {
+      // "Some nuts" specifies nothing. A silent 100 g is where a wrong week starts.
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: 'some lentils',
+            foodPhrase: 'lentils',
+            quantityType: 'none_given',
+            quantityValue: null,
+            quantityUnit: null,
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: lentilsId, confidence: 'high' });
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: 'some lentils',
+        source: 'text',
+      });
+
+      expect(draft.items[0]?.quantity.grams).toBeNull();
+      expect(draft.items[0]?.quantity.type).toBe('none_given');
+      // No amount means no nutrient total. The sheet asks instead.
+      expect(draft.items[0]?.nutrients).toBeNull();
+    });
+
+    it('offers a range for a personal unit it has never measured', async () => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: 'a bowl of lentils',
+            foodPhrase: 'lentils',
+            quantityType: 'personal_unit',
+            quantityValue: 1,
+            quantityUnit: 'bowl',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: lentilsId, confidence: 'high' });
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: 'a bowl of lentils',
+        source: 'text',
+      });
+
+      expect(draft.items[0]?.quantity.grams).toBeNull();
+      // A range here is honesty; a range on "180 g chicken" would be noise.
+      expect(draft.items[0]?.quantity.range).toEqual([150, 350]);
+    });
+
+    it('uses a learned personal unit and drops the range', async () => {
+      await pg.db.insert(schema.userPortions).values({
+        userId,
+        unitLabel: 'bowl',
+        foodId: null,
+        grams: 210,
+      });
+
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: 'a bowl of lentils',
+            foodPhrase: 'lentils',
+            quantityType: 'personal_unit',
+            quantityValue: 1,
+            quantityUnit: 'bowl',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: lentilsId, confidence: 'high' });
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: 'a bowl of lentils',
+        source: 'text',
+      });
+
+      expect(draft.items[0]?.quantity.grams).toBe(210);
+      expect(draft.items[0]?.quantity.source).toBe('user_portion');
+      expect(draft.items[0]?.quantity.range).toBeNull();
+      // 116 kcal/100g x 210 g
+      expect(draft.items[0]?.nutrients?.kcal).toBeCloseTo(243.6, 1);
+    });
+
+    it('prefills learned units into the parse call, not the system prompt', async () => {
+      // The prompt is the cached prefix. Per-user context in it would key the
+      // cache per user and roughly triple the bill, silently.
+      await pg.db.insert(schema.userPortions).values({
+        userId,
+        unitLabel: 'bowl',
+        foodId: null,
+        grams: 210,
+      });
+
+      ai.parseResult = { items: [], unresolved: [] };
+      await resolver.resolveOnce(userId, { phrase: 'a bowl', source: 'text' });
+
+      expect(ai.lastKnownUnits).toEqual([{ label: 'bowl', grams: 210 }]);
+    });
+
+    it('converts stated masses in other units', async () => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: '0.2 kg lentils',
+            foodPhrase: 'lentils',
+            quantityType: 'exact_mass',
+            quantityValue: 0.2,
+            quantityUnit: 'kg',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: lentilsId, confidence: 'high' });
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: '0.2 kg lentils',
+        source: 'text',
+      });
+      expect(draft.items[0]?.quantity.grams).toBe(200);
+    });
+  });
+
+  describe('multi-item phrases', () => {
+    it('resolves every item from one batched candidate search', async () => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: 'two rotis',
+            foodPhrase: 'roti',
+            quantityType: 'exact_mass',
+            quantityValue: 90,
+            quantityUnit: 'g',
+          },
+          {
+            matchedText: 'dal',
+            foodPhrase: 'lentils',
+            quantityType: 'exact_mass',
+            quantityValue: 200,
+            quantityUnit: 'g',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = (item) =>
+        item.phrase === 'roti'
+          ? { foodId: rotiId, confidence: 'high' }
+          : { foodId: lentilsId, confidence: 'high' };
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: 'two rotis and dal',
+        source: 'text',
+      });
+
+      expect(draft.items).toHaveLength(2);
+      expect(draft.items.map((i) => i.food?.id)).toEqual([rotiId, lentilsId]);
+      // One re-rank call for the whole meal, not one per item.
+      expect(ai.rerankCalls).toBe(1);
+    });
+  });
+
+  describe('the phrase cache', () => {
+    beforeEach(() => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: '180g chicken',
+            foodPhrase: 'chicken',
+            quantityType: 'exact_mass',
+            quantityValue: 180,
+            quantityUnit: 'g',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: chickenId, confidence: 'high' });
+    });
+
+    it('serves a repeated phrase without calling the model', async () => {
+      await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      expect(ai.parseCalls).toBe(1);
+
+      const again = await resolver.resolveOnce(userId, {
+        phrase: '180g chicken',
+        source: 'text',
+      });
+
+      expect(ai.parseCalls).toBe(1);
+      expect(again.cached).toBe(true);
+      expect(again.items[0]?.nutrients?.kcal).toBe(216);
+    });
+
+    it('gives the cached draft a fresh id so two sheets never collide', async () => {
+      const first = await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      const second = await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      expect(second.draftId).not.toBe(first.draftId);
+    });
+
+    it('normalizes trivial differences', async () => {
+      await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      await resolver.resolveOnce(userId, { phrase: '  180G Chicken! ', source: 'text' });
+      expect(ai.parseCalls).toBe(1);
+    });
+
+    it('does not share a cached answer between users', async () => {
+      // The parse is prefilled with the user's own personal units, so two people
+      // typing the same phrase must not share an answer.
+      await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      await resolver.resolveOnce(await newUser(), { phrase: '180g chicken', source: 'text' });
+      expect(ai.parseCalls).toBe(2);
+    });
+
+    it('records a zero-cost ai_run for a cache hit', async () => {
+      // Otherwise the dashboards only see misses and the pipeline looks more
+      // expensive per log than it is.
+      await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+      await resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' });
+
+      const runs = await pg.db
+        .select()
+        .from(schema.aiRuns)
+        .where(eq(schema.aiRuns.userId, userId));
+      const hit = runs.find((r) => r.cached);
+      expect(hit).toBeDefined();
+      expect(Number(hit!.costUsd)).toBe(0);
+    });
+  });
+
+  describe('failure paths', () => {
+    it('is not an error when nothing parses', async () => {
+      // "We couldn't read that" is a plain message and a fallback to search,
+      // not a 500.
+      ai.parseResult = { items: [], unresolved: ['blorptaculous'] };
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: 'blorptaculous',
+        source: 'text',
+      });
+
+      expect(draft.items).toEqual([]);
+      expect(draft.unresolved).toEqual([{ text: 'blorptaculous' }]);
+    });
+
+    it('keeps resolved items when only some match', async () => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: '200g lentils',
+            foodPhrase: 'lentils',
+            quantityType: 'exact_mass',
+            quantityValue: 200,
+            quantityUnit: 'g',
+          },
+          {
+            matchedText: 'zzzznotafood',
+            foodPhrase: 'zzzznotafood',
+            quantityType: 'none_given',
+            quantityValue: null,
+            quantityUnit: null,
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: lentilsId, confidence: 'high' });
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: '200g lentils and zzzznotafood',
+        source: 'text',
+      });
+
+      expect(draft.items).toHaveLength(1);
+      // The unmatched words become a scoped search row rather than vanishing.
+      expect(draft.unresolved).toEqual([{ text: 'zzzznotafood' }]);
+    });
+
+    it('logs a miss with the exact words the user typed', async () => {
+      // The curation queue: searchable and groupable, which is what makes
+      // "which dishes next" a weekly query rather than a guess.
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: 'zzzznotafood',
+            foodPhrase: 'zzzznotafood',
+            quantityType: 'none_given',
+            quantityValue: null,
+            quantityUnit: null,
+          },
+        ],
+        unresolved: [],
+      };
+
+      await resolver.resolveOnce(userId, { phrase: 'zzzznotafood', source: 'text' });
+
+      const misses = await pg.db
+        .select()
+        .from(schema.matchMisses)
+        .where(eq(schema.matchMisses.userId, userId));
+      expect(misses[0]?.itemText).toBe('zzzznotafood');
+    });
+
+    it('degrades to 503 when the model is unavailable', async () => {
+      ai.failWith = new AiUnavailableError('upstream down');
+      await expect(
+        resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' }),
+      ).rejects.toMatchObject({ problem: { status: 503 } });
+    });
+
+    it('degrades to 503 on a refusal rather than crashing', async () => {
+      ai.failWith = new AiRefusedError('cyber');
+      await expect(
+        resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' }),
+      ).rejects.toMatchObject({ problem: { status: 503 } });
+    });
+
+    it('refunds the quota unit when the call fails', async () => {
+      // A failed resolve should not cost the user one of their daily logs.
+      ai.failWith = new AiUnavailableError('upstream down');
+      await expect(
+        resolver.resolveOnce(userId, { phrase: '180g chicken', source: 'text' }),
+      ).rejects.toBeDefined();
+
+      const used = await redis.get(
+        `quota:resolve:${new Date().toISOString().slice(0, 10)}:${userId}`,
+      );
+      expect(Number(used ?? 0)).toBe(0);
+    });
+
+    it('does not cache a partially resolved draft', async () => {
+      // Caching a bad result would freeze it for 24 hours.
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: 'zzzznotafood',
+            foodPhrase: 'zzzznotafood',
+            quantityType: 'none_given',
+            quantityValue: null,
+            quantityUnit: null,
+          },
+        ],
+        unresolved: [],
+      };
+      await resolver.resolveOnce(userId, { phrase: 'zzzznotafood', source: 'text' });
+      await resolver.resolveOnce(userId, { phrase: 'zzzznotafood', source: 'text' });
+      expect(ai.parseCalls).toBe(2);
+    });
+  });
+
+  describe('low confidence', () => {
+    it('flags the row and logs it for curation', async () => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: 'chicken',
+            foodPhrase: 'chicken',
+            quantityType: 'exact_mass',
+            quantityValue: 100,
+            quantityUnit: 'g',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = (item) => ({ foodId: item.candidates[0]!.id, confidence: 'low' });
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: 'chicken',
+        source: 'text',
+      });
+
+      expect(draft.items[0]?.confidence).toBe('low');
+      const misses = await pg.db
+        .select()
+        .from(schema.matchMisses)
+        .where(eq(schema.matchMisses.userId, userId));
+      expect(misses).toHaveLength(1);
+    });
+  });
+
+  describe('draft to commit', () => {
+    it('a draft can be committed and freezes the same numbers', async () => {
+      ai.parseResult = {
+        items: [
+          {
+            matchedText: '180g chicken',
+            foodPhrase: 'chicken',
+            quantityType: 'exact_mass',
+            quantityValue: 180,
+            quantityUnit: 'g',
+          },
+        ],
+        unresolved: [],
+      };
+      ai.chooser = () => ({ foodId: chickenId, confidence: 'high' });
+
+      const draft = await resolver.resolveOnce(userId, {
+        phrase: '180g chicken',
+        source: 'text',
+      });
+
+      const { entry } = await logs.commit(userId, {
+        clientId: randomUUID(),
+        loggedAt: '2026-08-26T12:00:00.000Z',
+        meal: 'lunch',
+        source: 'text',
+        phrase: draft.phrase,
+        draftId: draft.draftId,
+        items: draft.items.map((item) => ({
+          foodId: item.food!.id,
+          grams: item.quantity.grams!,
+          quantityType: item.quantity.type,
+          quantitySource: item.quantity.source,
+          learnedUnitLabel: null,
+        })),
+      });
+
+      // The server recomputes at commit; the draft's numbers were never trusted.
+      expect(entry.items[0]?.nutrients.kcal).toBe(216);
+      expect(entry.phrase).toBe('180g chicken');
+      expect(entry.source).toBe('text');
+    });
+  });
+});

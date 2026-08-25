@@ -82,6 +82,28 @@ Three probes answering three different questions. Do not conflate them.
 A liveness probe that checks the database restarts every replica during a database
 blip, turning a degradation into an outage.
 
+## The resolver
+
+```bash
+# needs a key; without one the route returns 503 and the rest of the API works
+export ANTHROPIC_API_KEY=sk-ant-...
+
+curl -X POST localhost:3000/v1/resolve   -H "authorization: Bearer $ACCESS" -H 'content-type: application/json'   -d '{"phrase":"two rotis and a bowl of dal","source":"text"}'
+```
+
+Streams by default (`parsed` -> `resolved` -> `done`); send `Accept: application/json`
+for a single draft. **A draft is not a log** — `POST /v1/logs` commits it, which is
+what makes "never auto-commit a parse" a property of the API rather than client
+discipline.
+
+The model never emits a nutrient value. It reads what was eaten and how much;
+identification is a constrained pick from an enum of real row ids, so an invented
+food is unrepresentable; every number is `per_100g x grams / 100`.
+
+**Known gap:** the SDK on npm (0.70.1) has no `effort` parameter, so both calls run
+at the default rather than the medium/low the design specifies. Costed at default
+effort until the SDK exposes it.
+
 ## Corpus
 
 ```bash
@@ -169,7 +191,11 @@ M0 in progress. Verified working end to end (`docker compose up` -> healthy):
       through the same commit path (no second way to write a log entry)
 - [x] `GET /v1/suggestions/recents` — the repeat strip: frequency x recency with
       time-of-day weighting, foods and saved meals interleaved
-- [x] Tests — 60 unit + 57 Testcontainers integration, all green
+- [x] **The resolver** — `POST /v1/resolve`: portion prefill, structured parse,
+      one batched candidate search, constrained re-rank, arithmetic, SSE draft.
+      Writes nothing to the log. Phrase cache, ai_runs cost accounting, miss log,
+      circuit breaker, quota + spend ceiling
+- [x] Tests — 60 unit + 83 Testcontainers integration, all green
 **M1 core is complete — the API is fully usable with zero AI.** Remaining:
 
 - [ ] Embeddings + RRF fusion (the second half of hybrid search)

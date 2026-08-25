@@ -34,6 +34,14 @@ const BONUS_CUSTOM = sql.raw('0.30');
 const BONUS_LOGGED = sql.raw('0.15');
 const BONUS_GENERIC = sql.raw('0.05');
 
+interface CandidateRow extends Record<string, unknown> {
+  ord: number;
+  id: string;
+  name: string;
+  brand: string | null;
+  kcal_per_100g: number;
+}
+
 interface SearchRow extends Record<string, unknown> {
   id: string;
   name: string;
@@ -124,6 +132,86 @@ export class FoodsService {
 
       return result.rows.map(toSearchResult);
     });
+  }
+
+/**
+   * Candidate search for the resolver: all N item phrases in ONE query.
+   *
+   * A three-item meal issuing three round trips is 200ms instead of 40ms, and
+   * it compounds on the five-item meals that are the whole argument for
+   * parsing. The LATERAL join ranks each phrase independently against the same
+   * index, so this costs one plan and one round trip regardless of N.
+   */
+  async searchMany(
+    userId: string,
+    phrases: string[],
+    perPhrase = 8,
+  ): Promise<Map<number, FoodSummary[]>> {
+    const normalized = phrases.map(normalizeQuery);
+    const byIndex = new Map<number, FoodSummary[]>();
+    phrases.forEach((_, index) => byIndex.set(index, []));
+
+    const usable = normalized.filter((p) => p.length > 0);
+    if (usable.length === 0) return byIndex;
+
+    await this.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SET LOCAL pg_trgm.word_similarity_threshold = ${sql.raw(
+          String(WORD_SIMILARITY_THRESHOLD),
+        )}`,
+      );
+
+      const result = await tx.execute<CandidateRow>(sql`
+        WITH phrases AS (
+          -- Bound as a single JSON parameter, not as a JS array: Drizzle's sql
+          -- template expands an array into a parameter LIST (the shape IN (...)
+          -- wants), which Postgres then rejects as a malformed array literal.
+          SELECT value AS phrase, ordinality AS ord
+          FROM json_array_elements_text(${JSON.stringify(normalized)}::json)
+            WITH ORDINALITY AS t(value, ordinality)
+        ),
+        logged AS (
+          SELECT DISTINCT li.food_id
+          FROM log_items li
+          JOIN log_entries le ON le.id = li.entry_id
+          WHERE le.user_id = ${userId}
+        )
+        SELECT ranked.ord, ranked.id, ranked.name, ranked.brand, ranked.kcal_per_100g
+        FROM phrases
+        CROSS JOIN LATERAL (
+          SELECT
+            phrases.ord,
+            f.id,
+            f.name,
+            f.brand,
+            n.kcal AS kcal_per_100g,
+            word_similarity(phrases.phrase, f.search_text)
+              + CASE WHEN f.source = 'user' THEN ${BONUS_CUSTOM} ELSE 0.0 END
+              + CASE WHEN logged.food_id IS NOT NULL THEN ${BONUS_LOGGED} ELSE 0.0 END
+              + CASE WHEN f.is_generic THEN ${BONUS_GENERIC} ELSE 0.0 END AS rank
+          FROM foods f
+          JOIN food_nutrients n ON n.food_id = f.id
+          LEFT JOIN logged ON logged.food_id = f.id
+          WHERE f.search_text %> phrases.phrase
+            AND (f.created_by_user_id IS NULL OR f.created_by_user_id = ${userId})
+          ORDER BY rank DESC, f.name ASC
+          LIMIT ${perPhrase}
+        ) AS ranked
+      `);
+
+      for (const row of result.rows) {
+        // WITH ORDINALITY is 1-based; the caller thinks in array indices.
+        const index = Number(row.ord) - 1;
+        byIndex.get(index)?.push({
+          id: row.id,
+          name: row.name,
+          brand: row.brand,
+          kcalPer100g: Number(row.kcal_per_100g),
+        });
+      }
+    });
+
+    return byIndex;
   }
 
   async findById(id: string): Promise<FoodDetail> {

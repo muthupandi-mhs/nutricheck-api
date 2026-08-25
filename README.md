@@ -7,7 +7,7 @@ AI nutrition tracker. Daily calories, protein and fiber.
 | Path | What it is |
 |---|---|
 | **[nutricheck-api/](nutricheck-api/)** | Backend — NestJS service, Postgres, Redis, Docker. Start here to run anything |
-| [nutricheck/](nutricheck/) | React Native app. Own git repo, ignored by this one |
+| [nutricheck/](nutricheck/) | React Native app. Own git repo, ignored by this one — see **[MOBILEAPP.STATUS.md](MOBILEAPP.STATUS.md)** |
 | [docs/](docs/) | Product, flows and technical design — shared by both |
 | [design/](design/) | Design canvas artboards |
 
