@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+  CreateCustomFood,
   FoodDetail,
   FoodSearchResult,
   FoodSummary,
@@ -100,6 +101,10 @@ export class FoodsService {
           JOIN food_nutrients n ON n.food_id = f.id
           LEFT JOIN logged ON logged.food_id = f.id
           WHERE f.search_text %> ${normalized}
+            -- Corpus rows are owned by nobody; a custom food belongs to exactly
+            -- one user. Without this filter one person's "Mum's dal" shows up
+            -- in every other account's search.
+            AND (f.created_by_user_id IS NULL OR f.created_by_user_id = ${userId})
         )
         SELECT
           ranked.*,
@@ -169,6 +174,55 @@ export class FoodsService {
       },
       portions,
     };
+  }
+
+  /**
+   * Create a custom food.
+   *
+   * Two fields and reusable afterwards: this is where a user lands when the
+   * corpus has nothing (USER-FLOWS §8), and losing that entry would mean asking
+   * them to re-type it every time they eat it.
+   */
+  async createCustom(userId: string, input: CreateCustomFood): Promise<FoodDetail> {
+    const id = await this.db.transaction(async (tx) => {
+      const [food] = await tx
+        .insert(schema.foods)
+        .values({
+          source: 'user',
+          // Unique within (source, source_id); a per-user namespace keeps two
+          // people naming the same dish from colliding on the upsert key.
+          sourceId: `${userId}:${input.name.trim().toLowerCase()}`,
+          name: input.name.trim(),
+          brand: input.brand,
+          isGeneric: false,
+          searchText: normalizeQuery(`${input.name} ${input.brand ?? ''}`),
+          createdByUserId: userId,
+        })
+        .returning({ id: schema.foods.id });
+
+      await tx.insert(schema.foodNutrients).values({
+        foodId: food!.id,
+        kcal: input.per100g.kcal,
+        proteinG: input.per100g.proteinG,
+        // The user is the source here, so a value they entered is 'known' and a
+        // value they left blank stays unknown rather than becoming zero.
+        fiberG: input.per100g.fiberState === 'unknown' ? null : input.per100g.fiberG,
+        fiberState: input.per100g.fiberState,
+      });
+
+      if (input.defaultPortionGrams) {
+        await tx.insert(schema.foodPortions).values({
+          foodId: food!.id,
+          label: '1 serving',
+          grams: input.defaultPortionGrams,
+          isDefault: true,
+        });
+      }
+
+      return food!.id;
+    });
+
+    return this.findById(id);
   }
 
   /** The compact projection the resolver serializes into the re-rank prompt. */

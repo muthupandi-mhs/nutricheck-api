@@ -1,8 +1,11 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { FoodDetail, FoodSearchResult } from '@nutricheck/contracts';
+import { CreateCustomFood, type FoodDetail, type FoodSearchResult } from '@nutricheck/contracts';
+import { createZodDto } from '../../common/zod/zod-dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { FoodSearchQueryDto } from './foods.dto';
+
+class CreateCustomFoodDto extends createZodDto(CreateCustomFood) {}
 import { FoodsService } from './foods.service';
 
 /**
@@ -22,6 +25,19 @@ export class FoodsController {
     @Query() query: FoodSearchQueryDto,
   ): Promise<FoodSearchResult[]> {
     return this.foods.search(userId, query.q, query.limit);
+  }
+
+  /**
+   * Where every no-match lands. Two fields, reusable afterwards — asking the
+   * user to re-type a food they eat weekly is how a tracker gets deleted.
+   */
+  @Post('custom')
+  @ApiOperation({ summary: 'Create a food the corpus does not have' })
+  createCustom(
+    @CurrentUser('sub') userId: string,
+    @Body() body: CreateCustomFoodDto,
+  ): Promise<FoodDetail> {
+    return this.foods.createCustom(userId, body);
   }
 
   @Get(':id')

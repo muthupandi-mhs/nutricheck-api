@@ -15,6 +15,13 @@
       "when": 1787683720715,
       "tag": "0001_auth_email_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787688841922,
+      "tag": "0002_food_owner",
+      "breakpoints": true
     }
   ]
 }

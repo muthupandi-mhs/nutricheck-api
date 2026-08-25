@@ -162,10 +162,18 @@ M0 in progress. Verified working end to end (`docker compose up` -> healthy):
       append-only rows resolved by `effective_from`
 - [x] `POST /v1/logs` — nutrients recomputed server-side and frozen, idempotent
       on `clientId` under concurrency, batch drain, timezone-correct day view
-- [x] Tests — 48 unit + 34 Testcontainers integration, all green
+- [x] `POST /v1/foods/custom` — where every no-match lands, owner-scoped so one
+      user's food never appears in another's search
+- [x] `PATCH /v1/logs/:id` — items replaced wholesale and re-frozen
+- [x] Saved meals — create from items or from an entry that worked, one-tap log
+      through the same commit path (no second way to write a log entry)
+- [x] `GET /v1/suggestions/recents` — the repeat strip: frequency x recency with
+      time-of-day weighting, foods and saved meals interleaved
+- [x] Tests — 60 unit + 57 Testcontainers integration, all green
+**M1 core is complete — the API is fully usable with zero AI.** Remaining:
+
 - [ ] Embeddings + RRF fusion (the second half of hybrid search)
 - [ ] CI pipeline
-- [ ] Recents / saved meals (the two-second repeat route)
 
 Known gaps worth naming: the image is 488MB against a 400MB target (the OTel
 packages and the Debian base dominate); search is trigram-only, so `food_embeddings`

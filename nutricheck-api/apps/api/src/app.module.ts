@@ -13,6 +13,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { FoodsModule } from './modules/foods/foods.module';
 import { GoalsModule } from './modules/goals/goals.module';
 import { LogsModule } from './modules/logs/logs.module';
+import { MealsModule } from './modules/meals/meals.module';
+import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -78,6 +80,8 @@ import { UsersModule } from './modules/users/users.module';
     FoodsModule,
     GoalsModule,
     LogsModule,
+    MealsModule,
+    SuggestionsModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

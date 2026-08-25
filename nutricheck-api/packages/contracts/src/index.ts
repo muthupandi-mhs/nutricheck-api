@@ -15,3 +15,5 @@ export * from './resolve';
 export * from './logs';
 export * from './profile';
 export * from './auth';
+export * from './meals';
+export * from './suggestions';

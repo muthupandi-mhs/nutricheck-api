@@ -28,6 +28,14 @@ export const foods = pgTable(
      */
     isGeneric: boolean('is_generic').default(false).notNull(),
     searchText: text('search_text').notNull(),
+    /**
+     * Owner of a custom food. NULL for every corpus row.
+     *
+     * Without this a food created by one user is visible in everyone's search:
+     * source='user' says how the row got here, not who it belongs to. Search
+     * filters on (created_by IS NULL OR created_by = :userId).
+     */
+    createdByUserId: uuid('created_by_user_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -35,6 +43,7 @@ export const foods = pgTable(
     uniqueIndex('foods_source_source_id_uq').on(t.source, t.sourceId),
     index('foods_search_text_trgm_idx').using('gin', sql`${t.searchText} gin_trgm_ops`),
     index('foods_is_generic_idx').on(t.isGeneric),
+    index('foods_created_by_idx').on(t.createdByUserId),
   ],
 );
 

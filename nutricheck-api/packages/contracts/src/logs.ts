@@ -105,3 +105,17 @@ export const DaySummary = z.object({
   entries: z.array(LogEntry),
 });
 export type DaySummary = z.infer<typeof DaySummary>;
+
+/**
+ * Edit an entry. Items are REPLACED wholesale rather than patched per item:
+ * the confirm sheet edits a whole meal, and a partial item patch would need a
+ * stable per-item identity the client does not have after a re-parse.
+ *
+ * Nutrients are recomputed and re-frozen from the corpus, exactly as on commit.
+ */
+export const UpdateLogEntry = z.object({
+  meal: MealSlot.optional(),
+  loggedAt: Instant.optional(),
+  items: z.array(CommitItem).min(1).max(25).optional(),
+});
+export type UpdateLogEntry = z.infer<typeof UpdateLogEntry>;
