@@ -12,6 +12,7 @@
 import { createDatabase, createPool } from '@nutricheck/database';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fetchUsdaReleases } from './fetch-usda';
 import { ingestCurated } from './ingest-curated';
 import { ingestUsda } from './ingest-usda';
 
@@ -25,13 +26,15 @@ async function main(): Promise<void> {
   if (!url) throw new Error('DATABASE_URL is required');
 
   const curated = process.argv.includes('--curated');
+  const download = process.argv.includes('--download');
   const useFixture = process.argv.includes('--fixture');
   const dir = useFixture ? join(__dirname, '..', 'fixtures') : arg('dir');
 
-  if (!curated && !dir) {
+  if (!curated && !download && !dir) {
     throw new Error(
-      'Pass --dir <unzipped FoodData Central csv directory>, --fixture for the ' +
-        'committed subset, or --curated for the curated dish tables.',
+      'Pass --download to fetch the pinned USDA releases, --dir <unzipped ' +
+        'FoodData Central csv directory> for one you already have, --fixture ' +
+        'for the committed test subset, or --curated for the dish tables.',
     );
   }
 
@@ -41,6 +44,27 @@ async function main(): Promise<void> {
   const started = Date.now();
 
   try {
+    if (download) {
+      // Pinned by URL AND checksum in usda-sources.json. A mismatch is fatal:
+      // FDC replaces the file behind a URL, and quietly ingesting a different
+      // release is how nutrition data drifts with nobody noticing.
+      console.log('[ingest] fetching pinned USDA releases');
+      const releases = await fetchUsdaReleases(
+        join(__dirname, '..', '..', '..', '.usda'),
+        join(__dirname, '..', 'usda-sources.json'),
+      );
+
+      for (const release of releases) {
+        console.log(`[ingest] usda:${release.name}`);
+        const r = await ingestUsda(db, release.dir);
+        console.log(
+          `  ${r.ingested} ingested, ${r.portions} portions, ` +
+            `${r.fiberKnown} fiber known / ${r.fiberUnknown} unknown`,
+        );
+      }
+      return;
+    }
+
     if (curated) {
       // Every .json in curated/ is loaded. Adding a region is dropping in a
       // file, not editing this list — a hardcoded array is how a new file gets

@@ -1,0 +1,37 @@
+{
+  "$comment": [
+    "Pinned USDA FoodData Central releases.",
+    "",
+    "Licensing: FDC is a work of the US federal government and is in the PUBLIC",
+    "DOMAIN. We may store it, serve it and redistribute it. That is a real",
+    "contrast with Open Food Facts, which is ODbL and carries share-alike duties",
+    "— see docs/BACKEND.md §8 and open item 4.",
+    "",
+    "Each entry is pinned by URL AND sha256. FDC filenames carry a release date",
+    "and the files behind them are replaced, so an unpinned download would",
+    "silently change the corpus under you. A checksum mismatch is a hard failure,",
+    "not a warning: quietly ingesting a different release is how nutrition data",
+    "drifts without anyone noticing.",
+    "",
+    "To move to a newer release: find it at",
+    "https://fdc.nal.usda.gov/download-datasets.html, update url + sha256, and",
+    "re-run. Nutrients are matched by nutrient_nbr, not by surrogate id, so a new",
+    "release does not need code changes."
+  ],
+  "releases": [
+    {
+      "name": "sr_legacy",
+      "description": "Standard Reference Legacy — the bulk of single-ingredient foods: fruit, vegetables, meat, fish, dairy, grains",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_csv_2018-04.zip",
+      "sha256": "b80817294b8850530aaedf2e515c02593b1824f763a0ff356e5c2081643e6fd0",
+      "approxRows": 7793
+    },
+    {
+      "name": "foundation",
+      "description": "Foundation Foods — newer, lab-measured, fewer rows but higher quality",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_csv_2025-04-24.zip",
+      "sha256": "56a169d02b6db1fdad7887f10bc01001cbb06393f0fae722c4afec20d3741a2d",
+      "approxRows": 135
+    }
+  ]
+}

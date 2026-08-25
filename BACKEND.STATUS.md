@@ -66,7 +66,7 @@ curl localhost:3000/health/ready
 Then seed a corpus — without this, search returns nothing:
 
 ```bash
-npm run ingest -w @nutricheck/ingest -- --dir <unzipped USDA csv dir>   # ~7,900 ingredients
+npm run ingest -w @nutricheck/ingest -- --download   # ~7,900 USDA ingredients, pinned + checksummed
 npm run ingest -w @nutricheck/ingest -- --fixture    # 13-row test fixture only
 npm run ingest -w @nutricheck/ingest -- --curated    # 79 Indian dishes + aliases
 ```
@@ -124,6 +124,12 @@ every flag written that way is permanently on. Use an explicit enum + transform.
 prompt version (a content hash, so it cannot be forgotten) and the model — but a
 code change to resolution logic is invisible for the 24-hour TTL unless you bump
 `RESOLVER_VERSION` in `draft-store.service.ts`. This has already caught someone out.
+
+**Ranking that works at 13 rows can break at 8,000.** `word_similarity` returns
+1.000 for every row containing the query, so "mango" tied "Mangos, raw" with
+"Babyfood, fruit dessert, mango with tapioca". The fix was blending in whole-string
+`similarity()`. Re-check ranking after any corpus growth — the test fixture is too
+small to reveal this class of problem.
 
 **Prompt caching has a floor.** Claude Opus 5 will not cache a prefix under 512
 tokens, silently. The re-rank prompt was ~444 tokens and would have been re-billed

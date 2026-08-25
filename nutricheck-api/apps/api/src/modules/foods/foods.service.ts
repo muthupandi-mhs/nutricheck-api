@@ -24,6 +24,23 @@ import { DATABASE } from '../../infrastructure/database/database.tokens';
 const WORD_SIMILARITY_THRESHOLD = 0.45;
 
 /**
+ * How much of the rank comes from "is this row ABOUT the query" rather than
+ * "does this row CONTAIN the query".
+ *
+ * `word_similarity` alone cannot discriminate at corpus scale: for "mango" it
+ * returns exactly 1.000 for "Mangos, raw", "Babyfood, fruit dessert, mango with
+ * tapioca" and "Beverages, V8 V-FUSION, Peach Mango" alike, because the query
+ * appears verbatim in all three. With 13 fixture rows that was invisible; with
+ * 8,000 it put babyfood at the top of every fruit search.
+ *
+ * `similarity()` compares the WHOLE string, so a short name that is mostly the
+ * query scores far above a long compound name that merely contains it — 0.300
+ * against 0.143 in that example. `word_similarity` stays the gate (does this
+ * match at all); whole-string similarity orders what gets through.
+ */
+const WHOLE_STRING_WEIGHT = 0.45;
+
+/**
  * Additive rank bonuses. Small enough that a clearly better text match wins.
  *
  * Inlined as SQL literals rather than bound parameters: inside
@@ -102,9 +119,13 @@ export class FoodsService {
               ELSE 'none'
             END AS familiarity,
             GREATEST(
-                word_similarity(${normalized}, f.search_text),
+                word_similarity(${normalized}, f.search_text)
+                  + ${sql.raw(String(WHOLE_STRING_WEIGHT))} * similarity(${normalized}, f.search_text),
                 COALESCE((
-                  SELECT MAX(word_similarity(${normalized}, a.alias))
+                  SELECT MAX(
+                    word_similarity(${normalized}, a.alias)
+                      + ${sql.raw(String(WHOLE_STRING_WEIGHT))} * similarity(${normalized}, a.alias)
+                  )
                   FROM food_aliases a WHERE a.food_id = f.id
                 ), 0)
               )
@@ -202,9 +223,13 @@ export class FoodsService {
             f.brand,
             n.kcal AS kcal_per_100g,
             GREATEST(
-              word_similarity(phrases.phrase, f.search_text),
+              word_similarity(phrases.phrase, f.search_text)
+                + ${sql.raw(String(WHOLE_STRING_WEIGHT))} * similarity(phrases.phrase, f.search_text),
               COALESCE((
-                SELECT MAX(word_similarity(phrases.phrase, a.alias))
+                SELECT MAX(
+                  word_similarity(phrases.phrase, a.alias)
+                    + ${sql.raw(String(WHOLE_STRING_WEIGHT))} * similarity(phrases.phrase, a.alias)
+                )
                 FROM food_aliases a WHERE a.food_id = f.id
               ), 0)
             )
