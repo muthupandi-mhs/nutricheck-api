@@ -2,10 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Draft for review |
-| **Version** | 2.0 (supersedes v1, which specified bare Fastify) |
+| **Status** | **Implemented and running.** M0 and M1 complete; the resolver (M2) is live |
+| **Version** | 2.1 — reconciled with the built system, 2026-08-26 |
 | **Owners** | Backend |
 | **Runtime** | NestJS 11 · Node 22 LTS · TypeScript 5.x |
+| **AI** | Pluggable: Anthropic, or any OpenAI-compatible provider (ADR-008) |
+| **Verified** | 131 tests · 29 routes · live resolves at $0.000385 each |
 | **Datastores** | PostgreSQL 16 (`pgvector`, `pg_trgm`) · Redis 7 |
 | **Packaging** | OCI image, multi-stage build, non-root, distro-slim |
 | **Related** | [PLAN.md](./PLAN.md) · [USER-FLOWS.md](./USER-FLOWS.md) |
@@ -16,6 +18,7 @@ Published version: <https://claude.ai/code/artifact/e885a1d3-5af5-4531-8c4d-c8da
 
 ## Contents
 
+0. [What is built](#0-what-is-built)
 1. [Scope and non-goals](#1-scope-and-non-goals)
 2. [System architecture](#2-system-architecture)
 3. [Technology decisions (ADRs)](#3-technology-decisions-adrs)
@@ -34,6 +37,50 @@ Published version: <https://claude.ai/code/artifact/e885a1d3-5af5-4531-8c4d-c8da
 16. [Operations](#16-operations)
 17. [Delivery plan](#17-delivery-plan)
 18. [Open items](#18-open-items)
+
+---
+
+## 0. What is built
+
+This document was written before the code and has been reconciled with it. Where
+the two disagreed, the code won and the text was corrected — the corrections are
+marked **[built]** and are worth more than the original prose, because each one
+came from something that did not survive contact with a real system.
+
+| Area | State |
+|---|---|
+| Workspace, Docker, migrations, health probes, error envelope | Built |
+| Auth — **email + password only** (social deferred, see §18) | Built |
+| Corpus ingestion, trigram search, custom foods | Built |
+| Goals, log commit, entry edit, saved meals, repeat strip | Built |
+| **The resolver** — parse, candidate search, re-rank, arithmetic, SSE | **Built and exercised against a live model** |
+| Embeddings + RRF fusion | Not built. Search is trigram-only; `food_embeddings` is empty |
+| Eval harness | Not built — the largest remaining gap (§15.4) |
+| CI pipeline | Not built |
+| Server-side speech transcription | Not built, and see §7.6 before building it |
+
+### What the first live calls changed
+
+The pipeline passed 91 scripted tests before it ever reached a real model, and
+the first four live phrases still found three defects. All three were about
+trusting something: two about trusting the model's output shape, one about
+trusting a comment that described work never done.
+
+1. `count` and `standard_measure` never resolved to grams. The code carried a
+   comment saying they were "filled in below" and nothing below filled them in,
+   so "two rotis" found its food and produced no amount and no nutrients.
+2. The re-rank returned one pick for two items and the second item silently
+   vanished, breaking the rule the prompt itself states. A missing pick now
+   falls back to the top candidate at low confidence — a row the user can fix
+   beats an item that disappeared.
+3. "an apple" parsed as `none_given`, so the app asked for an amount it had
+   already been given.
+
+The lesson is recorded here rather than in a commit message because it
+generalises: **a scripted test asserts the contract you imagined; only a real
+model tells you which parts of that contract it declines to honour.** Both
+model-trust defects are now regression-tested with a deliberately misbehaving
+fake.
 
 ---
 
@@ -195,6 +242,40 @@ Condensed records. Each states the decision, the alternative, and the trigger th
 **Why.** Metro (React Native) resolves modules by walking `node_modules` and has a long history of failing against pnpm's symlinked store. npm's hoisted layout avoids the class of problem entirely. Turborepo adds the build graph and cache without changing the module layout.
 
 **Reversal trigger.** The mobile app leaving the monorepo, after which pnpm is strictly better for the server side.
+
+---
+
+### ADR-008 — The AI provider is pluggable  **[built]**
+
+**Decision.** `AiService` is an abstract class. `AnthropicService` and
+`OpenAiCompatibleService` implement it; `AI_PROVIDER` selects one at wiring time.
+The OpenAI-compatible implementation reaches any host speaking that wire format
+— OpenAI, Groq, Together, OpenRouter, DeepSeek, Fireworks, vLLM, Ollama — via
+`AI_BASE_URL`.
+
+**Why it was almost free.** The boundary already existed for testability: the
+resolver depends on the abstract class so the pipeline can be exercised without
+a network. Making the vendor swappable turned out to be a second implementation
+of an interface that was already there, and no code downstream of it changed.
+That is the return on sealing a dependency behind an interface before you have a
+second reason to.
+
+**What does not transfer, and matters.** Prompt caching is the load-bearing
+assumption in §7.4's cost model, and it is not portable. Anthropic caches at an
+explicit `cache_control` breakpoint and bills reads at 0.1×; OpenAI caches
+automatically, only above a 1024-token prefix, and bills at a discount. Observed
+live: the re-rank prompt (~825 tokens) never cached on OpenAI at all. The two
+also *report* it differently — OpenAI counts cached tokens **inside**
+`prompt_tokens` where Anthropic reports them separately, so the adapter
+subtracts rather than double-counting. A provider swap changes the economics,
+not just the client.
+
+**The guarantees survive the swap** because they are properties of the schemas,
+not the vendor: the parse schema has no nutrient field, and the re-rank schema
+is a per-request enum of real row ids. `json_schema` strict mode is what makes
+the second one binding, so `AI_STRICT_SCHEMA` is opt-**out**: disabling it for a
+provider without strict mode gives up the guarantee that a food cannot be
+invented, and that should be a deliberate act.
 
 ---
 
@@ -556,7 +637,37 @@ The taxonomy system prefix is byte-identical on every request and renders first 
 
 > **The invalidator that will actually happen.** The `user_portions` prefill is per-user. It must go **after** the breakpoint, in the user turn — never interpolated into the system prompt. Getting that backwards silently makes the cache per-user and roughly triples the bill with no error and no test failure. Guard it with an assertion in `PromptBuilder` that the system string contains no user-scoped tokens, and alert on the cache-hit ratio (§16.2).
 
-### 7.4 Cost accounting
+### 7.4 Cost — measured, not estimated  **[built]**
+
+What the running system actually bills, against the original `claude-opus-5` estimate:
+
+| | Estimated (Opus 5) | **Measured (gpt-4o-mini)** |
+|---|---:|---:|
+| Parse | ~$0.0047 | $0.000240 |
+| Re-rank | ~$0.0059 | $0.000165 |
+| **Per resolve** | **~$0.011** | **$0.000385** |
+| Latency | ~1.5 s p50 target | ~2.2 s per call |
+| Cache reads | assumed most of input | **zero** |
+
+Two things the estimate got wrong, both worth keeping.
+
+**The cached prefix did not cache.** Every live call reported
+`cache_read_tokens: 0`. OpenAI's automatic caching needs a ≥1024-token prefix
+and the re-rank prompt is ~825, so it never engages; the parse prompt is ~1096
+and caches only on a repeat inside the window. The `ai_cache_hit_ratio` alarm in
+§16.2 therefore reads zero on this provider — **expected here, not a silent
+invalidator** — so that alarm needs a per-provider threshold or it will cry wolf.
+
+**A 30× cheaper model turns cost into a quality question.** At $0.000385 the AI
+is no longer worth optimising for price. On a live three-item phrase the re-rank
+chose the battered-fried chicken entry over plain breast — the ~140 kcal
+confusion PLAN §2 predicts — but marked itself `confidence: low`, so the sheet
+surfaces the alternatives. The safety mechanism worked; the ranking did not.
+Whether a mini model is good enough for the constrained pick is exactly what
+§15.4's eval harness exists to answer with a number, which makes it the
+highest-value unbuilt thing in this document.
+
+### 7.4.1 The original estimate
 
 Every call writes an `ai_runs` row inside the same transaction as the draft persist. Token counts come from `response.usage`; cost is computed from a rate table versioned alongside the model id, never hardcoded at the call site.
 
@@ -576,7 +687,29 @@ Inside PLAN §7's $0.010–0.015 band, and it locates the optimization: **the ca
 
 Re-measure with `client.messages.countTokens()` against the real prompts before any of this sets a quota.
 
-### 7.5 The phrase cache
+### 7.5 Voice is not a backend feature  **[built]**
+
+The backend performs **no speech recognition** and has no audio endpoint. Sent
+`Content-Type: audio/wav`, `/v1/resolve` returns **415**.
+
+That is the design, not a gap. USER-FLOWS §5: voice is not a separate flow, it
+is dictation into the same text field. The device transcribes; the backend
+receives the string typing would have produced and runs the identical pipeline.
+`source: 'voice'` is accepted and stored on `log_entries` — a label recording
+how an entry was made, for the miss log and analytics, not a processing mode.
+
+It is also why voice cost the backend nothing and the parked photo route will
+not: a photo cannot be turned into text on the device.
+
+**What is genuinely missing:** USER-FLOWS §5 also promises a fallback to
+server-side transcription "where platform dictation is weak for the user's
+language". That does not exist. It would need an audio upload endpoint, storage
+or a streaming pass-through, and a transcription provider — and it reopens a
+privacy position the product currently sells, since onboarding claims the app
+needs no camera, microphone or notifications. Decide it deliberately rather than
+drifting into it.
+
+### 7.6 The phrase cache
 
 Redis, keyed `resolve:v1:{sha256(normalizedPhrase + promptVersion + model)}`, TTL 24 h. Re-typed phrases — which correlate strongly with re-eaten meals — cost nothing. Cache hits still write an `ai_runs` row with `cached: true` so eval sampling and cost dashboards stay honest.
 
@@ -1153,7 +1286,22 @@ An untested backup is not a backup.
 
 ## 17. Delivery plan
 
-Backend deliverables only, mapped onto PLAN §10.
+Backend deliverables mapped onto PLAN §10. **Status is as-built**, not planned.
+
+| Phase | Planned | Actual |
+|---|---|---|
+| M0 Foundations | weeks 1–3 | **Done**, except CI |
+| M1 Manual logging | weeks 4–5 | **Done** — the API is fully usable with zero AI |
+| M2 Resolver + evals | weeks 6–7 | **Resolver done and live.** Eval harness not started |
+| M3 Insights | weeks 8–9 | Not started |
+| M4 Hardening | weeks 10–11 | Not started |
+
+Two M0/M2 items are outstanding and both are worth naming rather than burying:
+**CI** (131 tests that only run when someone remembers) and the **eval harness**,
+which is the only way to answer whether the current model is good enough for the
+constrained pick — see §7.4.
+
+Original plan, retained for reference:
 
 ### M0 — Foundations (weeks 1–3)
 
@@ -1183,7 +1331,8 @@ Spend ceilings · account deletion and data export, e2e-tested · load test on `
 
 | # | Item | Decision needed by | Impact if deferred |
 |---|---|---|---|
-| 1 | Free-tier daily resolve quota | End of M2 | Needs real usage data; a guess bakes in a wrong default and is hard to lower later |
+| 0 | **Model choice for the re-rank** | Before beta | Live testing showed a mini model picking battered-fried chicken over plain breast, correctly flagged low-confidence. Unanswerable without the eval harness (§15.4) |
+| 1 | Free-tier daily resolve quota | End of M2 | Needs real usage data; a guess bakes in a wrong default and is hard to lower later. Currently 50/day with a $1/day spend ceiling |
 | 2 | Barcode scanning in M1 | Start of M1 | Determines whether `/v1/foods/barcode` exists and whether the app requests camera permission at all |
 | 3 | Open Food Facts share-alike scope | End of M0 | May constrain whether the merged corpus can be treated as proprietary — a launch blocker if found late |
 | 4 | Launch market | Start of M1 | Decides whether curated dishes are an M1 necessity or an M3 refinement |
@@ -1191,7 +1340,8 @@ Spend ceilings · account deletion and data export, e2e-tested · load test on `
 | 6 | PgBouncer | End of M1 | Only if the replica ceiling × pool size approaches `max_connections` |
 | 7 | Monetization boundary | Before M1 | Shapes onboarding and where gating lives in the guard chain |
 | 8 | Sign in with Apple / Google | Before store submission | **Deferred — this build ships email + password only.** Apple is mandatory on iOS the moment any other social login is offered, so it is an all-or-nothing decision. `auth_provider` already carries both values and `auth_identities` is keyed on `(provider, subject)`, so adding one is a new row, not a migration |
-| 9 | Password reset by email | Before public beta | Email + password with no recovery path means a forgotten password is a lost account. Needs a mail provider, which nothing else in the stack currently requires |
+| 9 | Server-side speech transcription | Before non-English launch | Promised by USER-FLOWS §5, not built. Needs audio ingest and a transcription provider, and contradicts the "no microphone" trust claim in onboarding — see §7.5 |
+| 10 | Password reset by email | Before public beta | Email + password with no recovery path means a forgotten password is a lost account. Needs a mail provider, which nothing else in the stack currently requires |
 
 ---
 
