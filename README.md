@@ -11,6 +11,14 @@ AI nutrition tracker. Daily calories, protein and fiber.
 | [docs/](docs/) | Product, flows and technical design — shared by both |
 | [design/](design/) | Design canvas artboards |
 
+## Handoff notes
+
+Read these first in a fresh session — they carry the state and the traps that
+are not obvious from the code:
+
+- **[BACKEND.STATUS.md](BACKEND.STATUS.md)** — backend state, gotchas, open decisions
+- **[MOBILEAPP.STATUS.md](MOBILEAPP.STATUS.md)** — mobile app state
+
 ## Docs
 
 - **[docs/PLAN.md](docs/PLAN.md)** — the product bet, the resolver architecture, cost model, roadmap
