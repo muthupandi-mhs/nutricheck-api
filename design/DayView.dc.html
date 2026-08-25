@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .scr { --ground:#F2F3EF; --surface:#FFFFFF; --surface2:#E9EBE4; --ink:#161A17; --ink2:#565E58; --ink3:#7C847D; --rule:#D5D9CF; --heavy:#161A17; --est:#9E5A0A; --estbg:#F6EADA; --det:#0C6558; --detbg:#DFEDE9; }
+    .scr.dark { --ground:#131614; --surface:#1B1F1C; --surface2:#242926; --ink:#E9ECE6; --ink2:#A2AAA4; --ink3:#79817B; --rule:#2F342F; --heavy:#E9ECE6; --est:#E4A24E; --estbg:#2B2117; --det:#5FC4B2; --detbg:#142925; }
+    a { color: #9E5A0A; } a:hover { color: #7A4508; }
+  </style>
+</helmet>
+
+<div class="scr {{theme}}" style="width: 390px; height: 844px; background: var(--ground); color: var(--ink); font-family: 'Source Serif 4', Georgia, serif; display: flex; flex-direction: column; padding-top: 54px; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 12px 14px 20px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em; color: var(--ink3);">LAST 7 DAYS</div>
+      <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 28px; letter-spacing: -0.03em; line-height: 1;">Your week</div>
+    </div>
+    <div style="display: flex; gap: 2px;">
+      <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.5 5l-7 7 7 7"></path>
+        </svg>
+      </div>
+      <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--ink3);">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.5 5l7 7-7 7"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 6px; background: var(--heavy);"></div>
+
+  <div style="display: flex; padding: 16px 20px 15px; gap: 18px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.1em; color: var(--ink2);">AVG KCAL</span>
+      <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">1,924</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--det);">176 under</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.1em; color: var(--ink2);">AVG PROTEIN</span>
+      <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">128<span style="font-size: 14px; color: var(--ink2);"> g</span></span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--est);">12 short</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.1em; color: var(--ink2);">AVG FIBER</span>
+      <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 25px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">22<span style="font-size: 14px; color: var(--ink2);"> g</span></span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--est);">6 short</span>
+    </div>
+  </div>
+
+  <div style="height: 2px; background: var(--rule);"></div>
+
+  <div style="display: flex; align-items: center; gap: 14px; padding: 11px 20px 4px;">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="width: 10px; height: 10px; background: var(--det); display: block;"></span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink2);">Today</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="width: 10px; height: 10px; background: var(--det); opacity: 0.4; display: block;"></span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink2);">Earlier</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="width: 14px; height: 0; border-top: 2px dashed var(--ink3); display: block;"></span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink2);">Target</span>
+    </div>
+  </div>
+
+  <div style="padding: 8px 20px 0;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 7px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">CALORIES</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums;">target 2,100</span>
+    </div>
+    <svg width="350" height="60" viewBox="0 0 350 60" style="display: block; max-width: 100%;">
+      <rect x="2" y="7.7" width="44" height="36.3" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="52" y="2.9" width="44" height="41.1" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="102" y="6.4" width="44" height="37.6" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="152" y="9.7" width="44" height="34.3" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="202" y="4.4" width="44" height="39.6" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="252" y="8.8" width="44" height="35.2" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="302" y="21.1" width="44" height="22.9" fill="var(--det)"></rect>
+      <line x1="0" y1="5.5" x2="350" y2="5.5" stroke="var(--ink3)" stroke-width="1.5" stroke-dasharray="4 3"></line>
+      <line x1="0" y1="44" x2="350" y2="44" stroke="var(--rule)" stroke-width="1.5"></line>
+      <text x="24" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">W</text>
+      <text x="74" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">T</text>
+      <text x="124" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">F</text>
+      <text x="174" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">S</text>
+      <text x="224" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">S</text>
+      <text x="274" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">M</text>
+      <text x="324" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink)" font-weight="600">T</text>
+    </svg>
+  </div>
+
+  <div style="padding: 10px 20px 0;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 7px; border-top: 1px solid var(--rule); padding-top: 12px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">PROTEIN</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums;">target 140 g</span>
+    </div>
+    <svg width="350" height="60" viewBox="0 0 350 60" style="display: block; max-width: 100%;">
+      <rect x="2" y="7.7" width="44" height="36.3" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="52" y="4.1" width="44" height="39.9" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="102" y="8.8" width="44" height="35.2" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="152" y="11.5" width="44" height="32.5" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="202" y="2.7" width="44" height="41.3" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="252" y="6.6" width="44" height="37.4" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="302" y="20.9" width="44" height="23.1" fill="var(--det)"></rect>
+      <line x1="0" y1="5.5" x2="350" y2="5.5" stroke="var(--ink3)" stroke-width="1.5" stroke-dasharray="4 3"></line>
+      <line x1="0" y1="44" x2="350" y2="44" stroke="var(--rule)" stroke-width="1.5"></line>
+      <text x="24" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">W</text>
+      <text x="74" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">T</text>
+      <text x="124" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">F</text>
+      <text x="174" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">S</text>
+      <text x="224" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">S</text>
+      <text x="274" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">M</text>
+      <text x="324" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink)" font-weight="600">T</text>
+    </svg>
+  </div>
+
+  <div style="padding: 10px 20px 0;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 7px; border-top: 1px solid var(--rule); padding-top: 12px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">FIBER</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums;">target 28 g</span>
+    </div>
+    <svg width="350" height="60" viewBox="0 0 350 60" style="display: block; max-width: 100%;">
+      <rect x="2" y="15.5" width="44" height="28.5" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="52" y="10.4" width="44" height="33.6" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="102" y="19.4" width="44" height="24.6" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="152" y="12.9" width="44" height="31.1" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="202" y="3.9" width="44" height="40.1" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="252" y="16.8" width="44" height="27.2" fill="var(--det)" opacity="0.4"></rect>
+      <rect x="302" y="28.5" width="44" height="15.5" fill="var(--det)"></rect>
+      <line x1="0" y1="7.8" x2="350" y2="7.8" stroke="var(--ink3)" stroke-width="1.5" stroke-dasharray="4 3"></line>
+      <line x1="0" y1="44" x2="350" y2="44" stroke="var(--rule)" stroke-width="1.5"></line>
+      <text x="24" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">W</text>
+      <text x="74" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">T</text>
+      <text x="124" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">F</text>
+      <text x="174" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">S</text>
+      <text x="224" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">S</text>
+      <text x="274" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink3)">M</text>
+      <text x="324" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink)" font-weight="600">T</text>
+    </svg>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="height: 2px; background: var(--rule);"></div>
+
+  <div style="padding: 14px 20px 26px;">
+    <div style="display: flex; align-items: flex-start; gap: 9px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--est)" stroke-width="2.2" stroke-linecap="round" style="flex: none; margin-top: 2px;">
+        <circle cx="12" cy="12" r="9.5"></circle><path d="M12 7.5v5.5M12 16.4v.1"></path>
+      </svg>
+      <div style="font-size: 14.5px; line-height: 1.4; color: var(--ink2);">Fiber has been short six days running. Sunday was your best — beans at lunch.</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

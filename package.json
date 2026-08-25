@@ -1,0 +1,40 @@
+{
+  "name": "nutricheck",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI nutrition tracker — monorepo root",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/api",
+    "packages/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:int": "turbo run test:int",
+    "clean": "turbo run clean && rimraf node_modules",
+    "db:generate": "npm run db:generate -w @nutricheck/database",
+    "db:migrate": "npm run db:migrate -w @nutricheck/database",
+    "db:studio": "npm run db:studio -w @nutricheck/database",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d --build",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f docker/docker-compose.yml logs -f api",
+    "docker:nuke": "docker compose -f docker/docker-compose.yml down -v"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "rimraf": "^6.0.1",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@fastify/static": "^10.1.2"
+  }
+}

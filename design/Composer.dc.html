@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .scr { --ground:#F2F3EF; --surface:#FFFFFF; --surface2:#E9EBE4; --ink:#161A17; --ink2:#565E58; --ink3:#7C847D; --rule:#D5D9CF; --heavy:#161A17; --est:#9E5A0A; --estbg:#F6EADA; --det:#0C6558; --detbg:#DFEDE9; }
+    .scr.dark { --ground:#131614; --surface:#1B1F1C; --surface2:#242926; --ink:#E9ECE6; --ink2:#A2AAA4; --ink3:#79817B; --rule:#2F342F; --heavy:#E9ECE6; --est:#E4A24E; --estbg:#2B2117; --det:#5FC4B2; --detbg:#142925; }
+    a { color: #9E5A0A; } a:hover { color: #7A4508; }
+  </style>
+</helmet>
+
+<div class="scr {{theme}}" style="width: 390px; height: 844px; background: var(--ground); color: var(--ink); font-family: 'Source Serif 4', Georgia, serif; display: flex; flex-direction: column; padding-top: 54px; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 12px 12px 20px;">
+    <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.028em;">What did you eat?</div>
+    <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+        <path d="M6 6l12 12M18 6L6 18"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div style="height: 6px; background: var(--heavy);"></div>
+
+  <div style="padding: 18px 20px 0;">
+    <div style="background: var(--surface); border: 1px solid var(--rule); border-top: 3px solid var(--est); padding: 16px 16px 14px; min-height: 132px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div style="font-size: 19px; line-height: 1.45;">two rotis, dal and a bowl of curd<span style="display: inline-block; width: 2px; height: 20px; background: var(--est); vertical-align: -3px; margin-left: 1px;"></span></div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink3);">3 items detected</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink3);">EN</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 14px 20px 0; display: flex; gap: 10px; align-items: stretch;">
+    <div style="width: 60px; height: 60px; flex: none; border: 1px solid var(--rule); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <rect x="9" y="2.5" width="6" height="11.5" rx="3"></rect>
+        <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5"></path>
+      </svg>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 7.5px; letter-spacing: 0.06em; color: var(--ink3);">HOLD</span>
+    </div>
+    <div style="flex-grow: 1; height: 60px; background: var(--heavy); color: var(--ground); display: flex; align-items: center; justify-content: center; gap: 9px;">
+      <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 16px;">Log it</span>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h13M12.5 6l6 6-6 6"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div style="height: 2px; background: var(--rule); margin-top: 22px;"></div>
+
+  <div style="padding: 14px 20px 0;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2); padding-bottom: 10px;">SAY IT AGAIN</div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--rule);">
+      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--det)" stroke-width="2" stroke-linejoin="round" style="flex: none;">
+          <path d="M3 7.5l9-4.5 9 4.5-9 4.5z"></path><path d="M3 12.5l9 4.5 9-4.5"></path><path d="M3 17l9 4.5 9-4.5"></path>
+        </svg>
+        <span style="font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">usual breakfast</span>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink3); font-variant-numeric: tabular-nums; flex: none;">412</span>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--rule);">
+      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2" stroke-linecap="round" style="flex: none;">
+          <circle cx="12" cy="12" r="9"></circle><path d="M12 7v5.2l3.2 2"></path>
+        </svg>
+        <span style="font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">chicken salad and a flat white</span>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink3); font-variant-numeric: tabular-nums; flex: none;">486</span>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--rule);">
+      <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2" stroke-linecap="round" style="flex: none;">
+          <circle cx="12" cy="12" r="9"></circle><path d="M12 7v5.2l3.2 2"></path>
+        </svg>
+        <span style="font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">two eggs on toast, black coffee</span>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink3); font-variant-numeric: tabular-nums; flex: none;">338</span>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="padding: 0 20px 26px;">
+    <div style="border-top: 1px solid var(--rule); padding-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"></circle><path d="M16.2 16.2L21 21"></path>
+      </svg>
+      <span style="font-size: 14.5px; color: var(--ink2);">Search for a single food instead</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

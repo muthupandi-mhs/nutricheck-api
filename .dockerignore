@@ -1,0 +1,31 @@
+# Everything the image does not need. Keeping the mobile app and its
+# Android/iOS build outputs out of the context is the single biggest win here.
+node_modules
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/.turbo
+**/*.tsbuildinfo
+
+.git
+.github
+.gitignore
+
+apps/mobile
+nutricheck
+design
+docs
+
+**/*.test.ts
+**/*.spec.ts
+**/__tests__
+
+.env
+.env.*
+!.env.example
+
+deploy
+*.md
+Dockerfile*
+docker-compose*.yml

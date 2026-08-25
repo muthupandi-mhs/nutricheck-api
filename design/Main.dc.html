@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .scr { --ground:#F2F3EF; --surface:#FFFFFF; --surface2:#E9EBE4; --ink:#161A17; --ink2:#565E58; --ink3:#7C847D; --rule:#D5D9CF; --heavy:#161A17; --est:#9E5A0A; --estbg:#F6EADA; --det:#0C6558; --detbg:#DFEDE9; }
+    .scr.dark { --ground:#131614; --surface:#1B1F1C; --surface2:#242926; --ink:#E9ECE6; --ink2:#A2AAA4; --ink3:#79817B; --rule:#2F342F; --heavy:#E9ECE6; --est:#E4A24E; --estbg:#2B2117; --det:#5FC4B2; --detbg:#142925; }
+    a { color: #9E5A0A; } a:hover { color: #7A4508; }
+  </style>
+</helmet>
+
+<div class="scr {{theme}}" style="width: 390px; height: 844px; background: var(--ground); color: var(--ink); font-family: 'Source Serif 4', Georgia, serif; display: flex; flex-direction: column; padding-top: 54px; overflow: hidden;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 0 20px 12px;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em; color: var(--ink3);">TUE 25 AUG</div>
+      <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -0.03em; line-height: 1;">Today</div>
+    </div>
+    <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-right: -10px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3.2"></circle>
+        <path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4L5.3 5.3"></path>
+      </svg>
+    </div>
+  </div>
+
+  <div style="height: 6px; background: var(--heavy);"></div>
+
+  <div style="display: flex; align-items: center; gap: 18px; padding: 20px 20px 18px;">
+    <div style="position: relative; width: 128px; height: 128px; flex: none;">
+      <svg width="128" height="128" viewBox="0 0 128 128" style="display: block; transform: rotate(-90deg);">
+        <circle cx="64" cy="64" r="57" fill="none" stroke="var(--rule)" stroke-width="11"></circle>
+        <circle cx="64" cy="64" r="57" fill="none" stroke="var(--det)" stroke-width="11" stroke-linecap="butt" stroke-dasharray="212 146"></circle>
+      </svg>
+      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;">
+        <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 34px; letter-spacing: -0.03em; line-height: 1;">853</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; letter-spacing: 0.1em; color: var(--ink2);">KCAL LEFT</div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; flex-grow: 1;">
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--ink2);">PROTEIN</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums;">84<span style="color: var(--ink3);">/140 g</span></span>
+        </div>
+        <div style="height: 7px; background: var(--rule);">
+          <div style="height: 7px; width: 60%; background: var(--det);"></div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--ink2);">FIBER</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-variant-numeric: tabular-nums;">12<span style="color: var(--ink3);">/28 g</span></span>
+        </div>
+        <div style="height: 7px; background: var(--rule);">
+          <div style="height: 7px; width: 43%; background: var(--det);"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--est)" stroke-width="2.2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9.5"></circle><path d="M12 7.5v5.5M12 16.4v.1"></path>
+          </svg>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--est);">2 items unmeasured</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 2px; background: var(--rule);"></div>
+
+  <div style="padding: 14px 0 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px 10px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">TAP TO LOG AGAIN</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--det);">Edit</span>
+    </div>
+
+    <div style="display: flex; gap: 10px; padding: 0 20px; overflow: hidden;">
+      <div style="width: 116px; height: 96px; flex: none; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--det); padding: 10px 11px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--det)" stroke-width="2" stroke-linejoin="round">
+              <path d="M3 7.5l9-4.5 9 4.5-9 4.5z"></path><path d="M3 12.5l9 4.5 9-4.5"></path><path d="M3 17l9 4.5 9-4.5"></path>
+            </svg>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; letter-spacing: 0.08em; color: var(--det);">MEAL</span>
+          </div>
+          <div style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 13px; line-height: 1.2;">Usual breakfast</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--ink3);">3 items</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;">412</span>
+        </div>
+      </div>
+
+      <div style="width: 116px; height: 96px; flex: none; background: var(--surface); border: 1px solid var(--rule); padding: 10px 11px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 13px; line-height: 1.2;">Dal, toor<br>cooked</div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--ink3);">210 g</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;">218</span>
+        </div>
+      </div>
+
+      <div style="width: 116px; height: 96px; flex: none; background: var(--surface); border: 1px solid var(--rule); padding: 10px 11px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 13px; line-height: 1.2;">Greek yogurt<br>plain</div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--ink3);">170 g</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;">100</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 2px; background: var(--rule);"></div>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; padding: 14px 20px 0; gap: 0; overflow: hidden;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">BREAKFAST</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums;">412 kcal</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--rule);">
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px;">Oats, rolled</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink3);">80 g · 1 cup</span>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-variant-numeric: tabular-nums;">303</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--rule);">
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px;">Banana</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink3);">1 medium · 118 g</span>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-variant-numeric: tabular-nums;">105</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 16px; padding-bottom: 8px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">LUNCH</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums;">835 kcal</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--rule);">
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px;">Chicken thigh, grilled</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink3);">180 g</span>
+      </div>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-variant-numeric: tabular-nums;">378</span>
+    </div>
+  </div>
+
+  <div style="padding: 12px 20px 26px; background: var(--ground); border-top: 1px solid var(--rule);">
+    <div style="height: 52px; background: var(--heavy); color: var(--ground); display: flex; align-items: center; justify-content: center; gap: 9px;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 5v14M5 12h14"></path>
+      </svg>
+      <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15.5px;">Log a meal</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>

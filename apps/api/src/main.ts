@@ -1,0 +1,75 @@
+import './tracing'; // must precede every other import — see tracing.ts
+
+import { VersioningType } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+import {
+  FastifyAdapter,
+  type NestFastifyApplication,
+} from '@nestjs/platform-fastify';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from '@fastify/helmet';
+import { Logger } from 'nestjs-pino';
+import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import type { AppConfig } from './config/config.schema';
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({
+      // Behind an ingress, so client IPs come from X-Forwarded-For. Without
+      // this the rate limiter sees one address for the entire internet.
+      trustProxy: true,
+      bodyLimit: 256 * 1024,
+      genReqId: () => crypto.randomUUID(),
+    }),
+    // Buffer until the pino logger is resolved, so boot-time errors are not
+    // emitted through the default console logger in a different format.
+    { bufferLogs: true },
+  );
+
+  app.useLogger(app.get(Logger));
+  app.flushLogs();
+
+  const config = app.get(ConfigService<AppConfig, true>);
+  const isProduction = config.get('NODE_ENV', { infer: true }) === 'production';
+
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // A native client sends no Origin, so CORS stays off in production. It is
+  // enabled in development only so the OpenAPI page can be driven from a browser.
+  if (!isProduction) {
+    app.enableCors({ origin: true });
+  }
+
+  await app.register(helmet, {
+    contentSecurityPolicy: isProduction,
+  });
+
+  if (!isProduction) {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setTitle('NutriCheck API')
+        .setDescription('Nutrition tracker backend. Schemas generated from @nutricheck/contracts.')
+        .setVersion('1')
+        .addBearerAuth()
+        .build(),
+    );
+    SwaggerModule.setup('docs', app, document);
+  }
+
+  // SIGTERM -> stop accepting, drain in-flight work, close pools, exit.
+  app.enableShutdownHooks();
+
+  const port = config.get('PORT', { infer: true });
+  // 0.0.0.0 is not optional in a container: Node's default binds loopback and
+  // the container answers nothing from outside.
+  await app.listen({ port, host: '0.0.0.0' });
+
+  app.get(Logger).log(`api listening on :${port} (${config.get('NODE_ENV', { infer: true })})`);
+}
+
+void bootstrap();

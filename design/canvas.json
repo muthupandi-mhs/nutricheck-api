@@ -1,0 +1,35 @@
+{
+  "artboards": [
+    { "file": "Targets.dc.html",   "title": "1 · Onboarding — your targets", "x": 0,    "y": 0,   "w": 390, "h": 844 },
+    { "file": "Main.dc.html",      "title": "2 · Home",                      "x": 470,  "y": 0,   "w": 390, "h": 844 },
+    { "file": "Composer.dc.html",  "title": "3 · Composer",                  "x": 940,  "y": 0,   "w": 390, "h": 844 },
+    { "file": "Resolving.dc.html", "title": "4 · Confirm — resolving",       "x": 1410, "y": 0,   "w": 390, "h": 844 },
+    { "file": "Confirm.dc.html",   "title": "5 · Confirm — resolved",        "x": 0,    "y": 964, "w": 390, "h": 844 },
+    { "file": "Search.dc.html",    "title": "6 · Manual search",             "x": 470,  "y": 964, "w": 390, "h": 844 },
+    { "file": "DayView.dc.html",   "title": "7 · Week & trends",             "x": 940,  "y": 964, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    {
+      "id": "colour-rule",
+      "x": 0,
+      "y": -150,
+      "w": 620,
+      "text": "Amber = the model's reading. Teal = your data and pure arithmetic.\nEvery screen keeps that split — it is the plan's core rule made visible, so a user can always see which numbers were read and which were computed."
+    },
+    {
+      "id": "confirm-states",
+      "x": 0,
+      "y": 866,
+      "w": 390,
+      "text": "The confirm sheet carries all five quantity states in one screen: counted (roti), personal unit (a bowl), low confidence (which dal?), no amount given (curd), and fiber unknown shown as an em-dash."
+    },
+    {
+      "id": "dark-toggle",
+      "x": 1410,
+      "y": 964,
+      "w": 340,
+      "text": "Every artboard has a Dark toggle in the chips above it — the palette is the same one the plan and flows documents use."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

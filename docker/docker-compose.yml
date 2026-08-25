@@ -1,0 +1,109 @@
+name: nutricheck
+
+# Local development stack. Runs the SAME Postgres image as production — a
+# SQLite shortcut would make the search subsystem, the part most worth testing,
+# untestable.
+#
+#   docker compose -f docker/docker-compose.yml up -d --build
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nutricheck
+      POSTGRES_PASSWORD: local
+      POSTGRES_DB: nutricheck
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nutricheck -d nutricheck']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # appendonly for db 0 (queues, which must survive a restart). The cache in
+    # db 1 is disposable; losing it costs one cold parse.
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # One-shot. Migrations never run on application boot — two replicas booting
+  # concurrently would race each other.
+  migrate:
+    image: nutricheck/api:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    # Same image as api and worker (ADR-004) — a compiled migrator, not tsx, so
+    # the runtime image needs no build toolchain.
+    command: ['node', 'packages/database/dist/migrate.js']
+    environment:
+      DATABASE_URL: postgres://nutricheck:local@postgres:5432/nutricheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    image: nutricheck/api:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    env_file:
+      - ../.env.example
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://nutricheck:local@postgres:5432/nutricheck
+      REDIS_URL: redis://redis:6379
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    image: nutricheck/api:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    command: ['node', 'apps/api/dist/worker.js']
+    restart: unless-stopped
+    env_file:
+      - ../.env.example
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://nutricheck:local@postgres:5432/nutricheck
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  redisdata:

@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&amp;display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .scr { --ground:#F2F3EF; --surface:#FFFFFF; --surface2:#E9EBE4; --ink:#161A17; --ink2:#565E58; --ink3:#7C847D; --rule:#D5D9CF; --heavy:#161A17; --est:#9E5A0A; --estbg:#F6EADA; --det:#0C6558; --detbg:#DFEDE9; }
+    .scr.dark { --ground:#131614; --surface:#1B1F1C; --surface2:#242926; --ink:#E9ECE6; --ink2:#A2AAA4; --ink3:#79817B; --rule:#2F342F; --heavy:#E9ECE6; --est:#E4A24E; --estbg:#2B2117; --det:#5FC4B2; --detbg:#142925; }
+    a { color: #9E5A0A; } a:hover { color: #7A4508; }
+  </style>
+</helmet>
+
+<div class="scr {{theme}}" style="width: 390px; height: 844px; background: var(--ground); color: var(--ink); font-family: 'Source Serif 4', Georgia, serif; display: flex; flex-direction: column; padding-top: 54px; overflow: hidden;">
+
+  <div style="display: flex; align-items: center; gap: 6px; padding: 6px 20px 18px;">
+    <div style="height: 3px; flex-grow: 1; background: var(--heavy);"></div>
+    <div style="height: 3px; flex-grow: 1; background: var(--heavy);"></div>
+    <div style="height: 3px; flex-grow: 1; background: var(--heavy);"></div>
+    <div style="height: 3px; flex-grow: 1; background: var(--heavy);"></div>
+    <div style="height: 3px; flex-grow: 1; background: var(--heavy);"></div>
+    <div style="height: 3px; flex-grow: 1; background: var(--rule);"></div>
+  </div>
+
+  <div style="padding: 0 20px 16px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.14em; color: var(--ink2); padding-bottom: 8px;">STEP 5 OF 6</div>
+    <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 32px; letter-spacing: -0.03em; line-height: 1.04; text-wrap: balance;">Your daily targets</div>
+    <div style="font-size: 15.5px; color: var(--ink2); line-height: 1.45; padding-top: 8px;">Here is where these come from. Change anything that doesn't look right — you can always adjust later.</div>
+  </div>
+
+  <div style="height: 6px; background: var(--heavy); margin: 4px 0 0;"></div>
+
+  <div style="display: flex; flex-direction: column; padding: 0 20px;">
+
+    <div style="display: flex; align-items: flex-start; gap: 14px; padding: 18px 0 16px;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">CALORIES</div>
+        <div style="display: flex; align-items: baseline; gap: 6px;">
+          <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums;">2,100</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink2);">kcal</span>
+        </div>
+        <div style="font-size: 13.5px; color: var(--ink2); line-height: 1.4; padding-top: 3px;">Resting burn 1,632 × 1.55 for your activity, minus 18% to lose 0.5 kg a week.</div>
+      </div>
+      <div style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: 1px solid var(--rule); background: var(--surface);">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z"></path>
+        </svg>
+      </div>
+    </div>
+
+    <div style="height: 1px; background: var(--rule);"></div>
+
+    <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px 0;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">PROTEIN</div>
+        <div style="display: flex; align-items: baseline; gap: 6px;">
+          <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums;">140</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink2);">g</span>
+        </div>
+        <div style="font-size: 13.5px; color: var(--ink2); line-height: 1.4; padding-top: 3px;">1.9 g per kg of bodyweight — the upper end, because you're in a deficit.</div>
+      </div>
+      <div style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: 1px solid var(--rule); background: var(--surface);">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z"></path>
+        </svg>
+      </div>
+    </div>
+
+    <div style="height: 1px; background: var(--rule);"></div>
+
+    <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px 0 18px;">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink2);">FIBER</div>
+        <div style="display: flex; align-items: baseline; gap: 6px;">
+          <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums;">28</span>
+          <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink2);">g</span>
+        </div>
+        <div style="font-size: 13.5px; color: var(--ink2); line-height: 1.4; padding-top: 3px;">14 g per 1,000 kcal, the dietary-guidelines basis. Most people land near half this.</div>
+      </div>
+      <div style="width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; border: 1px solid var(--rule); background: var(--surface);">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z"></path>
+        </svg>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="height: 2px; background: var(--rule);"></div>
+
+  <div style="padding: 14px 20px; display: flex; flex-direction: column; gap: 7px;">
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--ink2);">BASED ON</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink2); background: var(--surface); border: 1px solid var(--rule); padding: 5px 9px;">31 years</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink2); background: var(--surface); border: 1px solid var(--rule); padding: 5px 9px;">178 cm</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink2); background: var(--surface); border: 1px solid var(--rule); padding: 5px 9px;">74 kg</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink2); background: var(--surface); border: 1px solid var(--rule); padding: 5px 9px;">Active 3–5×/wk</span>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink2); background: var(--surface); border: 1px solid var(--rule); padding: 5px 9px;">Lose 0.5 kg/wk</span>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div style="padding: 0 20px 26px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: flex-start; gap: 7px; padding-bottom: 2px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" stroke-width="2" stroke-linecap="round" style="margin-top: 2px; flex: none;">
+        <circle cx="12" cy="12" r="9.5"></circle><path d="M12 7.5v5.5M12 16.4v.1"></path>
+      </svg>
+      <span style="font-size: 12.5px; color: var(--ink3); line-height: 1.35;">Estimates for general wellness, not medical advice.</span>
+    </div>
+    <div style="height: 52px; background: var(--heavy); color: var(--ground); display: flex; align-items: center; justify-content: center;">
+      <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15.5px;">Looks right — continue</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.dark ? 'dark' : '' };
+  }
+}
+</script>
+</body>
+</html>
