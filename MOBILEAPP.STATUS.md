@@ -18,16 +18,16 @@ backend. It has been through **two visual passes**:
 | v1 — editorial/Swiss, built from `design/*.dc.html` | Rejected. Read as a design exercise, not a product |
 | v2 — warm & rounded, "Airbnb-level" (current) | Built, typechecks, lints, 77 tests pass. **Not yet seen on a device** |
 
-### The one thing that is not verified
+### Device status
 
-**The v2 UI has never been rendered on real hardware.** The arm64 APK is built
-(`nutricheck/android/app/build/outputs/apk/debug/app-debug.apk`, 53 MB,
-26 Aug 02:07) and the install command was interrupted before it ran.
+v2 **is installed and running on the physical device** (A142, arm64-v8a,
+Android 16). Verified visually so far: Welcome. The rest of the screens are
+built and pass render tests but have not been eyeballed on hardware yet.
 
-**First job in the next session:** install it and look at it. See §6.
+**Next session:** walk Today → Composer → Confirm → Search → Insights on the
+device and review each. See §6.
 
-Everything else below is verified: `npm run check` is green, and every screen
-renders in both colour schemes under test.
+`npm run check` is green — 77 tests, all screens render in both colour schemes.
 
 ---
 
@@ -209,6 +209,8 @@ schemes; the phone is currently set to dark.
 | Android 16 shows a local-network-access prompt on first launch | Expected — it is the debug build reaching Metro. Manifest declares only `INTERNET`. |
 | Emulator `nutricheck_x86_64` exists but boots slowly under software GL | Prefer the physical device. Delete with `avdmanager delete avd -n nutricheck_x86_64`. |
 | Metro wedged on 8081 | Kill the stale node process and restart; a wedged Metro returns nothing for `/index.bundle`. |
+| App shows "Loading from localhost:8082" | A second Metro started on 8082 and the app latched onto it. `adb reverse` **both** ports, or kill the duplicate. |
+| Fast Refresh silently not applying | Force-stop and relaunch: `adb shell am force-stop com.nutricheck && adb shell am start -n com.nutricheck/.MainActivity`. Re-run `adb reverse` first. |
 
 Native deps added this round (**require a rebuild, not just a Metro restart**):
 `react-native-linear-gradient`, `react-native-haptic-feedback`,
@@ -250,6 +252,22 @@ seeded history. Keep adding to them rather than around them.
 - [ ] `httpApi` against `nutricheck-api` not written; mock is still the only
       implementation
 - [ ] Photo logging is parked by design (see USER-FLOWS §1), not missing
+
+**Welcome screen — settled**
+
+Went through three passes. Landed on **four elements**: brand mark, headline,
+one line of subcopy, action block. Cut along the way:
+
+- the sentence→numbers demo card — an argument aimed at somebody still
+  deciding, which a user who already opened the app is not. The first real log
+  makes the point better, ninety seconds later.
+- "no camera, microphone or notifications" — a real differentiator, but a trust
+  claim belongs where trust is being asked for. **Still owed a home on the
+  account screen.**
+
+Content is anchored to the bottom above the CTA; a full-bleed `wash` gradient
+gives the empty upper half depth. `Dock` gained a `fill` prop for this — over a
+gradient its opaque canvas fill cuts a visible band.
 
 **Decisions already made — do not relitigate without reason**
 - Email + password only. Apple/Google are in the `auth_provider` enum but not in

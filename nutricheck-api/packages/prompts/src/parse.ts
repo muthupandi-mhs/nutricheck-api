@@ -40,6 +40,8 @@ Every item carries a \`quantityType\` describing how the amount was expressed. T
 - \`personal_unit\` — a vessel or portion whose size varies by person: "a bowl of dal", "a handful of nuts", "a plate of rice", "a glass of juice". Set \`quantityValue\` to the count of those units and \`quantityUnit\` to the vessel ("bowl", "handful", "plate", "glass").
 - \`none_given\` — no amount at all: "some nuts", "toast", "I had yoghurt". Set both \`quantityValue\` and \`quantityUnit\` to null.
 
+An article before a countable food IS a count of one, not an absent amount: "an apple", "a banana", "an egg" are \`count\` with \`quantityValue\` 1 and \`quantityUnit\` the singular noun. Reserve \`none_given\` for phrases that genuinely state no amount, like "some nuts" or a bare "toast".
+
 The distinction between \`standard_measure\` and \`personal_unit\` matters. A cup is a defined measure; a bowl is whatever bowl that person owns. When in doubt between the two, choose \`personal_unit\` — the app can learn a person's bowl, but it cannot un-learn a wrong assumption.
 
 ## Known personal units

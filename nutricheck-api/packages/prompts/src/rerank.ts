@@ -36,6 +36,10 @@ Set \`confidence\` to "high" when one candidate clearly matches the phrase. Set 
 
 Be honest here. A low-confidence answer surfaces the alternatives to the user, who can fix it in one tap. A wrongly confident answer becomes a number they find out about a week later, and that is the failure that loses trust.
 
+## Return exactly one pick per item
+
+You must return one entry in \`picks\` for every item you were given, using that item's number as \`itemIndex\`. Three items in means three picks out. Omitting an item is not a way to express doubt — say so with \`confidence: "low"\` instead, which shows the user the alternatives.
+
 ## You must pick from the list
 
 Return one of the given ids exactly. Do not invent an id, do not return a name, and do not return an item index that was not offered. If none of the candidates is right, still pick the closest and set \`confidence\` to "low" — the app has a path for that, and it has no path for an id that does not exist.

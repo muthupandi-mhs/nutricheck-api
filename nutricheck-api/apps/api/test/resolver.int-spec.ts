@@ -19,7 +19,10 @@ import { LogsService } from '../src/modules/logs/logs.service';
 import { QuotaService } from '../src/modules/quota/quota.service';
 import { DraftStoreService } from '../src/modules/resolver/draft-store.service';
 import { PortionPrefillService } from '../src/modules/resolver/portion-prefill.service';
-import { ResolverService } from '../src/modules/resolver/resolver.service';
+import {
+  ResolverService,
+  resolveAgainstFood,
+} from '../src/modules/resolver/resolver.service';
 import { startTestPostgres, type TestDatabase } from './postgres';
 
 const FIXTURES = join(__dirname, '..', '..', '..', 'tools', 'ingest', 'fixtures');
@@ -667,5 +670,200 @@ describe('resolver', () => {
       expect(entry.phrase).toBe('180g chicken');
       expect(entry.source).toBe('text');
     });
+  });
+});
+
+/**
+ * Regression tests for a gap the first live call exposed: the code carried a
+ * comment saying count and standard_measure were "filled in below", and nothing
+ * below filled them in. "Two rotis" resolved to a food and then produced no
+ * grams and no nutrients at all.
+ */
+describe('resolveAgainstFood', () => {
+  const parsed = (
+    quantityType: 'count' | 'standard_measure' | 'exact_mass',
+    quantityValue: number | null,
+    quantityUnit: string | null,
+  ) => ({
+    matchedText: 'x',
+    foodPhrase: 'x',
+    quantityType,
+    quantityValue,
+    quantityUnit,
+  });
+
+  const unresolvedQty = (type: 'count' | 'standard_measure') =>
+    ({ type, raw: 'x', grams: null, source: 'unknown', range: null }) as const;
+
+  const rotiPortions = [{ label: '1 piece', grams: 45, isDefault: true }];
+  const applePortions = [
+    { label: '1 medium (approx 3 per lb)', grams: 182, isDefault: true },
+    { label: '1 cup, quartered or chopped', grams: 125, isDefault: false },
+  ];
+
+  it('multiplies a count by the default portion', () => {
+    // Two rotis is two of whatever one roti is: 2 x 45 g.
+    const result = resolveAgainstFood(
+      unresolvedQty('count'),
+      parsed('count', 2, 'roti'),
+      rotiPortions,
+    );
+    expect(result.grams).toBe(90);
+    expect(result.source).toBe('food_portion');
+  });
+
+  it('matches a standard measure against the portion label', () => {
+    const result = resolveAgainstFood(
+      unresolvedQty('standard_measure'),
+      parsed('standard_measure', 1, 'cup'),
+      applePortions,
+    );
+    expect(result.grams).toBe(125);
+  });
+
+  it('matches a plural label against a singular unit', () => {
+    const result = resolveAgainstFood(
+      unresolvedQty('count'),
+      parsed('count', 2, 'slice'),
+      [{ label: '2 slices', grams: 60, isDefault: true }],
+      );
+    expect(result.grams).toBe(120);
+  });
+
+  it('does not fall back to a default portion for a standard measure', () => {
+    // "A cup of rice" resolved via a portion labelled "1 medium apple" would be
+    // nonsense. Better to ask.
+    const result = resolveAgainstFood(
+      unresolvedQty('standard_measure'),
+      parsed('standard_measure', 1, 'cup'),
+      rotiPortions,
+    );
+    expect(result.grams).toBeNull();
+  });
+
+  it('leaves grams null when the food has no portions', () => {
+    const result = resolveAgainstFood(
+      unresolvedQty('count'),
+      parsed('count', 2, 'roti'),
+      [],
+    );
+    expect(result.grams).toBeNull();
+  });
+
+  it('never overwrites an amount that is already known', () => {
+    const stated = {
+      type: 'exact_mass',
+      raw: '180 g',
+      grams: 180,
+      source: 'stated',
+      range: null,
+    } as const;
+    const result = resolveAgainstFood(stated, parsed('exact_mass', 180, 'g'), rotiPortions);
+    expect(result).toEqual(stated);
+  });
+
+  it('defaults a missing count to one', () => {
+    const result = resolveAgainstFood(
+      unresolvedQty('count'),
+      parsed('count', null, 'roti'),
+      rotiPortions,
+    );
+    expect(result.grams).toBe(45);
+  });
+});
+
+describe('resolver robustness', () => {
+  /**
+   * Observed live: gpt-4o-mini returned one pick for two items and the second
+   * item silently became unresolved, even though the corpus had it and the
+   * search returned candidates. Never silently drop words that look like food.
+   */
+  it('keeps an item the re-rank forgot, at low confidence', async () => {
+    const pg2 = await startTestPostgres();
+    try {
+      await ingestUsda(pg2.db, FIXTURES);
+      const redis2 = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+        db: 14,
+        maxRetriesPerRequest: null,
+      });
+      await redis2.flushdb();
+
+      const [user] = await pg2.db
+        .insert(schema.users)
+        .values({ email: `omit-${randomUUID()}@example.com` })
+        .returning({ id: schema.users.id });
+
+      const partialAi = new FakeAi();
+      partialAi.parseResult = {
+        items: [
+          {
+            matchedText: 'a cup of rice',
+            foodPhrase: 'rice',
+            quantityType: 'standard_measure',
+            quantityValue: 1,
+            quantityUnit: 'cup',
+          },
+          {
+            matchedText: 'an apple',
+            foodPhrase: 'apple',
+            quantityType: 'count',
+            quantityValue: 1,
+            quantityUnit: 'apple',
+          },
+        ],
+        unresolved: [],
+      };
+      // Reproduce the real failure: pick only for item 0.
+      (partialAi as unknown as { rerank: unknown }).rerank = async (
+        items: RerankItem[],
+      ) => ({
+        value: {
+          picks: [
+            {
+              itemIndex: items[0]!.index,
+              foodId: items[0]!.candidates[0]!.id,
+              confidence: 'high' as const,
+            },
+          ],
+        },
+        usage: { inputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 10 },
+        latencyMs: 1,
+        stopReason: 'stop',
+        model: 'claude-opus-5',
+        promptVersion: 'partial',
+        raw: {},
+      });
+
+      const config = {
+        get: (key: string) =>
+          ({ RESOLVE_DAILY_QUOTA: 50, RESOLVE_USER_DAILY_SPEND_USD: 1 })[key],
+      } as unknown as ConfigService<never, true>;
+
+      const svc = new ResolverService(
+        pg2.db,
+        partialAi,
+        new AiRunsService(pg2.db),
+        new FoodsService(pg2.db),
+        new PortionPrefillService(pg2.db),
+        new DraftStoreService(redis2),
+        new QuotaService(pg2.db, redis2, config),
+      );
+
+      const draft = await svc.resolveOnce(user!.id, {
+        phrase: 'a cup of rice and an apple',
+        source: 'text',
+      });
+
+      // Both survive. The forgotten one is flagged so the sheet surfaces it.
+      expect(draft.items).toHaveLength(2);
+      expect(draft.items[1]?.confidence).toBe('low');
+      expect(draft.items[1]?.food).not.toBeNull();
+      expect(draft.unresolved).toEqual([]);
+
+      await redis2.flushdb();
+      await redis2.quit();
+    } finally {
+      await pg2.stop();
+    }
   });
 });

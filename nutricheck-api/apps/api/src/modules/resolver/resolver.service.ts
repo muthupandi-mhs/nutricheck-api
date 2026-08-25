@@ -172,7 +172,24 @@ export class ResolverService {
 
       for (const [index, item] of items.entries()) {
         const options = candidates.get(index) ?? [];
-        const pick = picks.get(index);
+        let pick = picks.get(index);
+
+        // A model that returns fewer picks than it was given items would
+        // otherwise make food the user typed disappear. Observed live: two
+        // items in, one pick out, and "an apple" silently became unresolved
+        // despite the corpus having apples and the search returning them.
+        //
+        // Falling back to the top-ranked candidate at low confidence is
+        // strictly better than dropping it: the user sees a row they can
+        // correct in one tap instead of an item that vanished.
+        if (!pick && options.length > 0) {
+          this.logger.warn(
+            { itemIndex: index, phrase: item.foodPhrase },
+            're-rank omitted an item — falling back to the top candidate',
+          );
+          pick = { foodId: options[0]!.id, confidence: 'low' };
+        }
+
         const food = options.find((c) => c.id === pick?.foodId) ?? null;
 
         if (!food) {
@@ -185,14 +202,29 @@ export class ResolverService {
 
         if (pick?.confidence === 'low') misses.push({ itemText: item.foodPhrase });
 
+        // One read, used for both the portion table and the arithmetic.
+        const detail = await this.foods.findById(food.id);
+        const quantity = resolveAgainstFood(quantities[index]!, item, detail.portions);
+
         resolved.push({
           itemId: itemIds[index]!,
           matchedText: item.matchedText,
-          quantity: quantities[index]!,
+          quantity,
           food,
           candidates: options,
           confidence: pick?.confidence ?? 'low',
-          nutrients: await this.nutrientsFor(food, quantities[index]!),
+          nutrients:
+            quantity.grams === null
+              ? null
+              : computeItemNutrients(
+                  {
+                    kcal: detail.nutrients.kcal,
+                    proteinG: detail.nutrients.proteinG,
+                    fiberG: detail.nutrients.fiberG,
+                    fiberState: detail.nutrients.fiberState,
+                  },
+                  quantity.grams,
+                ),
         });
       }
 
@@ -294,8 +326,9 @@ export class ResolverService {
       };
     }
 
-    // count and standard_measure need the food's portion table, which is only
-    // known after the re-rank. Left unresolved here and filled in below.
+    // count and standard_measure need the food's portion table, which is not
+    // known until the re-rank has chosen a row. Left null here and resolved by
+    // resolveAgainstFood() once the food is known.
     return {
       type: item.quantityType,
       raw,
@@ -303,29 +336,6 @@ export class ResolverService {
       source: 'unknown',
       range: null,
     };
-  }
-
-  /**
-   * Resolve count and standard_measure against the chosen food's portions, then
-   * compute nutrients. Returns null when the amount is still unknown — an
-   * unmeasured portion cannot produce a nutrient total.
-   */
-  private async nutrientsFor(
-    food: FoodSummary,
-    quantity: Quantity,
-  ): Promise<ResolvedItem['nutrients']> {
-    if (quantity.grams === null) return null;
-
-    const detail = await this.foods.findById(food.id);
-    return computeItemNutrients(
-      {
-        kcal: detail.nutrients.kcal,
-        proteinG: detail.nutrients.proteinG,
-        fiberG: detail.nutrients.fiberG,
-        fiberState: detail.nutrients.fiberState,
-      },
-      quantity.grams,
-    );
   }
 
   /**
@@ -359,6 +369,71 @@ export class ResolverService {
       cached: false,
     };
   }
+}
+
+/**
+ * Resolve a count or a standard measure against the chosen food's portions.
+ *
+ * Only possible after the re-rank: "two rotis" is 90 g or 300 g depending on
+ * which row was picked, so this cannot happen at parse time.
+ *
+ * Returns the quantity unchanged when nothing matches, which leaves grams null
+ * and makes the sheet ask. That is the point — inventing a portion here would
+ * be the same mistake as inventing an amount, one step later.
+ */
+export function resolveAgainstFood(
+  quantity: Quantity,
+  item: ParsedItem,
+  portions: ReadonlyArray<{ label: string; grams: number; isDefault: boolean }>,
+): Quantity {
+  if (quantity.grams !== null) return quantity;
+  if (quantity.type !== 'count' && quantity.type !== 'standard_measure') return quantity;
+  if (portions.length === 0) return quantity;
+
+  const count = item.quantityValue ?? 1;
+  const unit = (item.quantityUnit ?? '').trim().toLowerCase();
+
+  // A label like "1 cup, quartered or chopped" should match the unit "cup".
+  const byUnit = unit
+    ? portions.find((p) => labelWords(p.label).includes(unit))
+    : undefined;
+
+  if (byUnit) {
+    return {
+      ...quantity,
+      grams: round2(byUnit.grams * count),
+      source: 'food_portion',
+    };
+  }
+
+  // A count of a food with no matching label means "that many of them", so the
+  // default portion is the right unit: two rotis is two of whatever one roti is.
+  // A standard measure gets no such fallback — resolving "a cup of rice" via a
+  // portion labelled "1 medium apple" would be nonsense.
+  if (quantity.type === 'count') {
+    const fallback = portions.find((p) => p.isDefault) ?? portions[0]!;
+    return {
+      ...quantity,
+      grams: round2(fallback.grams * count),
+      source: 'food_portion',
+    };
+  }
+
+  return quantity;
+}
+
+/** Singularized words of a portion label, for matching a stated unit. */
+function labelWords(label: string): string[] {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((word) => (word.endsWith('s') ? [word, word.slice(0, -1)] : [word]));
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 function toSkeleton(item: ResolvedItem) {

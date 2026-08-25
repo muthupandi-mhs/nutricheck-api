@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+/**
+ * Env vars are strings, and `z.coerce.boolean()` is the wrong tool for them:
+ * it applies JS truthiness, so "false" coerces to TRUE. Every flag written that
+ * way is permanently on, silently.
+ */
+const booleanString = z
+  .enum(['true', 'false', '1', '0', 'yes', 'no'])
+  .transform((v) => v === 'true' || v === '1' || v === 'yes');
+
 const durationString = z
   .string()
   .regex(/^\d+[smhd]$/, "expected a duration like '15m' or '30d'");
@@ -54,7 +63,7 @@ export const configSchema = z.object({
    * deliberately opt-OUT rather than silent, because losing the candidate-id
    * enum is losing the guarantee that a food cannot be invented.
    */
-  AI_STRICT_SCHEMA: z.coerce.boolean().default(true),
+  AI_STRICT_SCHEMA: booleanString.default('true'),
 
   /**
    * Per-million-token rates, for a model with no entry in the built-in table.
