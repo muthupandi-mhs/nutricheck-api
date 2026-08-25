@@ -104,6 +104,36 @@ food is unrepresentable; every number is `per_100g x grams / 100`.
 at the default rather than the medium/low the design specifies. Costed at default
 effort until the SDK exposes it.
 
+## Languages and the curated corpus
+
+Search and the resolver work in **Tamil, Hindi, Bengali, Gujarati scripts and
+their Latin transliterations**, plus English. `தோசை`, `dosai`, `dosa` and
+`thosai` are one row.
+
+```bash
+npm run ingest -w @nutricheck/ingest -- --curated   # every file in curated/
+```
+
+79 dishes, 415 aliases, 8 locales. Every `.json` in
+[tools/ingest/curated/](tools/ingest/curated/) is loaded — adding a region is
+dropping in a file, not editing a list.
+
+Three things worth knowing before trusting the numbers:
+
+**The values are estimates.** They are per-100g figures for typical preparation,
+not measurements. Fiber is therefore stored as `imputed`, which the app renders
+with a `~` — so the uncertainty reaches the user rather than stopping here.
+**kcal and protein carry no such marker**, which is the honest gap: a curated
+dish's calories look exactly as authoritative as a USDA row's.
+
+**79 dishes is a seed, not coverage.** PLAN §5 reckons two hundred well-chosen
+dishes covers a startling share of logs. The way to find the next hundred is not
+to guess — it is `match_misses`, which records the exact words of every failed
+lookup. That is the curation queue, and it is already filling up.
+
+**Coverage is a data problem, not a search problem.** The mechanism handles any
+script; a miss means the dish is absent or its alias is. Both are an insert.
+
 ## Corpus
 
 ```bash

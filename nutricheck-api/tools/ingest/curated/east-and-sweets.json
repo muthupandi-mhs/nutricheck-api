@@ -1,0 +1,672 @@
+{
+  "$comment": [
+    "Bengali/Odia, sweets, and pan-Indian staples that anchor most plates.",
+    "Per-100g estimates; fiberState 'imputed' throughout — see tamil.json."
+  ],
+  "source": "curated",
+  "region": "east-sweets-staples",
+  "foods": [
+    {
+      "key": "luchi",
+      "name": "Luchi (fried refined flour bread)",
+      "per100g": {
+        "kcal": 320,
+        "proteinG": 5.5,
+        "fiberG": 1.5
+      },
+      "portions": [
+        {
+          "label": "1 luchi",
+          "grams": 30,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "bn": [
+          "লুচি"
+        ],
+        "bn-Latn": [
+          "luchi"
+        ],
+        "en": [
+          "fried flatbread"
+        ]
+      }
+    },
+    {
+      "key": "macher-jhol",
+      "name": "Macher jhol (Bengali fish curry)",
+      "per100g": {
+        "kcal": 130,
+        "proteinG": 13,
+        "fiberG": 0.8
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "bn": [
+          "মাছের ঝোল"
+        ],
+        "bn-Latn": [
+          "macher jhol",
+          "maacher jhol",
+          "fish curry"
+        ],
+        "en": [
+          "bengali fish curry"
+        ]
+      }
+    },
+    {
+      "key": "shukto",
+      "name": "Shukto (mixed vegetable, mildly bitter)",
+      "per100g": {
+        "kcal": 85,
+        "proteinG": 2.5,
+        "fiberG": 3.2
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 180,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "bn": [
+          "শুক্তো"
+        ],
+        "bn-Latn": [
+          "shukto"
+        ],
+        "en": [
+          "bengali mixed vegetable"
+        ]
+      }
+    },
+    {
+      "key": "mishti-doi",
+      "name": "Mishti doi (sweet yoghurt)",
+      "per100g": {
+        "kcal": 145,
+        "proteinG": 4.5,
+        "fiberG": 0
+      },
+      "portions": [
+        {
+          "label": "1 small pot",
+          "grams": 100,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "bn": [
+          "মিষ্টি দই"
+        ],
+        "bn-Latn": [
+          "mishti doi",
+          "misti doi"
+        ],
+        "en": [
+          "sweet yoghurt"
+        ]
+      }
+    },
+    {
+      "key": "rasgulla",
+      "name": "Rasgulla",
+      "per100g": {
+        "kcal": 190,
+        "proteinG": 4,
+        "fiberG": 0
+      },
+      "portions": [
+        {
+          "label": "1 piece",
+          "grams": 45,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "bn": [
+          "রসগোল্লা"
+        ],
+        "hi-Latn": [
+          "rasgulla",
+          "roshogolla",
+          "rosogolla"
+        ],
+        "en": [
+          "cheese ball in syrup"
+        ]
+      }
+    },
+    {
+      "key": "gulab-jamun",
+      "name": "Gulab jamun",
+      "per100g": {
+        "kcal": 320,
+        "proteinG": 4.5,
+        "fiberG": 0.3
+      },
+      "portions": [
+        {
+          "label": "1 piece",
+          "grams": 40,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "गुलाब जामुन"
+        ],
+        "hi-Latn": [
+          "gulab jamun",
+          "gulab jaman"
+        ],
+        "en": [
+          "fried milk ball in syrup"
+        ],
+        "bn": [
+          "গোলাপ জামুন"
+        ],
+        "bn-Latn": [
+          "pantua"
+        ]
+      }
+    },
+    {
+      "key": "jalebi",
+      "name": "Jalebi",
+      "per100g": {
+        "kcal": 380,
+        "proteinG": 3,
+        "fiberG": 0.4
+      },
+      "portions": [
+        {
+          "label": "1 piece",
+          "grams": 25,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "जलेबी"
+        ],
+        "hi-Latn": [
+          "jalebi",
+          "jilebi"
+        ],
+        "ta-Latn": [
+          "jangiri"
+        ],
+        "en": [
+          "syrup soaked spiral"
+        ],
+        "bn": [
+          "জিলিপি",
+          "জলেবি"
+        ],
+        "bn-Latn": [
+          "jilipi"
+        ]
+      }
+    },
+    {
+      "key": "laddu-boondi",
+      "name": "Laddu, boondi",
+      "per100g": {
+        "kcal": 400,
+        "proteinG": 6,
+        "fiberG": 1.5
+      },
+      "portions": [
+        {
+          "label": "1 laddu",
+          "grams": 45,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "लड्डू"
+        ],
+        "hi-Latn": [
+          "laddu",
+          "ladoo",
+          "boondi laddu"
+        ],
+        "en": [
+          "sweet gram flour ball"
+        ],
+        "bn": [
+          "লাড্ডু"
+        ]
+      }
+    },
+    {
+      "key": "halwa-carrot",
+      "name": "Gajar ka halwa (carrot halwa)",
+      "per100g": {
+        "kcal": 250,
+        "proteinG": 4,
+        "fiberG": 2
+      },
+      "portions": [
+        {
+          "label": "1 small bowl",
+          "grams": 120,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "गाजर का हलवा"
+        ],
+        "hi-Latn": [
+          "gajar ka halwa",
+          "carrot halwa"
+        ],
+        "en": [
+          "carrot pudding"
+        ]
+      }
+    },
+    {
+      "key": "payasam",
+      "name": "Payasam / kheer, rice",
+      "per100g": {
+        "kcal": 145,
+        "proteinG": 3.5,
+        "fiberG": 0.4
+      },
+      "portions": [
+        {
+          "label": "1 small bowl",
+          "grams": 150,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "பாயசம்"
+        ],
+        "ta-Latn": [
+          "payasam",
+          "paayasam"
+        ],
+        "hi-Latn": [
+          "kheer",
+          "rice kheer"
+        ],
+        "en": [
+          "rice pudding"
+        ],
+        "bn": [
+          "পায়েস"
+        ],
+        "bn-Latn": [
+          "payesh"
+        ]
+      }
+    },
+    {
+      "key": "rice-cooked-plain",
+      "name": "Rice, white, cooked, plain",
+      "per100g": {
+        "kcal": 130,
+        "proteinG": 2.7,
+        "fiberG": 0.4
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 158,
+          "isDefault": true
+        },
+        {
+          "label": "1 plate",
+          "grams": 250,
+          "isDefault": false
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "சாதம்",
+          "அரிசி"
+        ],
+        "ta-Latn": [
+          "sadam",
+          "saadham",
+          "arisi"
+        ],
+        "hi": [
+          "चावल",
+          "भात"
+        ],
+        "hi-Latn": [
+          "chawal",
+          "bhaat",
+          "rice"
+        ],
+        "en": [
+          "steamed rice",
+          "boiled rice"
+        ],
+        "bn": [
+          "ভাত"
+        ],
+        "bn-Latn": [
+          "bhat"
+        ]
+      }
+    },
+    {
+      "key": "curd-plain",
+      "name": "Curd / dahi, plain",
+      "per100g": {
+        "kcal": 62,
+        "proteinG": 3.5,
+        "fiberG": 0
+      },
+      "portions": [
+        {
+          "label": "1 small bowl",
+          "grams": 100,
+          "isDefault": true
+        },
+        {
+          "label": "1 cup",
+          "grams": 150,
+          "isDefault": false
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "தயிர்"
+        ],
+        "ta-Latn": [
+          "thayir",
+          "curd"
+        ],
+        "hi": [
+          "दही"
+        ],
+        "hi-Latn": [
+          "dahi",
+          "curd",
+          "yogurt"
+        ],
+        "en": [
+          "plain yoghurt"
+        ],
+        "bn": [
+          "দই"
+        ],
+        "bn-Latn": [
+          "doi"
+        ]
+      }
+    },
+    {
+      "key": "ghee",
+      "name": "Ghee, clarified butter",
+      "per100g": {
+        "kcal": 900,
+        "proteinG": 0,
+        "fiberG": 0
+      },
+      "portions": [
+        {
+          "label": "1 teaspoon",
+          "grams": 5,
+          "isDefault": true
+        },
+        {
+          "label": "1 tablespoon",
+          "grams": 14,
+          "isDefault": false
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "நெய்"
+        ],
+        "ta-Latn": [
+          "nei",
+          "ney"
+        ],
+        "hi": [
+          "घी"
+        ],
+        "hi-Latn": [
+          "ghee"
+        ],
+        "en": [
+          "clarified butter"
+        ]
+      }
+    },
+    {
+      "key": "coconut-chutney-generic",
+      "name": "Pickle, mixed (achar)",
+      "per100g": {
+        "kcal": 180,
+        "proteinG": 1.5,
+        "fiberG": 3
+      },
+      "portions": [
+        {
+          "label": "1 teaspoon",
+          "grams": 8,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "ஊறுகாய்"
+        ],
+        "ta-Latn": [
+          "oorugai",
+          "urugai"
+        ],
+        "hi": [
+          "अचार"
+        ],
+        "hi-Latn": [
+          "achar",
+          "pickle"
+        ],
+        "en": [
+          "indian pickle"
+        ]
+      }
+    },
+    {
+      "key": "papad",
+      "name": "Papad / appalam, roasted",
+      "per100g": {
+        "kcal": 350,
+        "proteinG": 20,
+        "fiberG": 9
+      },
+      "portions": [
+        {
+          "label": "1 papad",
+          "grams": 12,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "அப்பளம்"
+        ],
+        "ta-Latn": [
+          "appalam"
+        ],
+        "hi": [
+          "पापड़"
+        ],
+        "hi-Latn": [
+          "papad",
+          "papadum"
+        ],
+        "en": [
+          "lentil wafer"
+        ]
+      }
+    },
+    {
+      "key": "egg-curry",
+      "name": "Egg curry",
+      "per100g": {
+        "kcal": 150,
+        "proteinG": 8.5,
+        "fiberG": 1.2
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta-Latn": [
+          "muttai kulambu",
+          "egg kulambu"
+        ],
+        "hi-Latn": [
+          "anda curry",
+          "egg curry"
+        ],
+        "en": [
+          "egg curry"
+        ]
+      }
+    },
+    {
+      "key": "fish-fry-south",
+      "name": "Fish fry, shallow fried, masala",
+      "per100g": {
+        "kcal": 220,
+        "proteinG": 20,
+        "fiberG": 0.5
+      },
+      "portions": [
+        {
+          "label": "1 piece",
+          "grams": 80,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "மீன் வறுவல்"
+        ],
+        "ta-Latn": [
+          "meen varuval",
+          "fish fry"
+        ],
+        "en": [
+          "fried fish"
+        ]
+      }
+    },
+    {
+      "key": "chicken-curry-south",
+      "name": "Chicken curry, South Indian",
+      "per100g": {
+        "kcal": 165,
+        "proteinG": 14,
+        "fiberG": 1.2
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "கோழி குழம்பு"
+        ],
+        "ta-Latn": [
+          "kozhi kulambu",
+          "chicken kulambu",
+          "chicken curry"
+        ],
+        "en": [
+          "chicken curry"
+        ]
+      }
+    },
+    {
+      "key": "mutton-curry",
+      "name": "Mutton curry",
+      "per100g": {
+        "kcal": 210,
+        "proteinG": 15,
+        "fiberG": 1
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "ஆட்டு கறி"
+        ],
+        "ta-Latn": [
+          "aattu kari",
+          "mutton kulambu"
+        ],
+        "hi-Latn": [
+          "mutton curry",
+          "gosht"
+        ],
+        "en": [
+          "goat curry"
+        ]
+      }
+    },
+    {
+      "key": "sambar-powder-dishes",
+      "name": "Avial (mixed vegetable in coconut)",
+      "per100g": {
+        "kcal": 115,
+        "proteinG": 2.5,
+        "fiberG": 3.5
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 180,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "அவியல்"
+        ],
+        "ta-Latn": [
+          "aviyal",
+          "avial"
+        ],
+        "en": [
+          "mixed vegetable in coconut"
+        ]
+      }
+    }
+  ]
+}

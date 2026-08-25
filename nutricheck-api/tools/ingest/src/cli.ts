@@ -10,6 +10,7 @@
  * https://fdc.nal.usda.gov/download-datasets.html and unzip it.
  */
 import { createDatabase, createPool } from '@nutricheck/database';
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ingestCurated } from './ingest-curated';
 import { ingestUsda } from './ingest-usda';
@@ -41,16 +42,29 @@ async function main(): Promise<void> {
 
   try {
     if (curated) {
-      // Curated dishes are the only rows that carry aliases, which is what
-      // makes a Tamil-script or Tanglish query resolvable at all.
-      const files = ['tamil'];
-      for (const name of files) {
-        const path = join(__dirname, '..', 'curated', `${name}.json`);
-        const r = await ingestCurated(db, path);
+      // Every .json in curated/ is loaded. Adding a region is dropping in a
+      // file, not editing this list — a hardcoded array is how a new file gets
+      // written and then silently never ingested.
+      const dir = join(__dirname, '..', 'curated');
+      const files = readdirSync(dir)
+        .filter((f) => f.endsWith('.json'))
+        .sort();
+
+      if (files.length === 0) throw new Error(`no curated files in ${dir}`);
+
+      const total = { foods: 0, aliases: 0, portions: 0 };
+      for (const file of files) {
+        const r = await ingestCurated(db, join(dir, file));
+        total.foods += r.foods;
+        total.aliases += r.aliases;
+        total.portions += r.portions;
         console.log(
-          `[ingest] curated:${name} — ${r.foods} foods, ${r.aliases} aliases, ${r.portions} portions`,
+          `  ${file.padEnd(24)} ${String(r.foods).padStart(3)} foods  ${String(r.aliases).padStart(4)} aliases  ${String(r.portions).padStart(3)} portions`,
         );
       }
+      console.log(
+        `[ingest] curated total — ${total.foods} foods, ${total.aliases} aliases, ${total.portions} portions`,
+      );
       return;
     }
 

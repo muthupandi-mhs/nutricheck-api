@@ -1,0 +1,470 @@
+{
+  "$comment": [
+    "Street food, Maharashtrian, Gujarati and Rajasthani. Per-100g estimates;",
+    "fiberState 'imputed' throughout — see tamil.json."
+  ],
+  "source": "curated",
+  "region": "west-street",
+  "foods": [
+    {
+      "key": "samosa",
+      "name": "Samosa, potato",
+      "per100g": {
+        "kcal": 300,
+        "proteinG": 5,
+        "fiberG": 3
+      },
+      "portions": [
+        {
+          "label": "1 samosa",
+          "grams": 60,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "समोसा"
+        ],
+        "hi-Latn": [
+          "samosa",
+          "samosay"
+        ],
+        "en": [
+          "fried potato pastry"
+        ],
+        "bn": [
+          "সিঙ্গাড়া"
+        ],
+        "bn-Latn": [
+          "shingara"
+        ]
+      }
+    },
+    {
+      "key": "pav-bhaji",
+      "name": "Pav bhaji",
+      "per100g": {
+        "kcal": 165,
+        "proteinG": 3.8,
+        "fiberG": 3.2
+      },
+      "portions": [
+        {
+          "label": "1 plate",
+          "grams": 300,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "पाव भाजी"
+        ],
+        "hi-Latn": [
+          "pav bhaji",
+          "pao bhaji"
+        ],
+        "en": [
+          "spiced vegetable mash with bread"
+        ]
+      }
+    },
+    {
+      "key": "vada-pav",
+      "name": "Vada pav",
+      "per100g": {
+        "kcal": 290,
+        "proteinG": 6.5,
+        "fiberG": 3
+      },
+      "portions": [
+        {
+          "label": "1 vada pav",
+          "grams": 120,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "वडा पाव"
+        ],
+        "hi-Latn": [
+          "vada pav",
+          "wada pav"
+        ],
+        "en": [
+          "potato fritter burger"
+        ]
+      }
+    },
+    {
+      "key": "misal-pav",
+      "name": "Misal pav",
+      "per100g": {
+        "kcal": 150,
+        "proteinG": 6,
+        "fiberG": 4.5
+      },
+      "portions": [
+        {
+          "label": "1 plate",
+          "grams": 300,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "मिसळ पाव"
+        ],
+        "hi-Latn": [
+          "misal pav",
+          "misal"
+        ],
+        "en": [
+          "sprouted bean curry with bread"
+        ]
+      }
+    },
+    {
+      "key": "poha",
+      "name": "Poha (flattened rice)",
+      "per100g": {
+        "kcal": 130,
+        "proteinG": 2.5,
+        "fiberG": 1.2
+      },
+      "portions": [
+        {
+          "label": "1 plate",
+          "grams": 180,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "पोहा"
+        ],
+        "hi-Latn": [
+          "poha",
+          "pohe",
+          "aval"
+        ],
+        "en": [
+          "flattened rice"
+        ]
+      }
+    },
+    {
+      "key": "pani-puri",
+      "name": "Pani puri / golgappa",
+      "per100g": {
+        "kcal": 200,
+        "proteinG": 3.5,
+        "fiberG": 2
+      },
+      "portions": [
+        {
+          "label": "1 puri",
+          "grams": 20,
+          "isDefault": true
+        },
+        {
+          "label": "1 plate (6)",
+          "grams": 120,
+          "isDefault": false
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "पानी पूरी",
+          "गोलगप्पा"
+        ],
+        "hi-Latn": [
+          "pani puri",
+          "golgappa",
+          "puchka"
+        ],
+        "ta-Latn": [
+          "pani poori"
+        ],
+        "en": [
+          "water filled crisp"
+        ],
+        "bn": [
+          "পুচকা",
+          "ফুচকা"
+        ]
+      }
+    },
+    {
+      "key": "bhel-puri",
+      "name": "Bhel puri",
+      "per100g": {
+        "kcal": 220,
+        "proteinG": 5,
+        "fiberG": 3.5
+      },
+      "portions": [
+        {
+          "label": "1 plate",
+          "grams": 120,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "भेल पूरी"
+        ],
+        "hi-Latn": [
+          "bhel puri",
+          "bhelpuri",
+          "bhel"
+        ],
+        "en": [
+          "puffed rice snack"
+        ]
+      }
+    },
+    {
+      "key": "pakora",
+      "name": "Pakora / bhaji, mixed vegetable",
+      "per100g": {
+        "kcal": 315,
+        "proteinG": 7,
+        "fiberG": 4
+      },
+      "portions": [
+        {
+          "label": "1 piece",
+          "grams": 25,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "पकोड़ा",
+          "भजी"
+        ],
+        "hi-Latn": [
+          "pakora",
+          "pakoda",
+          "bhaji",
+          "bajji"
+        ],
+        "en": [
+          "gram flour fritter"
+        ],
+        "bn": [
+          "বেগুনি"
+        ],
+        "bn-Latn": [
+          "beguni"
+        ]
+      }
+    },
+    {
+      "key": "dhokla",
+      "name": "Dhokla, khaman",
+      "per100g": {
+        "kcal": 160,
+        "proteinG": 6.5,
+        "fiberG": 2.5
+      },
+      "portions": [
+        {
+          "label": "1 piece",
+          "grams": 45,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "gu": [
+          "ઢોકળા"
+        ],
+        "hi-Latn": [
+          "dhokla",
+          "khaman",
+          "khaman dhokla"
+        ],
+        "en": [
+          "steamed gram flour cake"
+        ]
+      }
+    },
+    {
+      "key": "thepla",
+      "name": "Thepla, methi",
+      "per100g": {
+        "kcal": 300,
+        "proteinG": 7.5,
+        "fiberG": 4.5
+      },
+      "portions": [
+        {
+          "label": "1 thepla",
+          "grams": 40,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "gu": [
+          "થેપલા"
+        ],
+        "hi-Latn": [
+          "thepla",
+          "methi thepla"
+        ],
+        "en": [
+          "fenugreek flatbread"
+        ]
+      }
+    },
+    {
+      "key": "khichdi",
+      "name": "Khichdi, rice and moong dal",
+      "per100g": {
+        "kcal": 120,
+        "proteinG": 4.5,
+        "fiberG": 1.8
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        },
+        {
+          "label": "1 bowl",
+          "grams": 250,
+          "isDefault": false
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "खिचड़ी"
+        ],
+        "hi-Latn": [
+          "khichdi",
+          "khichadi",
+          "kichdi"
+        ],
+        "en": [
+          "rice and lentil porridge"
+        ]
+      }
+    },
+    {
+      "key": "dal-baati",
+      "name": "Dal baati churma",
+      "per100g": {
+        "kcal": 320,
+        "proteinG": 8,
+        "fiberG": 4
+      },
+      "portions": [
+        {
+          "label": "1 plate",
+          "grams": 250,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "दाल बाटी"
+        ],
+        "hi-Latn": [
+          "dal baati",
+          "daal baati churma"
+        ],
+        "en": [
+          "baked wheat balls with lentils"
+        ]
+      }
+    },
+    {
+      "key": "puran-poli",
+      "name": "Puran poli",
+      "per100g": {
+        "kcal": 300,
+        "proteinG": 6.5,
+        "fiberG": 3
+      },
+      "portions": [
+        {
+          "label": "1 poli",
+          "grams": 80,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "पुरण पोळी"
+        ],
+        "hi-Latn": [
+          "puran poli",
+          "obbattu",
+          "holige"
+        ],
+        "en": [
+          "sweet lentil flatbread"
+        ]
+      }
+    },
+    {
+      "key": "chaat-aloo",
+      "name": "Aloo chaat",
+      "per100g": {
+        "kcal": 180,
+        "proteinG": 3,
+        "fiberG": 3
+      },
+      "portions": [
+        {
+          "label": "1 plate",
+          "grams": 150,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "आलू चाट"
+        ],
+        "hi-Latn": [
+          "aloo chaat",
+          "chaat"
+        ],
+        "en": [
+          "spiced potato snack"
+        ]
+      }
+    },
+    {
+      "key": "frankie-roll",
+      "name": "Kathi roll / frankie, veg",
+      "per100g": {
+        "kcal": 240,
+        "proteinG": 6.5,
+        "fiberG": 2.8
+      },
+      "portions": [
+        {
+          "label": "1 roll",
+          "grams": 180,
+          "isDefault": true
+        }
+      ],
+      "aliases": {
+        "hi": [
+          "काठी रोल"
+        ],
+        "hi-Latn": [
+          "kathi roll",
+          "frankie",
+          "roll"
+        ],
+        "en": [
+          "wrap"
+        ]
+      }
+    }
+  ]
+}
