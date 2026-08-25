@@ -11,6 +11,8 @@ import { DatabaseModule } from './infrastructure/database/database.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FoodsModule } from './modules/foods/foods.module';
+import { GoalsModule } from './modules/goals/goals.module';
+import { LogsModule } from './modules/logs/logs.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -74,6 +76,8 @@ import { UsersModule } from './modules/users/users.module';
     AuthModule,
     UsersModule,
     FoodsModule,
+    GoalsModule,
+    LogsModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

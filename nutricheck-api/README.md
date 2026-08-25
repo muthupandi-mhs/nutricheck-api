@@ -158,10 +158,14 @@ M0 in progress. Verified working end to end (`docker compose up` -> healthy):
       assigned at ingest, idempotent on `(source, source_id)`
 - [x] `/v1/foods/search` — trigram word-similarity with familiarity and generic
       boosts, default portion in the result row
-- [x] Tests — 12 unit + 16 Testcontainers integration, all green
+- [x] Goals — Mifflin-St Jeor, activity factors, 20% adjustment cap, BMR floor,
+      append-only rows resolved by `effective_from`
+- [x] `POST /v1/logs` — nutrients recomputed server-side and frozen, idempotent
+      on `clientId` under concurrency, batch drain, timezone-correct day view
+- [x] Tests — 48 unit + 34 Testcontainers integration, all green
 - [ ] Embeddings + RRF fusion (the second half of hybrid search)
 - [ ] CI pipeline
-- [ ] Goals, profile and log commit (M1)
+- [ ] Recents / saved meals (the two-second repeat route)
 
 Known gaps worth naming: the image is 488MB against a 400MB target (the OTel
 packages and the Debian base dominate); search is trigram-only, so `food_embeddings`

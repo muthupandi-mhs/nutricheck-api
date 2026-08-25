@@ -54,6 +54,8 @@ export const Goal = z.object({
     activityFactor: z.number(),
     adjustmentPct: z.number(),
     flooredAtBmr: z.boolean(),
+    rateCapped: z.boolean(),
+    effectiveRateKgPerWeek: z.number(),
   }),
 });
 export type Goal = z.infer<typeof Goal>;

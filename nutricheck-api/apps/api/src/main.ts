@@ -48,17 +48,25 @@ async function bootstrap(): Promise<void> {
     contentSecurityPolicy: isProduction,
   });
 
+  // Documentation must never be able to stop the service. Swagger's schema
+  // factory throws on a shape it cannot resolve, and an un-guarded call here
+  // turns a docs-rendering problem into a boot crash — which is exactly what
+  // happened when a nullable DTO field reached it without an explicit type.
   if (!isProduction) {
-    const document = SwaggerModule.createDocument(
-      app,
-      new DocumentBuilder()
-        .setTitle('NutriCheck API')
-        .setDescription('Nutrition tracker backend. Schemas generated from @nutricheck/contracts.')
-        .setVersion('1')
-        .addBearerAuth()
-        .build(),
-    );
-    SwaggerModule.setup('docs', app, document);
+    try {
+      const document = SwaggerModule.createDocument(
+        app,
+        new DocumentBuilder()
+          .setTitle('NutriCheck API')
+          .setDescription('Nutrition tracker backend. Schemas generated from @nutricheck/contracts.')
+          .setVersion('1')
+          .addBearerAuth()
+          .build(),
+      );
+      SwaggerModule.setup('docs', app, document);
+    } catch (error) {
+      app.get(Logger).error({ err: error }, 'OpenAPI generation failed — /docs disabled');
+    }
   }
 
   // SIGTERM -> stop accepting, drain in-flight work, close pools, exit.
