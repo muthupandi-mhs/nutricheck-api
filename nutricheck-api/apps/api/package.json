@@ -37,6 +37,7 @@
     "@opentelemetry/sdk-node": "^0.57.0",
     "ioredis": "^5.4.2",
     "nestjs-pino": "^4.2.0",
+    "openai": "^4.104.0",
     "pino-http": "^10.3.0",
     "pino-pretty": "^13.0.0",
     "reflect-metadata": "^0.2.2",

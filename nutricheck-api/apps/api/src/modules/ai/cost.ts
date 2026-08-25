@@ -16,6 +16,10 @@ export interface ModelRates {
   cacheWriteMultiplier: number;
 }
 
+/**
+ * Built-in rates. A model that is not here can still be costed by setting
+ * AI_INPUT_USD_PER_MTOK / AI_OUTPUT_USD_PER_MTOK — see costUsd below.
+ */
 const RATES: Record<string, ModelRates> = {
   'claude-opus-5': {
     input: 5,
@@ -35,7 +39,29 @@ const RATES: Record<string, ModelRates> = {
     cacheReadMultiplier: 0.1,
     cacheWriteMultiplier: 1.25,
   },
+  // OpenAI-compatible providers. Prefix caching there is automatic and bills at
+  // a discount rather than being requested, so there is no write premium to
+  // model — cacheWriteMultiplier is 1.
+  'gpt-4o': { input: 2.5, output: 10, cacheReadMultiplier: 0.5, cacheWriteMultiplier: 1 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6, cacheReadMultiplier: 0.5, cacheWriteMultiplier: 1 },
+  'gpt-4.1': { input: 2, output: 8, cacheReadMultiplier: 0.25, cacheWriteMultiplier: 1 },
+  'gpt-4.1-mini': { input: 0.4, output: 1.6, cacheReadMultiplier: 0.25, cacheWriteMultiplier: 1 },
 };
+
+/** Set from config when the model has no built-in entry. */
+let fallbackRates: ModelRates | null = null;
+
+export function setFallbackRates(inputPerMTok?: number, outputPerMTok?: number): void {
+  fallbackRates =
+    inputPerMTok === undefined || outputPerMTok === undefined
+      ? null
+      : {
+          input: inputPerMTok,
+          output: outputPerMTok,
+          cacheReadMultiplier: 1,
+          cacheWriteMultiplier: 1,
+        };
+}
 
 export interface TokenUsage {
   inputTokens: number;
@@ -50,12 +76,14 @@ export interface TokenUsage {
  * millions of rows is how a ceiling ends up off by a percent.
  */
 export function costUsd(model: string, usage: TokenUsage): string {
-  const rates = RATES[model];
+  const rates = RATES[model] ?? fallbackRates;
   if (!rates) {
     // An unknown model must not silently cost zero — that would make a
-    // misconfigured model id look free right up until the invoice.
+    // misconfigured model id look free right up until the invoice, and it would
+    // make the per-user spend ceiling read 0 forever.
     throw new Error(
-      `No rate table for model "${model}". Add it to cost.ts before using it.`,
+      `No rate table for model "${model}". Add it to cost.ts, or set ` +
+        'AI_INPUT_USD_PER_MTOK and AI_OUTPUT_USD_PER_MTOK.',
     );
   }
 

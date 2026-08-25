@@ -29,11 +29,40 @@ export const configSchema = z.object({
   JWT_REFRESH_TTL: durationString.default('30d'),
 
   /**
-   * Optional until M2. The API boots without it; only the resolver route is
+   * Which vendor answers. `anthropic` is the locked decision in PLAN.md §3;
+   * `openai-compatible` covers anything speaking that wire format — OpenAI,
+   * Groq, Together, OpenRouter, DeepSeek, Fireworks, vLLM, Ollama — via
+   * AI_BASE_URL.
+   */
+  AI_PROVIDER: z.enum(['anthropic', 'openai-compatible']).default('anthropic'),
+
+  /**
+   * Optional until M2. The API boots without a key; only the resolver route is
    * disabled, which is exactly the degradation USER-FLOWS §8 describes.
    */
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-opus-5'),
+
+  /** Used when AI_PROVIDER is openai-compatible. */
+  AI_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().default('gpt-4o-mini'),
+  /** Unset for OpenAI itself; set for any other provider on the same protocol. */
+  AI_BASE_URL: z.string().url().optional(),
+  /**
+   * Whether the provider honours json_schema strict mode. When false the call
+   * falls back to json_object and the Zod parse is the only shape enforcement —
+   * deliberately opt-OUT rather than silent, because losing the candidate-id
+   * enum is losing the guarantee that a food cannot be invented.
+   */
+  AI_STRICT_SCHEMA: z.coerce.boolean().default(true),
+
+  /**
+   * Per-million-token rates, for a model with no entry in the built-in table.
+   * Without these an unknown model refuses to run rather than costing zero —
+   * a spend ceiling that silently reads 0 is not a ceiling.
+   */
+  AI_INPUT_USD_PER_MTOK: z.coerce.number().nonnegative().optional(),
+  AI_OUTPUT_USD_PER_MTOK: z.coerce.number().nonnegative().optional(),
   ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(8000),
   RESOLVE_DAILY_QUOTA: z.coerce.number().int().min(0).default(50),
   RESOLVE_USER_DAILY_SPEND_USD: z.coerce.number().min(0).default(1),
@@ -67,6 +96,17 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
       .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
       .join('\n');
     throw new Error(`Invalid environment configuration:\n${problems}`);
+  }
+
+  if (
+    parsed.data.AI_PROVIDER === 'openai-compatible' &&
+    parsed.data.ANTHROPIC_API_KEY &&
+    !parsed.data.AI_API_KEY
+  ) {
+    throw new Error(
+      'AI_PROVIDER is openai-compatible but only ANTHROPIC_API_KEY is set. ' +
+        'Set AI_API_KEY, or leave AI_PROVIDER as anthropic.',
+    );
   }
 
   // Production must not run on the placeholder secrets from .env.example.
