@@ -75,6 +75,16 @@ jobs:
 
       - run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
 
+      # Build EVERY workspace package, not just the ones turbo would infer.
+      # test:int declares dependsOn ["^build"], which builds the declared
+      # dependencies of @nutricheck/api -- and foods-search.int-spec.ts imports
+      # @nutricheck/ingest, which apps/api does not declare. It resolves anyway
+      # through the workspace symlink npm puts in root node_modules, so the
+      # import works while its dist/ is missing, and typescript fails with
+      # TS2307. A developer machine hides this: dist/ is already there from an
+      # earlier build. A clean checkout does not.
+      - run: npm run build
+
       # Testcontainers starts a real Postgres with pgvector. Docker is already
       # present on ubuntu-latest. These are the tests that would actually catch
       # a search or migration regression, which is why they gate the deploy
