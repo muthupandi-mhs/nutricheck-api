@@ -30,6 +30,21 @@ export const configSchema = z.object({
   DATABASE_URL: z.string().url(),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
 
+  /**
+   * TLS to Postgres. Unset means "decide from NODE_ENV" -- on in production,
+   * off otherwise -- which is right for a managed database reached across a
+   * network you do not control.
+   *
+   * It is wrong for a single-host deployment where Postgres is a container on a
+   * private Docker network: that server speaks no TLS, so the pool is rejected
+   * with "The server does not support SSL connections" while migrations, which
+   * build their own pool, apply cleanly. The app then boots, answers liveness,
+   * and fails every query -- set this to false there, deliberately, rather than
+   * dropping NODE_ENV to development and losing production build behaviour with
+   * it.
+   */
+  DATABASE_SSL: booleanString.optional(),
+
   REDIS_URL: z.string().url(),
 
   JWT_ACCESS_SECRET: z.string().min(32, 'must be at least 32 characters'),

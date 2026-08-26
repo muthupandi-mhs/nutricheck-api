@@ -19,13 +19,18 @@ import { DATABASE, DATABASE_POOL } from './database.tokens';
       provide: DATABASE_POOL,
       inject: [ConfigService],
       useFactory: (config: ConfigService<AppConfig, true>): Pool => {
+        // DATABASE_SSL wins when set; otherwise NODE_ENV decides, which is the
+        // right default for a managed database and the wrong one for a Postgres
+        // container on a private Docker network -- that server speaks no TLS,
+        // and the pool is rejected outright. See config.schema.ts.
+        const sslOverride = config.get('DATABASE_SSL', { infer: true });
+        const useSsl =
+          sslOverride ?? config.get('NODE_ENV', { infer: true }) === 'production';
+
         const pool = createPool({
           url: config.get('DATABASE_URL', { infer: true }),
           poolMax: config.get('DATABASE_POOL_MAX', { infer: true }),
-          ssl:
-            config.get('NODE_ENV', { infer: true }) === 'production'
-              ? { rejectUnauthorized: true }
-              : undefined,
+          ssl: useSsl ? { rejectUnauthorized: true } : undefined,
         });
 
         // An idle-client error is emitted on the pool, not on a query. Without
