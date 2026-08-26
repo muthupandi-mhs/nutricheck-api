@@ -1,0 +1,176 @@
+name: staging
+
+# Verify, then deploy to the staging box.
+#
+# The build happens ON THE SERVER, not here, and that is a deliberate choice
+# rather than an oversight. Building in the runner and shipping an image through
+# a registry is the more scalable shape, but it needs registry credentials
+# living on the instance and buys little at this size: the image builds in ~95
+# seconds on the box's 2 vCPU, and the 4 GB of swap added during setup is what
+# absorbs the peak. The moment a rollback needs to be instant -- redeploy tag N-1
+# rather than rebuild commit N-1 -- switch to pushing to GHCR and set IMAGE= in
+# .env.staging, which docker-compose.staging.yml already reads.
+
+on:
+  push:
+    branches: [staging]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    branches: [staging]
+  workflow_dispatch:
+
+# Never let two deploys touch the box at once. NOT cancel-in-progress: killing a
+# deploy midway through `compose up` leaves a half-swapped stack, which is worse
+# than waiting.
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: nutricheck-api
+
+jobs:
+  verify:
+    name: typecheck · unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the Dockerfile's NODE_VERSION and the engines field. A
+          # runner on a different major than the image is a way to pass CI and
+          # fail in production.
+          node-version: '22.14.0'
+          cache: npm
+          cache-dependency-path: nutricheck-api/package-lock.json
+
+      - run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
+      - run: npm run typecheck
+
+      # NOT running `npm run lint`. The script exists in apps/api/package.json
+      # but eslint appears in no devDependencies anywhere in the workspace, so
+      # it fails with "eslint is not recognized" -- a gate that has never once
+      # run. Wiring it up here would fail every push on a missing tool rather
+      # than on the code. Install eslint and a config, fix what it reports,
+      # then add the step back.
+      - run: npm test
+
+  integration:
+    name: integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          cache: npm
+          cache-dependency-path: nutricheck-api/package-lock.json
+
+      - run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
+
+      # Testcontainers starts a real Postgres with pgvector. Docker is already
+      # present on ubuntu-latest. These are the tests that would actually catch
+      # a search or migration regression, which is why they gate the deploy
+      # rather than running after it.
+      - run: npm run test:int
+
+  deploy:
+    name: deploy to staging
+    needs: [verify, integration]
+    if: github.ref == 'refs/heads/staging' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ secrets.STAGING_URL }}
+    steps:
+      - name: Open an SSH session to the instance
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          HOST: ${{ secrets.STAGING_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Trust-on-first-use. Pin this instead by putting the output of
+          # `ssh-keyscan <host>` into a STAGING_HOST_KEY secret and echoing it
+          # here -- that closes a man-in-the-middle window this leaves open.
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull and rebuild on the box
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+          SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$USER@$HOST" \
+            "SHA=$SHA bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd ~/nutricheck/nutricheck-api
+
+          # reset --hard, not pull: a deploy target must end up at exactly the
+          # commit that was tested, and a merge conflict at 3am is not a
+          # deployment strategy. .env.staging is gitignored and survives this.
+          git fetch --prune origin staging
+          git reset --hard "$SHA"
+          echo "[deploy] now at $(git rev-parse --short HEAD)"
+
+          # migrate re-runs as a one-shot before api and worker restart, exactly
+          # as on a cold boot. It is idempotent; an unchanged schema is a no-op.
+          docker compose --env-file .env.staging \
+            -f docker/docker-compose.staging.yml \
+            up -d --build --remove-orphans
+
+          # Each build leaves the previous image dangling. On an 80 GB disk that
+          # is survivable for a while and then suddenly is not.
+          docker image prune -f
+          REMOTE
+
+      - name: Wait for readiness
+        env:
+          URL: ${{ secrets.STAGING_URL }}
+        run: |
+          # /health/ready, never /health/live. Liveness checks no dependency by
+          # design, so it returns 200 from an API that cannot reach Postgres --
+          # a deploy gated on it would report success for a broken release.
+          for i in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$URL/health/ready" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "ready after $((i*10))s"
+              curl -sS --max-time 10 "$URL/health/ready"
+              exit 0
+            fi
+            echo "attempt $i: http $code"
+            sleep 10
+          done
+          echo "::error::staging did not become ready within 300s"
+          exit 1
+
+      - name: Report failure detail
+        if: failure()
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+        run: |
+          # A failed deploy with no logs attached means someone SSHes in to find
+          # out what every previous failure already knew. Level 40/50 only --
+          # every request line contains x-download-options, so a keyword grep
+          # for "down" matches all of them.
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$USER@$HOST" 'bash -s' <<'REMOTE' || true
+          cd ~/nutricheck/nutricheck-api
+          echo "===== ps ====="
+          docker compose --env-file .env.staging -f docker/docker-compose.staging.yml ps
+          echo "===== api warn/error ====="
+          docker compose --env-file .env.staging -f docker/docker-compose.staging.yml \
+            logs --tail=200 api | grep -E '"level":(40|50)' | tail -10
+          echo "===== migrate ====="
+          docker compose --env-file .env.staging -f docker/docker-compose.staging.yml \
+            logs --tail=30 migrate
+          REMOTE
