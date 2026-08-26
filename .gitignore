@@ -8,11 +8,12 @@ coverage/
 .env
 .env.local
 .env.*.local
-# Real secrets, filled in on a deployed machine -- staging or production, the
-# filename is the same on both. Not matched by any rule above: .env.*.local
-# does not cover .env.deploy. The templates beside it are safe and tracked.
-.env.deploy
+# Real secrets, filled in on a deployed machine. NOT matched by any rule above:
+# .env.*.local does not cover .env.staging or .env.prod. The .example templates
+# beside them carry no secrets and stay tracked.
+.env.staging
 .env.prod
+.env.deploy
 !.env.example
 !.env.prod.example
 !.env.staging.example

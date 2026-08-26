@@ -1,4 +1,4 @@
-# Deploying the API to AWS Lightsail
+# Deploying the API to AWS Lightsail (staging)
 
 A from-scratch deployment onto a single 4 GB Lightsail instance: Postgres,
 Redis, the API, the worker, and Caddy for TLS, all on one box.
@@ -17,7 +17,7 @@ actually differs -- hostname, secrets, log level, whether an AI key exists -- is
 a value, not a service, and duplicating the topology to change a domain name is
 how two environments quietly stop resembling each other.
 
-**One machine, one environment, one `.env.deploy`.** Which template you copy
+**One machine, one environment, one `.env.staging`.** Which template you copy
 into it is the only fork in this guide:
 
 | | Staging | Production |
@@ -137,7 +137,7 @@ fails with a confusing schema error that looks like a typo in the file.
 sudo apt-get update && sudo apt-get install -y git
 git clone YOUR_REPO_URL nutricheck
 cd nutricheck/nutricheck-api
-cp .env.staging.example .env.deploy   # or .env.prod.example on a production box
+cp .env.staging.example .env.staging
 ```
 
 Generate the three secrets:
@@ -153,7 +153,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 No Node on the box yet? `openssl rand -base64 48 | tr -d '/+='` gives an
 equally good secret.
 
-Then `nano .env.deploy` and fill in `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`,
+Then `nano .env.staging` and fill in `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`,
 `JWT_REFRESH_SECRET`, `DOMAIN`, and `ACME_EMAIL`. Leave `ANTHROPIC_API_KEY` and
 `GEMINI_API_KEY` blank for now if you like — the API boots without them and
 only `/v1/resolve` and `/v1/transcribe` are disabled. M1 core is fully usable
@@ -162,10 +162,10 @@ with zero AI.
 Reuse of one secret for both JWT values is a real vulnerability, not a style
 point: it lets a stolen access token be replayed as a refresh token.
 
-`.env.deploy` is gitignored. Confirm before you ever commit from this box:
+`.env.staging` is gitignored. Confirm before you ever commit from this box:
 
 ```bash
-git check-ignore -v .env.deploy   # must print a match
+git check-ignore -v .env.staging   # must print a match
 ```
 
 ## 6. Point DNS at the server, then build
@@ -186,7 +186,7 @@ situation.)
 Then build and start:
 
 ```bash
-docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml up -d --build
+docker compose --env-file .env.staging -f docker/docker-compose.staging.yml up -d --build
 ```
 
 The build takes **5–10 minutes** on 2 vCPU. It runs `npm ci` across the whole
@@ -208,7 +208,7 @@ docker build -f docker/Dockerfile --target runtime -t youruser/nutricheck-api:1.
 docker push youruser/nutricheck-api:1.0.0
 ```
 
-Then set `IMAGE=docker.io/youruser/nutricheck-api:1.0.0` in `.env.deploy` and drop
+Then set `IMAGE=docker.io/youruser/nutricheck-api:1.0.0` in `.env.staging` and drop
 `--build` from the command above. One image serves api, worker, and migrate, so
 there is only ever one artifact to promote.
 
@@ -230,14 +230,14 @@ On the server:
 ```bash
 cd ~/nutricheck/nutricheck-api
 gunzip -c ~/corpus-seed.sql.gz | \
-  docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml \
+  docker compose --env-file .env.staging -f docker/docker-compose.staging.yml \
   exec -T postgres psql -U nutricheck -d nutricheck
 ```
 
 Verify:
 
 ```bash
-docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml \
+docker compose --env-file .env.staging -f docker/docker-compose.staging.yml \
   exec -T postgres psql -U nutricheck -d nutricheck \
   -c "SELECT source, count(*) FROM foods GROUP BY ROLLUP(source) ORDER BY 2 DESC;"
 ```
@@ -270,7 +270,7 @@ that will not exist on a fresh server.
 ```bash
 curl -s https://api.yourdomain.com/health/live
 curl -s https://api.yourdomain.com/health/ready
-docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml ps
+docker compose --env-file .env.staging -f docker/docker-compose.staging.yml ps
 ```
 
 All services should read `running`, except `migrate`, which correctly shows
@@ -293,7 +293,7 @@ being used heavily at idle, something is wrong — look at Postgres first.
 
 ```bash
 # from ~/nutricheck/nutricheck-api — define this once to save typing
-alias dc='docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml'
+alias dc='docker compose --env-file .env.staging -f docker/docker-compose.staging.yml'
 
 dc logs -f api          # follow API logs
 dc ps                   # what's running
@@ -346,8 +346,8 @@ state, and 35 MB of it fits in `shared_buffers` with room to spare.
 | Instance | Lightsail 4 GB / 2 vCPU / 80 GB, Ubuntu 24.04 LTS, OS Only |
 | Open ports | 22, 80, 443 — never 5432 or 6379 |
 | Swap | 4 GB, added manually |
-| Compose | `docker/docker-compose.deploy.yml`, project `nutricheck-deploy` |
-| Secrets | `.env.deploy` on the server, gitignored, from `.env.staging.example` or `.env.prod.example` |
+| Compose | `docker/docker-compose.staging.yml`, project `nutricheck-staging` |
+| Secrets | `.env.staging` on the server, gitignored, from `.env.staging.example` or `.env.prod.example` |
 | TLS | Caddy, automatic Let's Encrypt, needs DNS first |
 | Corpus | restore `corpus-seed.sql.gz`, 13,440 foods |
 | Migrations | one-shot `migrate` service, never on app boot |

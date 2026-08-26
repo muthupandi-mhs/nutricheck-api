@@ -1,4 +1,4 @@
-name: nutricheck-deploy
+name: nutricheck-staging
 
 # NOTE the project name differs from the dev stack deliberately. Sharing
 # 'nutricheck' would make this file adopt the dev containers and volumes on a
@@ -7,18 +7,23 @@ name: nutricheck-deploy
 # result is a stack that will not authenticate against a database you still
 # need. Distinct names make that collision impossible.
 
-# The deployed stack for a single host -- STAGING AND PRODUCTION BOTH. There is
-# no second copy of this file per environment, because everything that actually
-# differs between them (hostname, secrets, log level, whether an AI key exists)
-# is a value, not a service. Duplicating the topology to change a domain name
-# is how two environments quietly stop resembling each other.
+# The STAGING stack for a single host, sized against a 4 GB / 2 vCPU instance
+# (AWS Lightsail $24 plan) running nothing else.
 #
-# One machine, one environment, one .env.deploy. Copy .env.staging.example on a
-# staging box or .env.prod.example on a production one; both land at the same
-# filename so this file never has to know which it is.
+# When production lands it gets docker-compose.prod.yml beside this. The two
+# will be near-identical, and that is the thing to watch: the moment they drift
+# at the SERVICE level -- a different Postgres major, a healthcheck added to one
+# -- staging stops being a rehearsal and starts being a different system that
+# happens to run the same code. If prod ever needs genuinely different topology
+# (replicas, a backup sidecar), prefer layering an override file over copying
+# this one, so the shared parts stay shared:
 #
-# Sized against a 4 GB / 2 vCPU instance (AWS Lightsail $24 plan) running
-# nothing else.
+#   docker compose -f docker/docker-compose.staging.yml #                  -f docker/docker-compose.prod.override.yml up -d
+#
+# Overrides can ADD services and settings cleanly. They cannot REMOVE a
+# published port -- Compose merges `ports` additively -- which is exactly why
+# this file is a standalone rewrite of the dev stack rather than a patch over
+# it. On a public IP, un-publishing 5432 is the whole security story.
 #
 # This is a STANDALONE file, deliberately not an override of
 # docker-compose.yml. Compose merges `ports` additively, so an override can
@@ -27,9 +32,9 @@ name: nutricheck-deploy
 # security story, so production gets its own file instead of a patch.
 #
 #   cd nutricheck-api
-#   docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml up -d
+#   docker compose --env-file .env.staging -f docker/docker-compose.staging.yml up -d
 #
-# Every value below comes from .env.deploy. The `:?` suffix makes compose refuse
+# Every value below comes from .env.staging. The `:?` suffix makes compose refuse
 # to start on a missing one rather than silently substituting an empty string,
 # which is how a database ends up with a blank password.
 
@@ -38,9 +43,9 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.deploy}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.deploy}
-      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.deploy}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.staging}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.staging}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.staging}
     # No `ports:` on purpose. Postgres is reachable only over the compose
     # network, by service name. Nothing on the internet can open a socket to it
     # even if the password leaks.
@@ -133,7 +138,7 @@ services:
     # stack does -- shipping the committed dev JWT secrets to production is
     # exactly the accident that file's own comments warn about.
     env_file:
-      - path: ../.env.deploy
+      - path: ../.env.staging
         required: true
     environment:
       NODE_ENV: production
@@ -164,7 +169,7 @@ services:
     command: ['node', 'apps/api/dist/worker.js']
     restart: unless-stopped
     env_file:
-      - path: ../.env.deploy
+      - path: ../.env.staging
         required: true
     environment:
       NODE_ENV: production
@@ -192,8 +197,8 @@ services:
       - '80:80'
       - '443:443'
     environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN in .env.deploy}
-      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.deploy}
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env.staging}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.staging}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificates live here. Losing this volume means re-issuing on next
