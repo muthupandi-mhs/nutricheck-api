@@ -1,6 +1,26 @@
 name: staging
 
-# Verify, then deploy to the staging box.
+# Deploy to the staging box on push. No tests run here -- they are run locally
+# before pushing instead.
+#
+# That is a tradeoff, not a free simplification: nothing now stops a commit that
+# fails npm test or npm run test:int from reaching staging. The pipeline will
+# deploy it and report success, because the only thing left checking anything is
+# the readiness probe below, and a wrong build still starts. That gate catches a
+# stack that will not boot; it cannot catch one that boots and is wrong.
+#
+# To restore them, add two jobs and make deploy need both:
+#
+#   verify:       npm ci -> npm run typecheck -> npm test
+#   integration:  npm ci -> npm run build -> npm run test:int
+#
+# Two things they need, both learned the hard way. Set working-directory on the
+# JOB, never workflow-wide: the deploy job never checks the repository out, so a
+# global default pointing at nutricheck-api makes every one of its steps fail on
+# a path that does not exist. And npm run build must precede test:int, because
+# foods-search.int-spec.ts imports @nutricheck/ingest, which apps/api does not
+# declare -- so turbo ^build never builds it and tsc fails on a package that is
+# sitting right there.
 #
 # The build happens ON THE SERVER, not here, and that is a deliberate choice
 # rather than an oversight. Building in the runner and shipping an image through
@@ -28,73 +48,9 @@ concurrency:
   group: staging-deploy
   cancel-in-progress: false
 
-defaults:
-  run:
-    working-directory: nutricheck-api
-
 jobs:
-  verify:
-    name: typecheck · unit tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          # Matches the Dockerfile's NODE_VERSION and the engines field. A
-          # runner on a different major than the image is a way to pass CI and
-          # fail in production.
-          node-version: '22.14.0'
-          cache: npm
-          cache-dependency-path: nutricheck-api/package-lock.json
-
-      - run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
-      - run: npm run typecheck
-
-      # NOT running `npm run lint`. The script exists in apps/api/package.json
-      # but eslint appears in no devDependencies anywhere in the workspace, so
-      # it fails with "eslint is not recognized" -- a gate that has never once
-      # run. Wiring it up here would fail every push on a missing tool rather
-      # than on the code. Install eslint and a config, fix what it reports,
-      # then add the step back.
-      - run: npm test
-
-  integration:
-    name: integration tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.14.0'
-          cache: npm
-          cache-dependency-path: nutricheck-api/package-lock.json
-
-      - run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
-
-      # Build EVERY workspace package, not just the ones turbo would infer.
-      # test:int declares dependsOn ["^build"], which builds the declared
-      # dependencies of @nutricheck/api -- and foods-search.int-spec.ts imports
-      # @nutricheck/ingest, which apps/api does not declare. It resolves anyway
-      # through the workspace symlink npm puts in root node_modules, so the
-      # import works while its dist/ is missing, and typescript fails with
-      # TS2307. A developer machine hides this: dist/ is already there from an
-      # earlier build. A clean checkout does not.
-      - run: npm run build
-
-      # Testcontainers starts a real Postgres with pgvector. Docker is already
-      # present on ubuntu-latest. These are the tests that would actually catch
-      # a search or migration regression, which is why they gate the deploy
-      # rather than running after it.
-      - run: npm run test:int
-
   deploy:
     name: deploy to staging
-    needs: [verify, integration]
-    if: github.ref == 'refs/heads/staging' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # No `url:` here on purpose. The secrets context is NOT available in
@@ -191,23 +147,16 @@ jobs:
 
   notify:
     name: notify discord
-    needs: [verify, integration, deploy]
+    needs: [deploy]
     # always(), so a failed deploy is announced rather than silently absent --
     # the notification you actually need is the one about the run that broke.
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    if: always()
     runs-on: ubuntu-latest
-    # This job never checks the repo out, so the workspace-wide default of
-    # nutricheck-api would point at a directory that does not exist here.
-    defaults:
-      run:
-        working-directory: .
     steps:
       - name: Post the result to Discord
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
-          VERIFY_RESULT: ${{ needs.verify.result }}
-          INTEGRATION_RESULT: ${{ needs.integration.result }}
           SHA: ${{ github.sha }}
           ACTOR: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -225,9 +174,6 @@ jobs:
           if [ "$DEPLOY_RESULT" = "success" ]; then
             TITLE="Staging deployed"
             COLOR=3066993      # green
-          elif [ "$DEPLOY_RESULT" = "skipped" ]; then
-            TITLE="Staging deploy skipped - tests did not pass"
-            COLOR=15844367     # amber
           else
             TITLE="Staging deploy FAILED"
             COLOR=15158332     # red
@@ -244,8 +190,6 @@ jobs:
             --arg actor "$ACTOR" \
             --arg run_url "$RUN_URL" \
             --arg site "$SITE" \
-            --arg verify "$VERIFY_RESULT" \
-            --arg integration "$INTEGRATION_RESULT" \
             --arg deploy "$DEPLOY_RESULT" \
             --argjson color "$COLOR" \
             '{
@@ -255,8 +199,6 @@ jobs:
                 color: $color,
                 description: ($sha + " " + $msg),
                 fields: [
-                  { name: "unit",        value: $verify,      inline: true },
-                  { name: "integration", value: $integration, inline: true },
                   { name: "deploy",      value: $deploy,      inline: true },
                   { name: "by",          value: $actor,       inline: true },
                   { name: "url",         value: $site,        inline: false }

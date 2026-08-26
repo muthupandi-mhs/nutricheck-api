@@ -1,3 +1,4 @@
+import type { MealFacts } from '@nutricheck/contracts';
 import { eq, schema } from '@nutricheck/database';
 import { ingestUsda } from '@nutricheck/ingest';
 import { randomUUID } from 'node:crypto';
@@ -12,7 +13,7 @@ import {
   type AiCallResult,
   type RerankItem,
 } from '../src/modules/ai/ai.service';
-import type { ParseResult, RerankResult } from '../src/modules/ai/ai.schemas';
+import type { InsightResult, ParseResult, RerankResult } from '../src/modules/ai/ai.schemas';
 import { FoodsService } from '../src/modules/foods/foods.service';
 import { GoalsService } from '../src/modules/goals/goals.service';
 import { LogsService } from '../src/modules/logs/logs.service';
@@ -60,6 +61,17 @@ class FakeAi extends AiService {
     this.lastKnownUnits = knownUnits;
     if (this.failWith) throw this.failWith;
     return wrap(this.parseResult, 'parse-v1');
+  }
+
+  /**
+   * The resolver never calls this. It exists because AiService is abstract and
+   * grew the member when the insight endpoint landed, and stubbing it here
+   * rather than softening the base class keeps the compiler as the thing that
+   * notices the contract changed — which is precisely how this test started
+   * failing, and the right way round for it to fail.
+   */
+  async insight(_facts: MealFacts): Promise<AiCallResult<InsightResult>> {
+    return wrap({ text: 'a fake insight' }, 'insight-v1');
   }
 
   async rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>> {
