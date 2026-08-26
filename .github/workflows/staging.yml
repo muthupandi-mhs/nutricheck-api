@@ -87,9 +87,13 @@ jobs:
     if: github.ref == 'refs/heads/staging' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment:
-      name: staging
-      url: ${{ secrets.STAGING_URL }}
+    # No `url:` here on purpose. The secrets context is NOT available in
+    # environment.url -- only github, vars, needs, env and friends are -- and an
+    # unavailable context there does not render blank, it makes the entire
+    # workflow file invalid, so nothing runs at all. To get the clickable link
+    # on the deployment, move STAGING_URL to a repository VARIABLE and use
+    # ${{ vars.STAGING_URL }}; it is a public hostname, not a secret.
+    environment: staging
     steps:
       - name: Open an SSH session to the instance
         env:
