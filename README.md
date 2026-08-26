@@ -18,6 +18,8 @@ are not obvious from the code:
 
 - **[BACKEND.STATUS.md](BACKEND.STATUS.md)** — backend state, gotchas, open decisions
 - **[MOBILEAPP.STATUS.md](MOBILEAPP.STATUS.md)** — mobile app state
+- **[GAP-REPORT.STATUS.md](GAP-REPORT.STATUS.md)** — what the app expects vs. what the API
+  serves, method by method. Read before writing the HTTP client
 
 ## Docs
 

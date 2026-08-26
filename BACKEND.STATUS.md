@@ -15,8 +15,8 @@ of that rather than instead of it.
 
 | | |
 |---|---|
-| Routes | 31, versioned under `/v1` |
-| Tests | **156 green** — 60 unit, 96 Testcontainers integration |
+| Routes | **33** under `/v1`, plus 3 health probes (the old "31" was a miscount) |
+| Tests | **189 green** — 65 unit, 124 Testcontainers integration |
 | Migrations | 4 applied (`0000`–`0003`) |
 | Corpus | **~8,000 foods** (7,929 USDA + 79 curated), 522 aliases, 8 locales |
 | Live AI | Verified against OpenAI. **$0.000385/resolve**, ~2.2 s |
@@ -32,7 +32,11 @@ of that rather than instead of it.
   curated Indian dishes, Tamil aliases attached to USDA rows, trigram search, custom foods
 - **Goals** — Mifflin–St Jeor, append-only with `effective_from`
 - **Logs** — commit with server-side arithmetic frozen at write, idempotent on
-  `clientId`, batch drain, edit, timezone-correct day view
+  `clientId`, batch drain, edit, timezone-correct day view, **per-item portion
+  edit that learns the unit**, **week summary with averages and streak**
+- **Phrases** — the sentence behind an entry is recorded in the commit
+  transaction and served back for the composer's "say it again"; saving a meal
+  from an entry promotes its phrase
 - **Saved meals + repeat strip** — the two-second route
 - **The resolver** — portion prefill → parse → one batched candidate search →
   constrained re-rank → arithmetic → SSE draft. Phrase cache, `ai_runs` cost
@@ -45,9 +49,9 @@ of that rather than instead of it.
 | Gap | Why it matters |
 |---|---|
 | **Eval harness** | The highest-value missing thing. Without it "the model picked the wrong chicken" is an anecdote, not a number |
-| **CI pipeline** | 156 tests that only run when someone remembers. A remote exists (`muthupandi-mhs/nutricheck-api`); nothing has ever gone through a pipeline |
+| **CI pipeline** | 189 tests that only run when someone remembers. A remote exists (`muthupandi-mhs/nutricheck-api`); nothing has ever gone through a pipeline |
 | Embeddings + RRF | Search is trigram-only. `food_embeddings` exists and is empty |
-| Insights / weight (M3) | Not started |
+| Weight tracking (M3) | Not started. The **week summary** now exists — the insights tab has a backend — but weight logging and trend do not |
 | Password reset | Email+password with no recovery = a forgotten password is a lost account |
 | Server-side transcription | Backend does no speech recognition — by design, see §5 |
 
@@ -224,11 +228,53 @@ Not bugs — things that are true and should not be discovered by surprise.
 
 ---
 
-## 8. If you only do one thing
+## 8. What the mobile app expects — now wired
 
-Build the **eval harness** ([docs/BACKEND.md §15.4](docs/BACKEND.md)). It is the only
-way to answer whether the current model is good enough, and it gates every prompt
-edit from then on. Everything else — more dishes, embeddings, a bigger model — is
-guesswork until it exists.
+**The app talks to the API.** `httpApi` exists, `App.tsx` constructs it by
+default, and every method on `NutriCheckApi` has a route behind it. Full detail
+in [GAP-REPORT.STATUS.md](GAP-REPORT.STATUS.md); the backend-side summary:
 
-Second: **CI**. There are 156 tests and no automation.
+**Built for the client, this pass:**
+
+- `POST /v1/me/goals/preview` — targets without persisting, sharing `computeGoal`
+  with the path that does persist
+- `PATCH /v1/logs/:id/items/:itemId` — one portion, refrozen, and **the personal
+  unit is learned**. The wholesale `PATCH /v1/logs/:id` discarded that signal
+- `GET /v1/logs/week?date=&tz=` — seven days, averages over logged days only,
+  an uncapped streak
+- `GET /v1/suggestions/phrases` plus the write side inside the commit
+  transaction. `user_phrases` had been written by nothing and would have
+  answered empty forever
+
+**Fixed earlier in the same pass:**
+
+- **A throttled auth request reached the user as a heading reading "Throttler".**
+  `ProblemThrottlerGuard` now returns a real `rate-limited` problem with the
+  contract's `resetAt`.
+- **`onboarded` could be true with no targets.** The profile and its goal are one
+  transaction now, and `isOnboarded` requires both rows.
+
+**Still true and worth knowing:**
+
+| Item | Note |
+|---|---|
+| Throttler storage is in-memory | [docs/BACKEND.md §12](docs/BACKEND.md) specifies Redis. Per-pod counters mean the login limit multiplies by the replica count. Needs `@nest-lab/throttler-storage-redis`, not installed |
+| Password reset | Still nothing server-side; `SignInScreen` has an empty `onPress`. Building it means picking an email transport |
+| Problem `type` is a URI on the wire | Unchanged and correct. The client strips `PROBLEM_BASE_URI` in its transport — that is the app's job, not the server's |
+| The running container is stale | Docker Hub was unreachable when this was written, so `nutricheck-api-1` still serves the pre-change image. Rebuild before trusting port 3000 |
+
+## 9. If you only do one thing
+
+**Commit the logs module.** The root `.gitignore` had an unanchored `logs/`
+pattern, which git matches at any depth — so `apps/api/src/modules/logs/` had
+**never been committed**. That directory owns commit, the day view, the batch
+drain and both new routes; a fresh clone would not have built. The pattern is
+fixed (`/logs/`), the files are visible to git, and they are still untracked.
+
+Then build the **eval harness** ([docs/BACKEND.md §15.4](docs/BACKEND.md)). Now
+that the app talks to the API, this is the largest remaining unknown: it is the
+only way to answer whether the current model is good enough, and it gates every
+prompt edit from then on. Everything else — more dishes, embeddings, a bigger
+model — is guesswork until it exists.
+
+Third: **CI**. There are 189 backend tests and 102 app tests, and no automation.

@@ -204,6 +204,8 @@ schemes; the phone is currently set to dark.
 |---|---|
 | `JAVA_HOME` points to `…\Android Studio\jbr`, which does not exist | Override per-command as above. **Worth fixing system-wide.** |
 | `adb install` fails with an *empty* error message | The USB link drops mid-transfer. Use `push` + `pm install`. Consider a different cable. |
+| `installDebug` fails with `INSTALL_PARSE_FAILED_NO_CERTIFICATES … SHA-256 digest of contents did not verify` | **Not a signing problem** — check before chasing keystores. Verify the local APK with `apksigner verify --verbose` first; if it says `Verifies`, the file is fine and the install was corrupted on the way to a device. Root cause here: **the emulator was attached and dying**, so Gradle installed to *both* targets and one produced a torn APK — the message never says which device failed. Detach or delete the emulator, and see the ABI row below. |
+| A phone **and** the emulator are both attached | Gradle installs to every attached device and reports one failure without naming it. `--deviceId=<serial>`, or stop the emulator. `adb devices -l` first — the AVD here has died mid-session more than once. |
 | Phone shows `unauthorized`, or vanishes from `adb devices` | `adb kill-server && adb start-server` after Windows enumerates it. Check Windows sees "ADB Interface" via `Get-PnpDevice`. |
 | `adb reverse` lost after a USB re-enumeration | Re-run it; Metro will otherwise show "Unable to load script". |
 | Android 16 shows a local-network-access prompt on first launch | Expected — it is the debug build reaching Metro. Manifest declares only `INTERNET`. |
@@ -211,6 +213,55 @@ schemes; the phone is currently set to dark.
 | Metro wedged on 8081 | Kill the stale node process and restart; a wedged Metro returns nothing for `/index.bundle`. |
 | App shows "Loading from localhost:8082" | A second Metro started on 8082 and the app latched onto it. `adb reverse` **both** ports, or kill the duplicate. |
 | Fast Refresh silently not applying | Force-stop and relaunch: `adb shell am force-stop com.nutricheck && adb shell am start -n com.nutricheck/.MainActivity`. Re-run `adb reverse` first. |
+
+### The debug APK was 188 MB; it is now 55 MB
+
+`reactNativeArchitectures` in `gradle.properties` lists all four ABIs, so every
+debug build shipped `x86`, `x86_64`, `armeabi-v7a` **and** `arm64-v8a`. The
+phone (A142 / Pacman) is `arm64-v8a` only — three quarters of that payload could
+not run on it, and a 188 MB streamed install is a much bigger target for a torn
+transfer than a 55 MB one.
+
+`npm run android` now passes `--active-arch-only`, which detects the attached
+device's ABI per-run and builds only that. **188 MB → 54.6 MB, 71% smaller**, and
+the streaming install that had been failing then succeeded first try.
+
+The flag is dynamic, not a pin — plug in an x86_64 emulator and it builds
+x86_64. `gradle.properties` is untouched, so release builds are unaffected. Note
+it does *not* solve the two-device case: with a phone and an emulator attached it
+detects both arches and builds both.
+
+### `@react-native-voice/voice` is patched — do not `npm install` it fresh and expect a build
+
+The package is 3.2.4, last touched in 2021, and its `android/build.gradle`
+targets AGP 3.3.2. Against RN 0.87 / AGP 9 / Gradle 9.4.1 it fails four ways:
+
+| Upstream | Why it breaks | Patched to |
+|---|---|---|
+| `jcenter()` ×3 | Removed in Gradle 9 — hard failure at *evaluation*, so no root-level hook can intercept it | `mavenCentral()` + `google()` |
+| `compileSdkVersion` | The setter is gone in AGP 9; reads as "does not specify `compileSdk`" | `compileSdk`, still read from `rootProject.ext` |
+| `package=` in `AndroidManifest.xml` | Removed in AGP 8 | `namespace "com.wenkesj.voice"` in `build.gradle` |
+| `com.android.support:appcompat-v7` | Support library; cannot coexist with `useAndroidX=true`, and Jetifier is long gone | `androidx.annotation:annotation` — the module only ever used `@NonNull` |
+| `com.facebook.react:react-native:+` | Coordinate last published in 2018; `+` resolves to something ancient | `com.facebook.react:react-android` |
+
+**The Java itself was not touched and needed nothing** — it already imports
+`androidx.annotation` and uses bridge APIs that still exist in 0.87, so it
+compiles clean under the New Architecture's interop layer. Only build config
+was wrong.
+
+Held by [`patches/@react-native-voice+voice+3.2.4.patch`](nutricheck/patches/)
+via `patch-package`, run from the `postinstall` script. Verified by deleting
+`node_modules/@react-native-voice`, reinstalling, and building the APK.
+
+Two traps if you ever regenerate it: run `patch-package` **before** any Gradle
+build, or it silently swallows the module's whole `build/` directory —
+`.class`, `.dex` and `.aar` binaries — into the patch (41 KB of rot vs. 4.8 KB
+clean). And check `patches/` is committed; it is the only copy of this fix.
+
+This is a dead dependency held together by a local patch. It works, but the
+real decision is whether to keep it, move to a maintained recogniser, or drop
+to the keyboard's own mic key and delete `DictationOverlay`. Nothing forces
+that today.
 
 Native deps added this round (**require a rebuild, not just a Metro restart**):
 `react-native-linear-gradient`, `react-native-haptic-feedback`,
