@@ -18,6 +18,14 @@ coverage/
 !.env.prod.example
 !.env.staging.example
 
+# Private keys -- SSH, Lightsail .pem, anything else. A key sitting in the
+# working tree is one `git add -A` away from the public history of this repo,
+# and the fix after that is revoking the key, not deleting the commit.
+*.pem
+*.key
+id_rsa
+id_ed25519
+
 model/
 *.onnx
 
