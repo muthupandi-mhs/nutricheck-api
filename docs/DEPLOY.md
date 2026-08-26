@@ -3,6 +3,9 @@
 A from-scratch deployment onto a single 4 GB Lightsail instance: Postgres,
 Redis, the API, the worker, and Caddy for TLS, all on one box.
 
+This is the ONE-TIME setup. Once it is done, deploys are automatic on push to
+`staging` - see [CI-CD.md](CI-CD.md).
+
 Everything here assumes the **$24/month Lightsail plan** — 2 vCPU, 4 GB RAM,
 80 GB SSD, 4 TB transfer. A freshly seeded database is 26 MB and the whole runtime
 footprint is about 2.7 GB, so that plan has real headroom. See §10 for when it stops being
@@ -331,25 +334,51 @@ If swap is in heavy use at idle, look at Postgres first.
 
 ## 9. Running it
 
-```bash
-# from ~/nutricheck/nutricheck-api — define this once to save typing
-alias dc='docker compose --env-file .env.staging -f docker/docker-compose.staging.yml'
+Everything below assumes this alias, defined once:
 
+```bash
+# from ~/nutricheck/nutricheck-api
+alias dc='docker compose --env-file .env.staging -f docker/docker-compose.staging.yml'
+echo "alias dc='docker compose --env-file .env.staging -f docker/docker-compose.staging.yml'" >> ~/.bashrc
+```
+
+```bash
 dc logs -f api          # follow API logs
-dc ps                   # what's running
+dc ps                   # what is running
 dc restart api          # restart one service
 dc down                 # stop everything (volumes survive)
 ```
 
-**Deploying an update:**
+Never `dc down -v` — that destroys the database and Caddy's certificates.
+
+### Deploying an update
+
+**Push to `staging` and it deploys itself.** GitHub Actions SSHes in, resets the
+box to the pushed commit, rebuilds, and waits for `/health/ready` before
+reporting success. See [CI-CD.md](CI-CD.md).
+
+The pipeline runs **no tests** — that is a deliberate decision recorded in that
+document, and it means running them yourself before pushing is not optional:
+
+```bash
+npm run typecheck && npm test && npm run test:int
+```
+
+To deploy by hand — because the pipeline is broken, or you are testing an
+uncommitted change:
 
 ```bash
 git pull
 dc up -d --build        # migrate re-runs automatically before api restarts
 ```
 
-**Backups.** The corpus can always be rebuilt from the pinned USDA releases, but
-user accounts and food logs cannot. Back those up:
+Both paths converge on the same `compose up`, so a manual deploy is not a
+different kind of deploy. The pipeline only removes the typing.
+
+### Backups
+
+The corpus can always be rebuilt from the pinned USDA releases; user accounts
+and food logs cannot. Back those up:
 
 ```bash
 dc exec -T postgres pg_dump -U nutricheck -d nutricheck --no-owner \
@@ -360,6 +389,7 @@ Put that in a cron job and copy the result off the instance — a backup that
 lives only on the machine it is backing up is not a backup. Lightsail's
 automatic instance snapshots ($2–5/month) are the low-effort alternative and
 cover the whole disk.
+
 
 ## 10. When 4 GB stops being enough
 
@@ -391,5 +421,6 @@ state, and 35 MB of it fits in `shared_buffers` with room to spare.
 | TLS | Caddy, automatic Let's Encrypt, needs DNS first |
 | Corpus | restore `corpus-seed.sql.gz`, 13,440 foods |
 | Migrations | one-shot `migrate` service, never on app boot |
+| Deploys | automatic on push to `staging` - see [CI-CD.md](CI-CD.md) |
 | DB TLS | `DATABASE_SSL=false` — Postgres is a container, speaks no TLS |
 | Live URL | `https://<static-ip-dashed>.sslip.io` |
