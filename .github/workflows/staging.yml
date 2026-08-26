@@ -174,3 +174,83 @@ jobs:
           docker compose --env-file .env.staging -f docker/docker-compose.staging.yml \
             logs --tail=30 migrate
           REMOTE
+
+  notify:
+    name: notify discord
+    needs: [verify, integration, deploy]
+    # always(), so a failed deploy is announced rather than silently absent --
+    # the notification you actually need is the one about the run that broke.
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    # This job never checks the repo out, so the workspace-wide default of
+    # nutricheck-api would point at a directory that does not exist here.
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Post the result to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SITE: ${{ secrets.STAGING_URL }}
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          # A missing webhook is not a build failure. Anyone running this on a
+          # fork has no reason to hold the secret, and failing their run over a
+          # notification would be the reporting breaking the thing it reports on.
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "DISCORD_WEBHOOK not set - skipping notification"
+            exit 0
+          fi
+
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            TITLE="Staging deployed"
+            COLOR=3066993      # green
+          elif [ "$DEPLOY_RESULT" = "skipped" ]; then
+            TITLE="Staging deploy skipped - tests did not pass"
+            COLOR=15844367     # amber
+          else
+            TITLE="Staging deploy FAILED"
+            COLOR=15158332     # red
+          fi
+
+          # Built with jq rather than a printf template. A commit message
+          # containing a quote, a newline or a backslash would otherwise produce
+          # invalid JSON, and the notification would vanish exactly when the
+          # commit was unusual enough to be worth reading about.
+          jq -n \
+            --arg title "$TITLE" \
+            --arg msg "$(printf '%s' "$MSG" | head -1)" \
+            --arg sha "${SHA:0:7}" \
+            --arg actor "$ACTOR" \
+            --arg run_url "$RUN_URL" \
+            --arg site "$SITE" \
+            --arg verify "$VERIFY_RESULT" \
+            --arg integration "$INTEGRATION_RESULT" \
+            --arg deploy "$DEPLOY_RESULT" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $run_url,
+                color: $color,
+                description: ($sha + " " + $msg),
+                fields: [
+                  { name: "unit",        value: $verify,      inline: true },
+                  { name: "integration", value: $integration, inline: true },
+                  { name: "deploy",      value: $deploy,      inline: true },
+                  { name: "by",          value: $actor,       inline: true },
+                  { name: "url",         value: $site,        inline: false }
+                ]
+              }]
+            }' > payload.json
+
+          curl -sS -X POST -H "Content-Type: application/json" \
+            --max-time 20 --retry 2 \
+            -d @payload.json "$WEBHOOK" \
+            -o /dev/null -w 'discord responded %{http_code}\n'
