@@ -12,13 +12,12 @@ enough.
 
 ## Staging or production?
 
-The same stack serves both. There is no second compose file: everything that
-actually differs -- hostname, secrets, log level, whether an AI key exists -- is
-a value, not a service, and duplicating the topology to change a domain name is
-how two environments quietly stop resembling each other.
+This guide deploys STAGING, which is what exists today. Production gets
+docker-compose.prod.yml when it lands; the staging compose file's header
+explains why an override layered on it beats a copy of it.
 
-**One machine, one environment, one `.env.staging`.** Which template you copy
-into it is the only fork in this guide:
+**One machine, one environment, one `.env.staging`.** What differs between the
+two environments is values, not services:
 
 | | Staging | Production |
 |---|---|---|
@@ -47,11 +46,9 @@ network config just to test against it. If you truly want no TLS, set
 You need two things this guide cannot create for you:
 
 1. **An AWS account** with Lightsail available.
-2. **A domain name** you control, with access to its DNS records. Caddy gets a
-   free Let's Encrypt certificate automatically, but only for a hostname that
-   resolves to this server. Without a domain you can still run the stack, but
-   the app will talk to it over plain HTTP on an IP address, which you should
-   not ship to real users.
+2. **Nothing else.** Staging needs no domain -- sslip.io supplies a resolvable
+   hostname built from the instance IP, and Caddy gets a real Let's Encrypt
+   certificate for it. Production is where you will want a domain you own.
 
 Have ready, from your laptop:
 
@@ -94,7 +91,7 @@ Networking → IPv4 Firewall. You want exactly:
 **Port 80 is not optional** even though all real traffic is HTTPS — Let's
 Encrypt's HTTP-01 challenge uses it, and certificate issuance fails without it.
 
-**Never add 5432 or 6379.** The production compose file does not publish them,
+**Never add 5432 or 6379.** The staging compose file does not publish them,
 so they are unreachable regardless, but adding a firewall rule for a port you
 think you might want later is how a database ends up on Shodan.
 
@@ -153,6 +150,9 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 No Node on the box yet? `openssl rand -base64 48 | tr -d '/+='` gives an
 equally good secret.
 
+`.env.staging.example` already carries `DATABASE_SSL=false`, which this
+deployment needs — see §8 for what happens without it.
+
 Then `nano .env.staging` and fill in `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`,
 `JWT_REFRESH_SECRET`, `DOMAIN`, and `ACME_EMAIL`. Leave `ANTHROPIC_API_KEY` and
 `GEMINI_API_KEY` blank for now if you like — the API boots without them and
@@ -168,20 +168,29 @@ point: it lets a stolen access token be replayed as a refresh token.
 git check-ignore -v .env.staging   # must print a match
 ```
 
-## 6. Point DNS at the server, then build
+## 6. Confirm the hostname resolves, then build
 
-Add an **A record** for your domain to the static IP, and wait for it to
-resolve. Check from the server:
+`DOMAIN` in `.env.staging` must match the instance's STATIC IP with dots
+replaced by dashes. Attaching a static IP in Lightsail REPLACES the dynamic
+address the instance booted with, so a hostname built from the old one resolves
+to nothing -- and the symptom is a connection timeout that looks exactly like a
+closed firewall port while the stack itself stays perfectly healthy.
 
 ```bash
-dig +short api.yourdomain.com    # must print your static IP
+grep ^DOMAIN .env.staging          # e.g. DOMAIN=3-6-120-121.sslip.io
+dig +short $(grep ^DOMAIN .env.staging | cut -d= -f2)
 ```
 
-Do this **before** starting the stack. Caddy requests a certificate on boot, and
-Let's Encrypt rate-limits failed issuance to 5 per hostname per hour — a stack
-started against DNS that isn't ready yet can lock you out of certificates for an
-hour. (The Caddyfile has a commented-out staging CA line for exactly this
-situation.)
+The second line must print your static IP. Get this right BEFORE starting the
+stack: Caddy requests a certificate on boot and Let's Encrypt rate-limits
+failed issuance to 5 per hostname per hour. (The Caddyfile has a commented-out
+staging CA line for exactly this situation.) Changing `DOMAIN` later is
+recoverable -- a new hostname carries a fresh rate limit:
+
+```bash
+sed -i "s|^DOMAIN=.*|DOMAIN=<new>.sslip.io|" .env.staging
+dc up -d --force-recreate caddy
+```
 
 Then build and start:
 
@@ -268,16 +277,46 @@ that will not exist on a fresh server.
 ## 8. Verify
 
 ```bash
-curl -s https://api.yourdomain.com/health/live
-curl -s https://api.yourdomain.com/health/ready
-docker compose --env-file .env.staging -f docker/docker-compose.staging.yml ps
+HOST=$(grep ^DOMAIN .env.staging | cut -d= -f2)
+curl -s https://$HOST/health/live
+curl -s https://$HOST/health/ready
+dc ps
 ```
 
-All services should read `running`, except `migrate`, which correctly shows
+All services read `running` except `migrate`, which correctly shows
 `exited (0)`.
 
-If TLS isn't working, it is almost always DNS. `docker compose ... logs caddy`
-tells you plainly.
+**`/health/live` returning 200 proves almost nothing.** It deliberately checks
+no dependency at all — a liveness probe that touched the database would restart
+every replica during a database blip. `/health/ready` is the one that matters:
+it checks Postgres and Redis. A healthy `live` beside a failing `ready` is an
+API that boots, binds its port, and fails every query.
+
+### When /health/ready returns 503
+
+The exception filter reduces it to a bare problem+json with no reason attached.
+The reason is in the logs, at level 50:
+
+```bash
+dc logs --tail=300 api | grep -E '"level":(40|50)' | tail -5
+```
+
+Filter by pino level, not by keyword — every request line contains
+`x-download-options`, so a pattern like `down` matches all of them and buries
+what you are looking for. 40 is warn, 50 is error.
+
+The failure to expect on a first deploy:
+
+```
+database: down — "The server does not support SSL connections"
+```
+
+The pool requires TLS whenever `NODE_ENV=production`, and a Postgres container
+on a private Docker network speaks none. Migrations build their own pool, so the
+schema applies cleanly and nothing looks wrong until a query runs. Fix with
+`DATABASE_SSL=false` in `.env.staging` then `dc up -d --build api worker` —
+not by dropping `NODE_ENV`, which disables production build behaviour as a side
+effect.
 
 Check memory has settled where expected:
 
@@ -286,8 +325,9 @@ free -h
 docker stats --no-stream
 ```
 
-Roughly 2.7 GB used, ~1.3 GB free for page cache, swap near zero. If swap is
-being used heavily at idle, something is wrong — look at Postgres first.
+With the corpus seeded, roughly 1.0 GB used and 2.8 GB available, swap at zero.
+If swap is in heavy use at idle, look at Postgres first.
+
 
 ## 9. Running it
 
@@ -351,3 +391,5 @@ state, and 35 MB of it fits in `shared_buffers` with room to spare.
 | TLS | Caddy, automatic Let's Encrypt, needs DNS first |
 | Corpus | restore `corpus-seed.sql.gz`, 13,440 foods |
 | Migrations | one-shot `migrate` service, never on app boot |
+| DB TLS | `DATABASE_SSL=false` — Postgres is a container, speaks no TLS |
+| Live URL | `https://<static-ip-dashed>.sslip.io` |
