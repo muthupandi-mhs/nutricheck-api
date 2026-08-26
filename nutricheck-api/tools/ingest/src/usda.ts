@@ -65,18 +65,25 @@ async function* readCsv<T>(dir: string, file: string): AsyncGenerator<T> {
 }
 
 /**
- * Resolve the three nutrient surrogate ids we care about by their stable
- * `nutrient_nbr`, and reject anything not reported in the unit we expect.
+ * Resolve the nutrient keys we care about by their stable `nutrient_nbr`, and
+ * reject anything not reported in the unit we expect.
  *
  * Hardcoding 1003/1008/1079 works today and is exactly the kind of thing that
  * silently ingests garbage after a schema revision.
+ *
+ * Each nutrient resolves to TWO accepted keys, because FDC is not internally
+ * consistent about what `food_nutrient.nutrient_id` points at. SR Legacy and
+ * Foundation use the surrogate `nutrient.id` (1003, 1008, ...); FNDDS uses the
+ * legacy `nutrient_nbr` (203, 208, ...). Accepting both is what lets one code
+ * path read every release. Matching only the surrogate id makes FNDDS ingest as
+ * 5,432 foods with no macros, which the writer then discards in silence.
  */
 export async function resolveNutrientIds(dir: string): Promise<{
-  protein: string;
-  energyKcal: string;
-  fat: string;
-  carbs: string;
-  fiber: string;
+  protein: string[];
+  energyKcal: string[];
+  fat: string[];
+  carbs: string[];
+  fiber: string[];
 }> {
   const wanted = new Map<string, { nbr: string; unit: string }>([
     ['protein', { nbr: NUTRIENT_NBR.protein, unit: 'G' }],
@@ -86,13 +93,15 @@ export async function resolveNutrientIds(dir: string): Promise<{
     ['fiber', { nbr: NUTRIENT_NBR.fiber, unit: 'G' }],
   ]);
 
-  const found = new Map<string, string>();
+  const found = new Map<string, string[]>();
 
   for await (const row of readCsv<UsdaNutrientRow>(dir, 'nutrient.csv')) {
     for (const [key, spec] of wanted) {
       if (found.has(key)) continue;
       if (row.nutrient_nbr === spec.nbr && row.unit_name.toUpperCase() === spec.unit) {
-        found.set(key, row.id);
+        // Deduplicated: a release that numbers both the same must not register
+        // one key twice.
+        found.set(key, [...new Set([row.id, row.nutrient_nbr])]);
       }
     }
   }

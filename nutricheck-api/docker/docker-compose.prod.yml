@@ -1,0 +1,204 @@
+name: nutricheck-prod
+
+# NOTE the project name differs from the dev stack deliberately. Sharing
+# 'nutricheck' would make this file adopt the dev containers and volumes on a
+# developer laptop -- same pgdata volume, different POSTGRES_PASSWORD, and
+# Postgres ignores the password variable once a data directory exists. The
+# result is a stack that will not authenticate against a database you still
+# need. Distinct names make that collision impossible.
+
+# Production stack for a single host. Sized against a 4 GB / 2 vCPU instance
+# (AWS Lightsail $24 plan) running nothing else.
+#
+# This is a STANDALONE file, deliberately not an override of
+# docker-compose.yml. Compose merges `ports` additively, so an override can
+# only ADD published ports, never remove them -- there is no way to un-publish
+# 5432 from the dev file. On a public IP that distinction is the whole
+# security story, so production gets its own file instead of a patch.
+#
+#   cd nutricheck-api
+#   docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
+#
+# Every value below comes from .env.prod. The `:?` suffix makes compose refuse
+# to start on a missing one rather than silently substituting an empty string,
+# which is how a database ends up with a blank password.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.prod}
+    # No `ports:` on purpose. Postgres is reachable only over the compose
+    # network, by service name. Nothing on the internet can open a socket to it
+    # even if the password leaks.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    # Tuned for 4 GB SHARED with two Node processes, Redis and Caddy -- not the
+    # 25%-of-RAM a dedicated database host would take. max_connections is 30
+    # because the real ceiling is DATABASE_POOL_MAX x 2 processes = 20; the
+    # default of 100 reserves per-backend memory for connections that never
+    # arrive.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=30
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          memory: 1800M
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # appendonly for db 0 (queues, which must survive a restart). The cache in
+    # db 1 is disposable; losing it costs one cold parse.
+    #
+    # volatile-lru, NOT allkeys-lru: eviction must never be allowed to take a
+    # queued job. Every key this app writes carries a TTL already -- quota keys
+    # via expireat, drafts and the phrase cache via EX -- so volatile-lru can
+    # still reclaim everything it needs to. If a future writer stores a key
+    # with no TTL, it becomes unevictable, and that is the correct failure:
+    # loud, rather than a silently dropped job.
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --maxmemory
+      - 320mb
+      - --maxmemory-policy
+      - volatile-lru
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  # One-shot. Migrations never run on application boot -- two replicas booting
+  # concurrently would race each other.
+  migrate:
+    image: ${IMAGE:-nutricheck/api:local}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    command: ['node', 'packages/database/dist/migrate.js']
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    image: ${IMAGE:-nutricheck/api:local}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    # Real secrets only. Note this does NOT load .env.example the way the dev
+    # stack does -- shipping the committed dev JWT secrets to production is
+    # exactly the accident that file's own comments warn about.
+    env_file:
+      - path: ../.env.prod
+        required: true
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+    # No `ports:`. Caddy reaches the API over the compose network; the only
+    # sockets open to the internet are Caddy's 80 and 443.
+    expose:
+      - '3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  worker:
+    image: ${IMAGE:-nutricheck/api:local}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runtime
+    command: ['node', 'apps/api/dist/worker.js']
+    restart: unless-stopped
+    env_file:
+      - path: ../.env.prod
+        required: true
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 350M
+
+  # TLS terminator. The API sets trustProxy and binds 0.0.0.0:3000 precisely so
+  # something like this sits in front of it; Caddy gets and renews a Let's
+  # Encrypt certificate on its own, which is why it is here rather than nginx.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env.prod}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.prod}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates live here. Losing this volume means re-issuing on next
+      # boot, and Let's Encrypt rate-limits that -- keep it.
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  pgdata:
+  redisdata:
+  caddydata:
+  caddyconfig:

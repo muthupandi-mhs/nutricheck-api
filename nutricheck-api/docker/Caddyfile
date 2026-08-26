@@ -1,0 +1,36 @@
+# TLS terminator for the API.
+#
+# Caddy obtains and renews a Let's Encrypt certificate automatically, which
+# requires two things to already be true:
+#   1. DOMAIN resolves to this host's public IP (an A record)
+#   2. ports 80 AND 443 are open in the Lightsail firewall -- 80 is not
+#      optional, the ACME HTTP challenge uses it
+#
+# Until both hold, Caddy retries and the site serves nothing. That is the
+# expected state on a first boot, not a fault.
+
+{
+	email {$ACME_EMAIL}
+	# Uncomment while testing to use Let's Encrypt's staging CA. The production
+	# CA rate-limits failed issuance (5 per account per hostname per hour), and
+	# a misconfigured DNS record burns through that quota fast.
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# The API speaks RFC 9457 problem+json and sets its own security headers via
+	# @fastify/helmet, so this proxies rather than decorates. X-Forwarded-* is
+	# added by Caddy and honoured because main.ts sets trustProxy: true --
+	# without that pairing every client would rate-limit as one IP.
+	reverse_proxy api:3000 {
+		health_uri /health/live
+		health_interval 30s
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

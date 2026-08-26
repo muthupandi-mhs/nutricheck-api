@@ -40,13 +40,19 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 export async function ingestUsda(db: Database, dir: string): Promise<IngestReport> {
   const nutrientIds = await resolveNutrientIds(dir);
-  const byId = new Map<string, keyof Nutrients>([
+  // Each nutrient carries every key a release might reference it by -- the
+  // surrogate id in SR Legacy and Foundation, the legacy nutrient_nbr in FNDDS.
+  // See resolveNutrientIds for why the two differ.
+  const byId = new Map<string, keyof Nutrients>();
+  for (const [keys, field] of [
     [nutrientIds.energyKcal, 'kcal'],
     [nutrientIds.protein, 'proteinG'],
     [nutrientIds.fat, 'fatG'],
     [nutrientIds.carbs, 'carbsG'],
     [nutrientIds.fiber, 'fiberG'],
-  ]);
+  ] as Array<[string[], keyof Nutrients]>) {
+    for (const key of keys) byId.set(key, field);
+  }
 
   const report: IngestReport = {
     read: 0,

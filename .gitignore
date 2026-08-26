@@ -8,7 +8,11 @@ coverage/
 .env
 .env.local
 .env.*.local
+# Real production secrets, filled in on the server. Not matched by any rule
+# above -- .env.*.local does not cover .env.prod.
+.env.prod
 !.env.example
+!.env.prod.example
 
 model/
 *.onnx

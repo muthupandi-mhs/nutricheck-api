@@ -32,6 +32,13 @@
       "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_csv_2025-04-24.zip",
       "sha256": "56a169d02b6db1fdad7887f10bc01001cbb06393f0fae722c4afec20d3741a2d",
       "approxRows": 135
+    },
+    {
+      "name": "fndds",
+      "description": "Survey Foods (FNDDS 2021-2023) — composite dishes AS EATEN rather than single ingredients, which is what a meal log actually needs",
+      "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_survey_food_csv_2024-10-31.zip",
+      "sha256": "5ccc25ec2777a8982fbb61378a42f415316173eb11e48c9a8ba4cb19f5a4f29c",
+      "approxRows": 5432
     }
   ]
 }
