@@ -173,14 +173,24 @@ export class AuthService {
     return toSessionUser(user, await this.isOnboarded(user.id));
   }
 
-  /** Onboarding is complete once a profile exists — the goal follows from it. */
+  /**
+   * A profile AND a goal, which is what the contract has always said.
+   *
+   * The client does not probe for either — it reads `onboarded` and sends the
+   * user straight to Home on the strength of it. Answering true on the profile
+   * alone lands a half-onboarded account on a home screen with no targets, and
+   * every ring on it divides by a number that is not there. GoalsService now
+   * writes both in one transaction, so this is a second lock on the same door:
+   * it also covers accounts stranded by the older, non-atomic write.
+   */
   private async isOnboarded(userId: string): Promise<boolean> {
-    const [profile] = await this.db
+    const [row] = await this.db
       .select({ userId: schema.userProfiles.userId })
       .from(schema.userProfiles)
+      .innerJoin(schema.goals, eq(schema.goals.userId, schema.userProfiles.userId))
       .where(eq(schema.userProfiles.userId, userId))
       .limit(1);
-    return Boolean(profile);
+    return Boolean(row);
   }
 }
 

@@ -48,6 +48,43 @@ export class NotFoundProblem extends ProblemException {
   }
 }
 
+/**
+ * A 429 from the throttler.
+ *
+ * The client renders `title` and `detail` straight into the sign-in screen's
+ * notice, so neither may be the framework's default — an unhandled
+ * ThrottlerException reaches the user as a heading reading "Throttler" over
+ * "ThrottlerException: Too Many Requests". `resetAt` is the contract's
+ * 429-only field and is what lets the screen say when to come back.
+ */
+export class RateLimitedException extends ProblemException {
+  constructor(retryAfterSeconds: number) {
+    super({
+      type: PROBLEM_TYPES.rateLimited,
+      title: 'Too many attempts',
+      status: HttpStatus.TOO_MANY_REQUESTS,
+      detail: `Wait ${humanizeWait(retryAfterSeconds)} and try again.`,
+      extensions: {
+        resetAt: new Date(Date.now() + retryAfterSeconds * 1000).toISOString(),
+      },
+    });
+  }
+}
+
+/**
+ * Rounds up, always. Telling someone to wait "a minute" when the window has 90
+ * seconds left buys a second rejection and a second helping of annoyance.
+ */
+function humanizeWait(seconds: number): string {
+  if (seconds <= 60) return 'a minute';
+  if (seconds < 3600) {
+    const minutes = Math.ceil(seconds / 60);
+    return `${minutes} minutes`;
+  }
+  const hours = Math.ceil(seconds / 3600);
+  return hours === 1 ? 'an hour' : `${hours} hours`;
+}
+
 export class UnauthorizedProblem extends ProblemException {
   constructor(detail = 'Authentication required') {
     super({

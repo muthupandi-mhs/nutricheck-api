@@ -13,9 +13,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ResolveRequest, type ResolveDraft } from '@nutricheck/contracts';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ProblemThrottlerGuard } from '../../common/guards/problem-throttler.guard';
 import { TimeoutInterceptor } from '../../common/interceptors/timeout.interceptor';
 import { NotFoundProblem } from '../../common/problems';
 import { createZodDto } from '../../common/zod/zod-dto';
@@ -33,7 +34,7 @@ class ResolveDto extends createZodDto(ResolveRequest) {}
  */
 @ApiTags('resolve')
 @Controller({ path: 'resolve', version: '1' })
-@UseGuards(ThrottlerGuard, QuotaGuard)
+@UseGuards(ProblemThrottlerGuard, QuotaGuard)
 @UseInterceptors(new TimeoutInterceptor(8_000))
 export class ResolverController {
   constructor(private readonly resolver: ResolverService) {}

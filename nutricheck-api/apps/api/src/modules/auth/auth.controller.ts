@@ -7,10 +7,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import type { AuthResponse, TokenPair } from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { ProblemThrottlerGuard } from '../../common/guards/problem-throttler.guard';
 import { AuthService } from './auth.service';
 import {
   ChangePasswordDto,
@@ -28,7 +29,7 @@ import {
  */
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
-@UseGuards(ThrottlerGuard)
+@UseGuards(ProblemThrottlerGuard)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 

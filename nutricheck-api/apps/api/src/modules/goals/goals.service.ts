@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
   Goal,
+  GoalPreview,
   SetGoal,
   UpdateUserProfile,
   UserProfile,
@@ -9,6 +10,9 @@ import { and, desc, eq, lte, schema, type Database } from '@nutricheck/database'
 import { NotFoundProblem } from '../../common/problems';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 import { computeGoal, type GoalBasis } from './goal-calculator';
+
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+type Executor = Database | Tx;
 
 @Injectable()
 export class GoalsService {
@@ -24,6 +28,12 @@ export class GoalsService {
    * Upserting the profile recomputes the goal, because every input to the goal
    * math lives on the profile. Recalculating on weight change is the whole
    * reason goals are append-only.
+   *
+   * Both writes are one transaction. The profile row is what makes a session
+   * `onboarded`, and the client sends an onboarded user straight to Home
+   * without asking for anything else — so a profile that commits while the
+   * goal insert fails strands that account on a home screen with no targets.
+   * Either both rows land or neither does.
    */
   async upsertProfile(userId: string, patch: UpdateUserProfile): Promise<UserProfile> {
     const existing = await this.findProfile(userId);
@@ -35,22 +45,11 @@ export class GoalsService {
       }
     }
 
-    await this.db
-      .insert(schema.userProfiles)
-      .values({
-        userId,
-        sex: merged.sex,
-        birthDate: merged.birthDate,
-        heightCm: merged.heightCm,
-        weightKg: merged.weightKg,
-        activityLevel: merged.activityLevel,
-        objective: merged.objective,
-        rateKgPerWeek: merged.rateKgPerWeek ?? 0,
-        units: merged.units ?? 'metric',
-      })
-      .onConflictDoUpdate({
-        target: schema.userProfiles.userId,
-        set: {
+    await this.db.transaction(async (tx) => {
+      await tx
+        .insert(schema.userProfiles)
+        .values({
+          userId,
           sex: merged.sex,
           birthDate: merged.birthDate,
           heightCm: merged.heightCm,
@@ -59,24 +58,60 @@ export class GoalsService {
           objective: merged.objective,
           rateKgPerWeek: merged.rateKgPerWeek ?? 0,
           units: merged.units ?? 'metric',
-          updatedAt: new Date(),
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: schema.userProfiles.userId,
+          set: {
+            sex: merged.sex,
+            birthDate: merged.birthDate,
+            heightCm: merged.heightCm,
+            weightKg: merged.weightKg,
+            activityLevel: merged.activityLevel,
+            objective: merged.objective,
+            rateKgPerWeek: merged.rateKgPerWeek ?? 0,
+            units: merged.units ?? 'metric',
+            updatedAt: new Date(),
+          },
+        });
 
-    await this.recalculate(userId, merged);
+      await this.recalculate(userId, merged, tx);
+    });
+
     return merged;
   }
 
   /** Derive a goal from the profile and append it, effective today. */
-  async recalculate(userId: string, profile?: UserProfile): Promise<Goal> {
+  async recalculate(userId: string, profile?: UserProfile, db: Executor = this.db): Promise<Goal> {
     const source = profile ?? (await this.getProfile(userId));
     const computed = computeGoal(source);
-    return this.append(userId, {
+    return this.append(
+      userId,
+      {
+        kcal: computed.kcal,
+        proteinG: computed.proteinG,
+        fiberG: computed.fiberG,
+        basis: computed.basis,
+      },
+      db,
+    );
+  }
+
+  /**
+   * The same math as `recalculate`, with nothing written and nothing read.
+   *
+   * Synchronous and stateless on purpose: it takes no userId because it needs
+   * none, which is what makes it safe to call on every keystroke of the
+   * targets screen. It shares `computeGoal` with the persisting path, so a
+   * preview cannot disagree with the goal the user gets when they accept it.
+   */
+  previewGoal(profile: UserProfile): GoalPreview {
+    const computed = computeGoal(profile);
+    return {
       kcal: computed.kcal,
       proteinG: computed.proteinG,
       fiberG: computed.fiberG,
       basis: computed.basis,
-    });
+    };
   }
 
   /**
@@ -142,10 +177,11 @@ export class GoalsService {
       basis: GoalBasis;
       effectiveFrom?: string;
     },
+    db: Executor = this.db,
   ): Promise<Goal> {
     const effectiveFrom = input.effectiveFrom ?? today();
 
-    const [row] = await this.db
+    const [row] = await db
       .insert(schema.goals)
       .values({
         userId,

@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
+import { ProblemThrottlerGuard } from './common/guards/problem-throttler.guard';
 import { ZodValidationPipe } from './common/zod/zod-validation.pipe';
 import { ConfigModule } from './config/config.module';
 import type { AppConfig } from './config/config.schema';
@@ -91,7 +92,7 @@ import { UsersModule } from './modules/users/users.module';
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     // Deliberately NOT APP_GUARD: the throttler is applied per-controller so a
     // burst on search cannot consume the budget that protects auth.
-    ThrottlerGuard,
+    ProblemThrottlerGuard,
   ],
 })
 export class AppModule {}
