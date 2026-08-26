@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Goal, UserProfile } from '@nutricheck/contracts';
+import type { Goal, GoalPreview, UserProfile } from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { SetGoalDto, UpdateProfileDto } from './goals.dto';
+import { PreviewGoalDto, SetGoalDto, UpdateProfileDto } from './goals.dto';
 import { GoalsService } from './goals.service';
 
 @ApiTags('me')
@@ -34,6 +34,20 @@ export class GoalsController {
   @ApiOperation({ summary: 'Current targets with the reasoning behind them' })
   current(@CurrentUser('sub') userId: string): Promise<Goal> {
     return this.goals.currentGoal(userId);
+  }
+
+  /**
+   * Derives targets and persists nothing, so the targets screen can show the
+   * consequence of a change before the user commits to it.
+   *
+   * Declared above `POST goals` only for readability — the paths are static
+   * and do not shadow each other. It writes nothing, but it is not `@Public`:
+   * the goal formula is not a thing to hand out to unauthenticated callers.
+   */
+  @Post('goals/preview')
+  @ApiOperation({ summary: 'Derive targets from a profile without saving' })
+  preview(@Body() body: PreviewGoalDto): GoalPreview {
+    return this.goals.previewGoal(body);
   }
 
   @Get('goals/history')

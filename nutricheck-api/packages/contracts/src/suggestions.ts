@@ -41,3 +41,34 @@ export const RecentsQuery = z.object({
   hour: z.coerce.number().int().min(0).max(23).optional(),
 });
 export type RecentsQuery = z.infer<typeof RecentsQuery>;
+
+/**
+ * A sentence that worked, for the composer's "say it again" strip.
+ *
+ * `kcal` is the total of the MOST RECENT entry this phrase produced, not an
+ * average and not a stored number: "a bowl of rice and dal" is a different
+ * size on different days, and the figure beside it should be the last one the
+ * user actually accepted.
+ *
+ * `savedAs` is the name of the saved meal this phrase was promoted to, or null.
+ * The strip shows the meal name with the sentence beneath it once it is set,
+ * which is why it carries the name rather than the id.
+ *
+ * `useCount` is what makes the offer possible: a phrase becomes worth saving on
+ * its second use (USER-FLOWS §5). The server counts; the client decides when to
+ * ask. Promotion is never automatic — a meal appears because the user said yes.
+ */
+export const RecentPhrase = z.object({
+  id: z.string().uuid(),
+  phrase: z.string(),
+  kcal: z.number(),
+  savedAs: z.string().nullable(),
+  useCount: z.number().int().positive(),
+  lastUsedAt: z.string().datetime({ offset: true }),
+});
+export type RecentPhrase = z.infer<typeof RecentPhrase>;
+
+export const PhrasesQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(12),
+});
+export type PhrasesQuery = z.infer<typeof PhrasesQuery>;

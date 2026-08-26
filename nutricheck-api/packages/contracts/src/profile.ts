@@ -68,3 +68,19 @@ export const SetGoal = z.object({
   effectiveFrom: LocalDate.optional(),
 });
 export type SetGoal = z.infer<typeof SetGoal>;
+
+/**
+ * Targets derived from a profile without persisting anything, so the targets
+ * screen can recompute live while the user is still moving a slider.
+ *
+ * Deliberately not a `Goal`: there is no `id` and no `effectiveFrom` because
+ * nothing was written. Inventing either would let a caller mistake a preview
+ * for the goal actually in effect, which is the one number the whole product
+ * is measured against.
+ *
+ * It exists so the formula lives in exactly one place. A client that derives
+ * its own targets drifts from the server the first time either side changes,
+ * and the drift is invisible: both numbers look plausible.
+ */
+export const GoalPreview = Goal.omit({ id: true, effectiveFrom: true });
+export type GoalPreview = z.infer<typeof GoalPreview>;

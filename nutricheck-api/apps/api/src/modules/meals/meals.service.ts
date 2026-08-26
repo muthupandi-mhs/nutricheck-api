@@ -10,6 +10,8 @@ import { NotFoundProblem } from '../../common/problems';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 import { LogsService } from '../logs/logs.service';
 
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
 /**
  * Saved meals.
  *
@@ -23,6 +25,43 @@ export class MealsService {
     @Inject(DATABASE) private readonly db: Database,
     private readonly logs: LogsService,
   ) {}
+
+  /**
+   * Point the phrase that produced an entry at the meal just saved from it.
+   *
+   * Silent when the entry had no phrase — a meal built by hand, or saved from a
+   * repeat-tap, has no sentence behind it and that is not an error. Matching on
+   * the text rather than an entry id is deliberate: `user_phrases` is keyed by
+   * (user, phrase), so every past and future use of that sentence is promoted
+   * at once, which is what the user means by "save this as my usual".
+   */
+  private async linkPhraseToMeal(
+    tx: Tx,
+    userId: string,
+    entryId: string,
+    mealId: string,
+  ): Promise<void> {
+    const [entry] = await tx
+      .select({ phrase: schema.logEntries.phrase })
+      .from(schema.logEntries)
+      .where(
+        and(eq(schema.logEntries.id, entryId), eq(schema.logEntries.userId, userId)),
+      )
+      .limit(1);
+
+    const phrase = entry?.phrase?.trim();
+    if (!phrase) return;
+
+    await tx
+      .update(schema.userPhrases)
+      .set({ mealId })
+      .where(
+        and(
+          eq(schema.userPhrases.userId, userId),
+          eq(schema.userPhrases.phrase, phrase),
+        ),
+      );
+  }
 
   async list(userId: string): Promise<SavedMeal[]> {
     const meals = await this.db
@@ -75,6 +114,15 @@ export class MealsService {
           quantityType: item.quantityType,
         })),
       );
+
+      // Close the loop on the phrase that got here. Saving a meal from an entry
+      // IS the promotion the composer offered on that sentence's second use, so
+      // the phrase should stop reading as "clock" and start reading as the meal
+      // name. Doing it here rather than in a follow-up call keeps the two facts
+      // from disagreeing when the second call is the one that fails.
+      if (input.fromEntryId) {
+        await this.linkPhraseToMeal(tx, userId, input.fromEntryId, meal!.id);
+      }
 
       return meal!.id;
     });

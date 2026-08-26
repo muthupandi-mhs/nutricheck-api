@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { Suggestion } from '@nutricheck/contracts';
+import type { RecentPhrase, Suggestion } from '@nutricheck/contracts';
 import { sql, type Database } from '@nutricheck/database';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 
@@ -56,6 +56,16 @@ interface FoodRow extends Record<string, unknown> {
   hour_weight: number;
 }
 
+interface PhraseRow extends Record<string, unknown> {
+  id: string;
+  phrase: string;
+  use_count: number;
+  last_used_at: unknown;
+  /** The saved meal's NAME, or null while the phrase has not been promoted. */
+  saved_as: string | null;
+  kcal: number;
+}
+
 interface MealRow extends Record<string, unknown> {
   meal_id: string;
   name: string;
@@ -68,6 +78,63 @@ interface MealRow extends Record<string, unknown> {
 @Injectable()
 export class SuggestionsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
+
+  /**
+   * Sentences that worked, most recent first.
+   *
+   * Ordered by recency alone rather than the frequency-x-recency score the
+   * food strip uses. A phrase is a thing the user typed, and they scan this
+   * list for "the one I said yesterday" — reordering it by a hidden score
+   * makes a short list feel arbitrary.
+   *
+   * `kcal` comes from the LAST entry the phrase produced, recomputed here
+   * rather than stored: the same sentence logged at a different portion should
+   * show the number the user actually accepted, not the first one ever.
+   */
+  async phrases(userId: string, limit: number): Promise<RecentPhrase[]> {
+    const result = await this.db.execute<PhraseRow>(sql`
+      SELECT
+        p.id,
+        p.phrase,
+        p.use_count,
+        p.last_used_at,
+        m.name              AS saved_as,
+        COALESCE(k.kcal, 0) AS kcal
+      FROM user_phrases p
+      LEFT JOIN meals m ON m.id = p.meal_id
+      LEFT JOIN LATERAL (
+        SELECT (
+          SELECT COALESCE(SUM(li.kcal), 0)
+          FROM log_items li
+          WHERE li.entry_id = e.id
+        ) AS kcal
+        FROM log_entries e
+        WHERE e.user_id = p.user_id AND e.phrase = p.phrase
+        ORDER BY e.logged_at DESC
+        LIMIT 1
+      ) k ON TRUE
+      WHERE p.user_id = ${userId}
+      ORDER BY p.last_used_at DESC
+      LIMIT ${limit}
+    `);
+
+    return result.rows.flatMap((row) => {
+      // Raw execute() leaves timestamptz as a string; coerce at the boundary.
+      const lastUsedAt = toDate(row.last_used_at);
+      if (!lastUsedAt) return [];
+
+      return [
+        {
+          id: row.id,
+          phrase: row.phrase,
+          kcal: Math.round(Number(row.kcal)),
+          savedAs: row.saved_as,
+          useCount: Number(row.use_count),
+          lastUsedAt: lastUsedAt.toISOString(),
+        },
+      ];
+    });
+  }
 
   /**
    * Foods and saved meals interleaved by score, because from the user's side

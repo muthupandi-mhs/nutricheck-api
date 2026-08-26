@@ -107,9 +107,9 @@ export const DaySummary = z.object({
 export type DaySummary = z.infer<typeof DaySummary>;
 
 /**
- * Edit an entry. Items are REPLACED wholesale rather than patched per item:
- * the confirm sheet edits a whole meal, and a partial item patch would need a
- * stable per-item identity the client does not have after a re-parse.
+ * Edit a whole entry. Items are REPLACED wholesale: this is the confirm sheet
+ * rewriting a meal, where items may be added, removed or swapped. To change
+ * ONE committed portion, use `UpdateLogItem` — it keeps the correction.
  *
  * Nutrients are recomputed and re-frozen from the corpus, exactly as on commit.
  */
@@ -119,3 +119,78 @@ export const UpdateLogEntry = z.object({
   items: z.array(CommitItem).min(1).max(25).optional(),
 });
 export type UpdateLogEntry = z.infer<typeof UpdateLogEntry>;
+
+/**
+ * Change ONE item's portion, addressed by its own id.
+ *
+ * Distinct from `UpdateLogEntry` because the two edits are different acts. The
+ * confirm sheet rewrites a whole meal; dragging one portion on the day view
+ * changes one number and must not touch the others — a read-modify-write of
+ * every item to move one would silently clobber a concurrent edit.
+ *
+ * `log_items.id` is server-issued, stable, and already on the wire in every
+ * `LogEntry`, so the identity this needs is one the client demonstrably has.
+ * (The "no stable per-item identity" note on `UpdateLogEntry` is about a
+ * RE-PARSE, which mints new items; a committed entry's items keep their ids.)
+ *
+ * `learnedUnitLabel` is the point of the route. A portion correction is the
+ * single most valuable training signal the product gets, and routing this edit
+ * through the wholesale PATCH would throw it away.
+ */
+export const UpdateLogItem = z.object({
+  grams: z.number().positive().max(10_000),
+  /** Present when the correction names a personal unit — writes user_portions. */
+  learnedUnitLabel: z.string().trim().min(1).max(40).nullable().default(null),
+});
+export type UpdateLogItem = z.infer<typeof UpdateLogItem>;
+
+export const WeekQuery = z.object({
+  /** The LAST day of the window, inclusive. The week is this date and the six before it. */
+  date: LocalDate,
+  /** IANA zone; the day boundaries are the user's, exactly as for a day view. */
+  tz: z.string().min(1).default('UTC'),
+});
+export type WeekQuery = z.infer<typeof WeekQuery>;
+
+/**
+ * One bar of the week chart. `logged` is not `kcal > 0`: a day with an entry
+ * that happens to total nothing is still a day the user showed up, and the
+ * streak and the averages both turn on that distinction.
+ */
+export const DayPoint = z.object({
+  date: LocalDate,
+  kcal: z.number(),
+  proteinG: z.number(),
+  fiberG: z.number(),
+  logged: z.boolean(),
+});
+export type DayPoint = z.infer<typeof DayPoint>;
+
+/**
+ * Seven days ending on the requested date.
+ *
+ * `averages` are over the LOGGED days only. Dividing by seven would quietly
+ * punish someone for a day they never claimed to have tracked, and turn "I ate
+ * well on the four days I logged" into a number that says the opposite.
+ *
+ * `streakDays` counts back from `to` and is NOT capped by the window — a
+ * fourteen-day streak reports fourteen. It is zero when `to` itself has no
+ * entry, which is what "counting back from today" means literally.
+ */
+export const WeekSummary = z.object({
+  from: LocalDate,
+  to: LocalDate,
+  days: z.array(DayPoint).length(7),
+  goal: z.object({
+    kcal: z.number(),
+    proteinG: z.number(),
+    fiberG: z.number(),
+  }),
+  averages: z.object({
+    kcal: z.number(),
+    proteinG: z.number(),
+    fiberG: z.number(),
+  }),
+  streakDays: z.number().int().nonnegative(),
+});
+export type WeekSummary = z.infer<typeof WeekSummary>;
