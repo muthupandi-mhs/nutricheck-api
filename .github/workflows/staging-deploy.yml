@@ -1,0 +1,163 @@
+name: staging
+
+# Deploy to the staging box on push. Tests run locally before pushing, not here.
+#
+# Two things to know if you add test jobs back:
+#   - Set working-directory on the JOB, never workflow-wide. The deploy job
+#     never checks the repo out, so a global default pointing at nutricheck-api
+#     makes every one of its steps fail on a path that does not exist.
+#   - `npm run build` must precede `npm run test:int`. foods-search.int-spec.ts
+#     imports @nutricheck/ingest, which apps/api does not declare, so turbo's
+#     ^build never builds it and tsc fails on a package sitting right there.
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy to staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # No `url:` key. The secrets context is unavailable in environment.url, and
+    # an unavailable context there invalidates the WHOLE file rather than
+    # rendering blank, so nothing runs at all.
+    environment: staging
+    steps:
+      - name: Open an SSH session
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          HOST: ${{ secrets.STAGING_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull and rebuild on the box
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+          SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$USER@$HOST" \
+            "SHA=$SHA bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd ~/nutricheck/nutricheck-api
+
+          # reset --hard, not pull: the box must land on exactly the pushed
+          # commit. .env.staging is gitignored and survives this.
+          git fetch --prune origin staging
+          git reset --hard "$SHA"
+          echo "[deploy] now at $(git rev-parse --short HEAD)"
+
+          docker compose --env-file .env.staging \
+            -f docker/docker-compose.staging.yml \
+            up -d --build --remove-orphans
+
+          docker image prune -f
+          REMOTE
+
+      - name: Wait for readiness
+        env:
+          URL: ${{ secrets.STAGING_URL }}
+        run: |
+          # /health/ready, never /health/live. Liveness checks no dependency by
+          # design, so it returns 200 from an API that cannot reach Postgres.
+          for i in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$URL/health/ready" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "ready after $((i*10))s"
+              curl -sS --max-time 10 "$URL/health/ready"
+              exit 0
+            fi
+            echo "attempt $i: http $code"
+            sleep 10
+          done
+          echo "::error::staging did not become ready within 300s"
+          exit 1
+
+      - name: Report failure detail
+        if: failure()
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USER: ${{ secrets.STAGING_USER }}
+        run: |
+          # Level 40/50 only. Every request line contains x-download-options, so
+          # a keyword grep for "down" matches all of them.
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$USER@$HOST" 'bash -s' <<'REMOTE' || true
+          cd ~/nutricheck/nutricheck-api
+          echo "===== ps ====="
+          docker compose --env-file .env.staging -f docker/docker-compose.staging.yml ps
+          echo "===== api warn/error ====="
+          docker compose --env-file .env.staging -f docker/docker-compose.staging.yml \
+            logs --tail=200 api | grep -E '"level":(40|50)' | tail -10
+          echo "===== migrate ====="
+          docker compose --env-file .env.staging -f docker/docker-compose.staging.yml \
+            logs --tail=30 migrate
+          REMOTE
+
+  notify:
+    name: notify discord
+    needs: [deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post the result to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SITE: ${{ secrets.STAGING_URL }}
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "DISCORD_WEBHOOK not set - skipping notification"
+            exit 0
+          fi
+
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            TITLE="Staging deployed"
+            COLOR=3066993
+          else
+            TITLE="Staging deploy FAILED"
+            COLOR=15158332
+          fi
+
+          # jq, not a printf template: a commit message with a quote or newline
+          # would produce invalid JSON and the notification would vanish exactly
+          # when the commit was unusual enough to be worth reading about.
+          jq -n \
+            --arg title "$TITLE" \
+            --arg msg "$(printf '%s' "$MSG" | head -1)" \
+            --arg sha "${SHA:0:7}" \
+            --arg actor "$ACTOR" \
+            --arg run_url "$RUN_URL" \
+            --arg site "$SITE" \
+            --arg deploy "$DEPLOY_RESULT" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $run_url,
+                color: $color,
+                description: ($sha + " " + $msg),
+                fields: [
+                  { name: "deploy", value: $deploy, inline: true },
+                  { name: "by",     value: $actor,  inline: true },
+                  { name: "url",    value: $site,   inline: false }
+                ]
+              }]
+            }' > payload.json
+
+          curl -sS -X POST -H "Content-Type: application/json" \
+            --max-time 20 --retry 2 \
+            -d @payload.json "$WEBHOOK" \
+            -o /dev/null -w 'discord responded %{http_code}\n'
