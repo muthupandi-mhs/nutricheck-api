@@ -257,8 +257,9 @@ schemes; the phone is currently set to dark.
 | `adb reverse` lost after a USB re-enumeration | Re-run it; Metro will otherwise show "Unable to load script". |
 | **App says "No connection" on sign-in while the backend is plainly running** | **`adb reverse tcp:3000 tcp:3000` is missing.** Since the app talks to the real API, port 3000 needs reversing too — not just Metro's 8081/8082 — and a reconnect wipes *all* reverses. `adb reverse --list` is the check; there should be three lines. The phone's `localhost` is the phone, so with no tunnel `fetch` throws, the transport turns that into `OfflineError`, and the screen honestly reports no connection. It looks like a server outage and is not one. Verify from the device, not the host: `adb shell '(printf "GET /health/ready HTTP/1.0\r\n\r\n"; sleep 2) \| nc localhost 3000'` |
 | Android 16 shows a local-network-access prompt on first launch | Expected — it is the debug build reaching Metro. Manifest declares only `INTERNET`. |
+| Red screen: ``zod/v4/classic/external.js: Export namespace should be first transformed by `@babel/plugin-transform-export-namespace-from` `` | zod v4 ships `export * as core` and the RN preset does not transform that syntax. `babel.config.js` now loads the plugin explicitly. The failure is whole-app — no JS reaches the device at all — so it reads like Metro being down when Metro is fine. After changing babel config, restart Metro with `--reset-cache`. |
 | Emulator `nutricheck_x86_64` exists but boots slowly under software GL | Prefer the physical device. Delete with `avdmanager delete avd -n nutricheck_x86_64`. |
-| Metro wedged on 8081 | Kill the stale node process and restart; a wedged Metro returns nothing for `/index.bundle`. |
+| Metro wedged on 8081 | Kill the stale node process and restart; a wedged Metro returns nothing for `/index.bundle`. `curl localhost:8081/status` is the check — a healthy Metro answers `packager-status:running`, a wedged one accepts the connection and never replies, so `netstat` alone cannot tell the two apart. |
 | App shows "Loading from localhost:8082" | A second Metro started on 8082 and the app latched onto it. `adb reverse` **both** ports, or kill the duplicate. |
 | Fast Refresh silently not applying | Force-stop and relaunch: `adb shell am force-stop com.nutricheck && adb shell am start -n com.nutricheck/.MainActivity`. Re-run `adb reverse` first. |
 
@@ -368,13 +369,14 @@ apply, that is correct, not a missing file.
 
 ---
 
-## 8. Tests — 77, five suites
+## 8. Tests — 107, seven suites
 
 | Suite | Covers |
 |---|---|
 | `nutrition.test.ts` | scale/total arithmetic, unknown-fibre exclusion, BMR floor |
-| `resolver.test.ts` | quantity types + every contract invariant on `Quantity` |
-| `mockApi.test.ts` | auth, day/commit/undo, frozen entries, failure paths, learning |
+| `httpApi.test.ts` | the real transport against a stubbed `fetch` — routes, error mapping, SSE |
+| `dictation.test.ts` | recorder lifecycle and the upload to `POST /v1/transcribe` |
+| `turnDetector.test.ts` | end-of-speech detection, replayed against the committed device trace |
 | `screens.test.tsx` | all 15 screens rendered past loading, **light and dark** |
 | `forms.test.tsx` | every schema's accepted/rejected table, plus the create-food screen driven end to end: typing, the message under each field, and the request that leaves |
 | `App.test.tsx` | full-tree boot smoke |
@@ -391,6 +393,17 @@ seeded history. Keep adding to them rather than around them.
 - [ ] Install v2 on the device and evaluate it (§6)
 
 **Known gaps**
+- [ ] **Insights shows three of the five nutrients.** The macro change reached
+      every other screen; `InsightsScreen.tsx` still renders calories, protein
+      and fibre only. The API already sends `carbsG` and `fatG` on
+      `week.averages`, `week.goal` and every `DayPoint` — the data is there and
+      unused. Verified on the device 2026-08-26.
+- [ ] **A goal written before migration `0004` has `carbsG`/`fatG` of 0**, so
+      the two new meters read `0 / 0 g` on the Today screen for anyone who set
+      a goal earlier. That is the migration's deliberate choice (zero means "no
+      target set", rather than back-filling a split nobody chose) — but the
+      meter renders it as a target of zero, which is not the same statement.
+      Re-saving the profile writes a goal with real macro targets.
 - [ ] Brand typeface not bundled — currently platform sans (`BRAND` in
       `typography.ts` is the switch)
 - [ ] "Save as a meal" on entry detail is a no-op button

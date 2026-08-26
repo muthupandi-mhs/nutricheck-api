@@ -16,7 +16,7 @@ of that rather than instead of it.
 | | |
 |---|---|
 | Routes | **33** under `/v1`, plus 3 health probes (the old "31" was a miscount) |
-| Tests | **78 unit green** (66 api + 12 ingest). The 124 integration tests have not been re-run since the macro change |
+| Tests | **202 green** — 78 unit (66 api + 12 ingest) and 124 Testcontainers integration, all re-run after the macro change |
 | Migrations | 5 applied (`0000`–`0004`) — `0004` adds carbohydrate and fat |
 | Corpus | **8,009 foods** (7,928 USDA + 81 curated), 540 aliases, 8 locales. **Carbs and fat on 100%**, fibre on 92% |
 | Live AI | Verified against OpenAI. **$0.000385/resolve**, ~2.2 s |
@@ -57,12 +57,11 @@ of that rather than instead of it.
 | Gap | Why it matters |
 |---|---|
 | **Eval harness** | The highest-value missing thing. Without it "the model picked the wrong chicken" is an anecdote, not a number |
-| **CI pipeline** | 189 tests that only run when someone remembers. A remote exists (`muthupandi-mhs/nutricheck-api`); nothing has ever gone through a pipeline |
+| **CI pipeline** | 202 tests that only run when someone remembers. A remote exists (`muthupandi-mhs/nutricheck-api`); nothing has ever gone through a pipeline |
 | Embeddings + RRF | Search is trigram-only. `food_embeddings` exists and is empty |
 | Weight tracking (M3) | Not started. The **week summary** now exists — the insights tab has a backend — but weight logging and trend do not |
 | Password reset | Email+password with no recovery = a forgotten password is a lost account |
 | ~~Server-side transcription~~ | **Built 2026-08-26.** Reversed the deferral: on-device dictation could not carry Tamil or Tanglish, so `POST /v1/transcribe` now exists. See §5 |
-| Integration tests after the macro change | The 124 Testcontainers tests have **not** been re-run since carbs and fat landed. Unit tests are green; `npm run test:int` is the gap |
 
 ---
 

@@ -1,4 +1,5 @@
-import type { ParseResult, RerankResult } from './ai.schemas';
+import type { MealFacts } from '@nutricheck/contracts';
+import type { InsightResult, ParseResult, RerankResult } from './ai.schemas';
 import type { TokenUsage } from './cost';
 
 /**
@@ -45,6 +46,17 @@ export abstract class AiService {
     phrase: string,
     knownUnits: ReadonlyArray<{ label: string; grams: number }>,
   ): Promise<AiCallResult<ParseResult>>;
+
+  /**
+   * Write one or two sentences about a meal that was just logged.
+   *
+   * Takes FACTS, not entries: every figure is computed in Postgres from frozen
+   * log values before it gets here, and `InsightResult` has no numeric field
+   * for the model to put an invented one in. The same reasoning that keeps
+   * nutrient values out of `parse` applies — a model doing its own arithmetic
+   * states a wrong number as confidently as a right one.
+   */
+  abstract insight(facts: MealFacts): Promise<AiCallResult<InsightResult>>;
 
   /** Pick one candidate per item, constrained to an enum of the ids supplied. */
   abstract rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>>;

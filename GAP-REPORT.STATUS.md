@@ -29,7 +29,7 @@ route comments have been corrected against the API.
 | | |
 |---|---|
 | Routes | **33** under `/v1`, plus 3 health probes (was 29 + 3) |
-| Backend tests | **189** — 65 unit, 124 Testcontainers integration |
+| Backend tests | **202** — 78 unit, 124 Testcontainers integration, all green |
 | App tests | **102** — including 21 for the transport |
 | Verified live | All four new routes, over HTTP, against the real Postgres |
 
@@ -205,4 +205,5 @@ first commit.**
 | 1 | **Should the streak survive an unfinished today?** | It currently reads 0 until the first log of the day lands, which is the contract's literal wording but reads as a bug at 9am after thirty days straight. Changing it is a product call |
 | 2 | **Should the onboarding screens use `previewGoal`?** | `deriveGoal` in [lib/nutrition.ts](nutricheck/src/lib/nutrition.ts) is a **client-side reimplementation of the goal formula**, called by three screens. That duplication is what `previewGoal` exists to retire — but those screens recompute synchronously in `useMemo` as sliders move, so switching means debounce and loading states |
 | 3 | Refresh token in AsyncStorage | Not encrypted. Fine for a 15-minute access token, a compromise for the refresh token. `TokenStore` is the seam for a Keychain/Keystore swap |
+| 5 | **Insights ignores the two new macros** | `week.averages`, `week.goal` and every `DayPoint` carry `carbsG` and `fatG`; [InsightsScreen.tsx](nutricheck/src/screens/insights/InsightsScreen.tsx) renders calories, protein and fibre only. This is now the one screen the macro change did not reach — the Today screen has all four meters. Five stat columns and five charts on one screen is a layout call, which is why it is a question and not a bug |
 | 4 | A meal tile's per-item protein | `FoodSummary` carries only kcal per 100 g, so tile protein reads 0 and fiber reads `unknown` until the tile is committed and the server freezes real values |

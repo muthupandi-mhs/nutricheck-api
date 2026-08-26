@@ -85,9 +85,17 @@ describe('log commit', () => {
       // 116 kcal/100g x 198 g = 229.68. The client sends grams only.
       const { entry: saved, created } = await logs.commit(userId, entry());
       expect(created).toBe(true);
+      // Carbs and fat are unmeasured on this fixture row, so they come back
+      // unknown rather than zero — the same three-state rule fiber has always
+      // followed. Asserting the whole object is deliberate: it is what stops a
+      // new nutrient from being silently dropped on the way to the client.
       expect(saved.items[0]?.nutrients).toEqual({
         kcal: 229.68,
         proteinG: 17.86,
+        carbsG: null,
+        carbsState: 'unknown',
+        fatG: null,
+        fatState: 'unknown',
         fiberG: 15.64,
         fiberState: 'known',
       });

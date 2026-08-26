@@ -82,7 +82,16 @@ describe('core M1 features', () => {
       const food = await foods.createCustom(userId, {
         name: 'Mums dal',
         brand: null,
-        per100g: { kcal: 140, proteinG: 7.5, fiberG: null, fiberState: 'unknown' },
+        per100g: {
+          kcal: 140,
+          proteinG: 7.5,
+          carbsG: 18,
+          carbsState: 'known',
+          fatG: 4,
+          fatState: 'known',
+          fiberG: null,
+          fiberState: 'unknown',
+        },
         defaultPortionGrams: 210,
       });
 
@@ -94,11 +103,24 @@ describe('core M1 features', () => {
       const food = await foods.createCustom(userId, {
         name: `No fiber ${randomUUID()}`,
         brand: null,
-        per100g: { kcal: 100, proteinG: 3, fiberG: null, fiberState: 'unknown' },
+        per100g: {
+          kcal: 100,
+          proteinG: 3,
+          carbsG: null,
+          carbsState: 'unknown',
+          fatG: null,
+          fatState: 'unknown',
+          fiberG: null,
+          fiberState: 'unknown',
+        },
         defaultPortionGrams: null,
       });
       expect(food.nutrients.fiberG).toBeNull();
       expect(food.nutrients.fiberState).toBe('unknown');
+      expect(food.nutrients.carbsG).toBeNull();
+      expect(food.nutrients.carbsState).toBe('unknown');
+      expect(food.nutrients.fatG).toBeNull();
+      expect(food.nutrients.fatState).toBe('unknown');
     });
 
     it('surfaces the custom food in its owner search', async () => {
@@ -125,7 +147,16 @@ describe('core M1 features', () => {
         foods.createCustom(other, {
           name: 'Mums dal',
           brand: null,
-          per100g: { kcal: 150, proteinG: 8, fiberG: 2, fiberState: 'known' },
+          per100g: {
+            kcal: 150,
+            proteinG: 8,
+            carbsG: 20,
+            carbsState: 'known',
+            fatG: 4,
+            fatState: 'known',
+            fiberG: 2,
+            fiberState: 'known',
+          },
           defaultPortionGrams: null,
         }),
       ).resolves.toBeDefined();

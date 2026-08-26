@@ -107,6 +107,8 @@ describe('client/backend gaps', () => {
 
       expect(preview.kcal).toBe(saved.kcal);
       expect(preview.proteinG).toBe(saved.proteinG);
+      expect(preview.carbsG).toBe(saved.carbsG);
+      expect(preview.fatG).toBe(saved.fatG);
       expect(preview.fiberG).toBe(saved.fiberG);
       expect(preview.basis).toEqual(saved.basis);
     });
@@ -427,6 +429,8 @@ describe('client/backend gaps', () => {
 
       expect(point.kcal).toBe(day.totals.kcal);
       expect(point.proteinG).toBe(day.totals.proteinG);
+      expect(point.carbsG).toBe(day.totals.carbsG);
+      expect(point.fatG).toBe(day.totals.fatG);
       expect(point.fiberG).toBe(day.totals.fiberG);
     });
 
@@ -450,7 +454,13 @@ describe('client/backend gaps', () => {
       const userId = await newUser('week-empty');
       const week = await logs.week(userId, '2026-08-26', 'UTC');
 
-      expect(week.averages).toEqual({ kcal: 0, proteinG: 0, fiberG: 0 });
+      expect(week.averages).toEqual({
+        kcal: 0,
+        proteinG: 0,
+        carbsG: 0,
+        fatG: 0,
+        fiberG: 0,
+      });
       expect(week.days.every((d) => !d.logged)).toBe(true);
       expect(week.streakDays).toBe(0);
     });
@@ -475,7 +485,13 @@ describe('client/backend gaps', () => {
     it('falls back to zeros when the user has no goal yet', async () => {
       const userId = await newUser('week-nogoal');
       const week = await logs.week(userId, '2026-08-26', 'UTC');
-      expect(week.goal).toEqual({ kcal: 0, proteinG: 0, fiberG: 0 });
+      expect(week.goal).toEqual({
+        kcal: 0,
+        proteinG: 0,
+        carbsG: 0,
+        fatG: 0,
+        fiberG: 0,
+      });
     });
 
     it('buckets by the user timezone, not UTC', async () => {

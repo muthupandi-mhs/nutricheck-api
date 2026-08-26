@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { PROMPTS } from '@nutricheck/prompts';
+import type { MealFacts } from '@nutricheck/contracts';
 import type { AppConfig } from '../../config/config.schema';
 import {
   AiMalformedError,
@@ -12,7 +13,8 @@ import {
   type AiCallResult,
   type RerankItem,
 } from './ai.service';
-import { ParseResult, rerankSchemaFor, type RerankResult } from './ai.schemas';
+import { InsightResult, ParseResult, rerankSchemaFor, type RerankResult } from './ai.schemas';
+import { factsToUserTurn } from './insight-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
 import type { TokenUsage } from './cost';
 
@@ -110,6 +112,16 @@ export class AnthropicService extends AiService {
       userTurn,
       betaZodOutputFormat(rerankSchemaFor(candidateIds)),
     ) as Promise<AiCallResult<RerankResult>>;
+  }
+
+  async insight(facts: MealFacts): Promise<AiCallResult<InsightResult>> {
+    return this.call(
+      'insight',
+      PROMPTS.insight.system,
+      PROMPTS.insight.version,
+      factsToUserTurn(facts),
+      betaZodOutputFormat(InsightResult),
+    );
   }
 
   private async call<T>(

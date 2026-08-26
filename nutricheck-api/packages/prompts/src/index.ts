@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
+import { INSIGHT_SYSTEM } from './insight';
 import { PARSE_SYSTEM } from './parse';
 import { RERANK_SYSTEM } from './rerank';
 
-export { PARSE_SYSTEM, RERANK_SYSTEM };
+export { INSIGHT_SYSTEM, PARSE_SYSTEM, RERANK_SYSTEM };
 
 /**
  * Prompt version, derived from the prompt's own bytes.
@@ -25,6 +26,10 @@ export const PROMPTS = {
   rerank: {
     system: RERANK_SYSTEM,
     version: versionOf(RERANK_SYSTEM),
+  },
+  insight: {
+    system: INSIGHT_SYSTEM,
+    version: versionOf(INSIGHT_SYSTEM),
   },
 } as const;
 

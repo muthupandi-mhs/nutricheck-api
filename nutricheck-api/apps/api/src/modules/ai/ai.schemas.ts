@@ -50,3 +50,20 @@ export function rerankSchemaFor(candidateIds: readonly string[]) {
 export type RerankResult = {
   picks: Array<{ itemIndex: number; foodId: string; confidence: 'high' | 'low' }>;
 };
+
+/**
+ * The per-meal note.
+ *
+ * One field, and that is the safety property. There is no numeric field in this
+ * schema, so the model has nowhere to put a figure it worked out for itself —
+ * exactly the reasoning that keeps nutrient values out of `ParsedItem`. Every
+ * number that appears does so inside `text`, copied from the facts it was
+ * given, and the prompt is explicit that inventing one is not allowed.
+ *
+ * The cap is a cost and a UI bound at once: two sentences under a meal card,
+ * not an essay nobody reads.
+ */
+export const InsightResult = z.object({
+  text: z.string().max(400),
+});
+export type InsightResult = z.infer<typeof InsightResult>;
