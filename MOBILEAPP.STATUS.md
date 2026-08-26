@@ -10,24 +10,25 @@ Handoff note for a fresh session. Read this first, then
 ## 1. Where things stand
 
 The React Native client is **feature-complete against the M1/M2 screen inventory**
-in [docs/USER-FLOWS.md](docs/USER-FLOWS.md), running entirely on a stateful mock
-backend. It has been through **two visual passes**:
+in [docs/USER-FLOWS.md](docs/USER-FLOWS.md) and **runs against the real API** —
+the mock backend has been deleted. It has been through **two visual passes**:
 
 | Pass | Result |
 |---|---|
 | v1 — editorial/Swiss, built from `design/*.dc.html` | Rejected. Read as a design exercise, not a product |
-| v2 — warm & rounded, "Airbnb-level" (current) | Built, typechecks, lints, 77 tests pass. **Not yet seen on a device** |
+| v2 — warm & rounded, "Airbnb-level" (current) | Built, typechecks, lints, **107 tests pass**. Running on the device against the live API |
 
 ### Device status
 
 v2 **is installed and running on the physical device** (A142, arm64-v8a,
-Android 16). Verified visually so far: Welcome. The rest of the screens are
-built and pass render tests but have not been eyeballed on hardware yet.
+Android 16), talking to the live backend over `adb reverse tcp:3000 tcp:3000`.
 
-**Next session:** walk Today → Composer → Confirm → Search → Insights on the
-device and review each. See §6.
+Verified on hardware, end to end: sign-in, Today, and the full
+mic → record → `/v1/transcribe` → confirm path — including a Tamil phrase
+("Naan innaiku rendu dosai…") transcribed and logged.
 
-`npm run check` is green — 77 tests, all screens render in both colour schemes.
+`npm run check` is green — **107 tests**, all screens render in both colour
+schemes.
 
 ---
 
@@ -44,7 +45,7 @@ Direction chosen (confirmed with the user): **warm & rounded, Airbnb-adjacent.**
 | Depth | Rules and weight only | Elevation + hairline together |
 | Type | 3 families (Archivo / IBM Plex Mono / Source Serif) | **One** platform sans, 9 roles |
 | Accent | Teal + amber as equals | One deep green; **amber reserved for uncertainty only** |
-| Structure | Single stack, no tab bar | 3 tabs + raised centre log button |
+| Structure | Single stack, no tab bar | 2 tabs + raised centre mic button; account moved to the header |
 | Feel | Static | Spring press physics, haptics, gradient ring |
 
 **Three families was the core v1 mistake.** Three voices is an editorial device;
@@ -67,14 +68,43 @@ future design change.
 ```
 nutricheck/src/
   theme/        tokens.ts · typography.ts · ThemeProvider.tsx
-  lib/          format · nutrition (BMR/targets) · haptics · id
-  api/          client.ts (the seam) · types.ts (wire types) · mock/
+  lib/          format · nutrition (BMR/targets) · haptics · id · speech ·
+                recorder · turnDetector · dictation
+  api/          client.ts (the seam) · types.ts (wire types) · http/ (transport)
   components/   17 files — the design system
-  navigation/   RootNavigator (stack) + 3-tab host
+  forms/        schemas.ts (Zod) · fields.tsx (react-hook-form ↔ the field set)
+  navigation/   RootNavigator (stack) + 2-tab host
   state/        AppState (day store, undo, offline queue) · Onboarding (draft)
   screens/      onboarding · home · composer · confirm · search · entry ·
                 insights · settings
 ```
+
+### Forms — react-hook-form + Zod
+
+Every form in the app is a Zod schema and a `useForm` bound to it. Screens hold
+no field state and write no validation.
+
+- **`forms/schemas.ts`** is the client half of
+  `nutricheck-api/packages/contracts/src`. Bounds are *copied* from the server
+  contract, never invented — a rule only the client enforces is a field the user
+  cannot fill, and a rule only the server enforces is a 422 they cannot read.
+  Each number names its twin over there in a comment.
+- **A schema's output is the wire shape.** `customFoodSchema` takes the eight
+  text fields off the create-food screen and produces a `CreateCustomFood`,
+  blank-means-unknown included, so no screen is left holding a half-validated
+  value. `useForm<Input, unknown, Parsed>` carries that through to
+  `handleSubmit`, which is handed the parsed request rather than the strings.
+- **`forms/fields.tsx`** is the only place `Controller` appears. `FormField`
+  wires a field's error to `Field`'s `problem`, so the amber ring and the
+  sentence under it cannot come apart from the schema that decided them.
+  `REVEAL_ON_SUBMIT` sets the timing for every form: silent until they press
+  the button, live from then on.
+- The numeric text fields exist because `keyboardType="numeric"` is a hint, not
+  a restriction. A paste or a hardware keyboard reaches the field, `Number('')`
+  is 0 and `Number('1.2.3')` is NaN — both silently wrong numbers in a food log.
+
+`@hookform/resolvers`, `react-hook-form` and `zod` are the three dependencies
+this added; all are JS-only, so no rebuild.
 
 ### The backend seam — this is the important part
 
@@ -94,17 +124,30 @@ workspace, delete it and re-export from `@nutricheck/contracts`.
 **The v2 redesign touched zero files under `api/`, `lib/` or `state/`.** That was
 the payoff of the seam and it should stay true for any v3.
 
-### The mock is stateful, not a stub
+### The mock backend is gone
 
-`src/api/mock/` holds real state: a commit lands, undo removes it, a portion
-correction trains `user_portions` so the *next* parse of the same word is right.
-`resolver.ts` stands in for `POST /v1/resolve` — not a model, but it produces the
-same distribution of quantity shapes, so every branch of the confirm sheet is
-reachable from something you can type.
+`src/api/mock/` has been **deleted**, along with the Developer scenario switcher
+that drove it. There is one implementation of `NutriCheckApi` now — `http/` —
+and `config.ts` has no flag to turn it off. The fixtures could never prove
+anything about the transport anyway: they emitted bare problem slugs, ignored
+timezones and never rotated a refresh token, which are three of the failure
+modes that only appear against the real server.
 
-Settings → Developer switches failure scenarios at runtime (offline, resolver
-timeout, unparsed, quota, empty search, first run) — one per row of
-USER-FLOWS §8.
+Tests use two doubles instead, and the split is deliberate:
+
+- **`__tests__/fixtures/stubApi.ts`** — a flat, stateless `NutriCheckApi` for
+  *rendering*. It proves every screen survives its loading state in both colour
+  schemes. It asserts nothing about behaviour.
+- **`__tests__/httpApi.test.ts`** — a stubbed `fetch` for *behaviour*. The only
+  place that can prove anything about the transport, and it is where the
+  problem-URI stripping, the serialised refresh and the timezone injection are
+  actually held.
+
+**What was lost with the mock:** the ability to force offline, resolver timeout,
+unparsed, quota and empty-search on demand — the USER-FLOWS §8 screens. Against
+a real backend those states are now much harder to reach deliberately. Worth
+rebuilding as a transport-level fault injector if reviewing them becomes
+painful.
 
 ---
 
@@ -138,7 +181,7 @@ closest match to the current platform-sans look.
   as a spreadsheet.
 - `Meter` — protein/fibre bar, carries the "N items unmeasured" note.
 - `Chip` variant `ask` — dashed amber, the empty portion prompt.
-- `TabBar` — 3 tabs + raised centre FAB that pushes the composer onto the parent
+- `TabBar` — 2 tabs + raised centre MIC that pushes the composer onto the parent
   stack (not a tab, deliberately).
 
 ---
@@ -147,10 +190,14 @@ closest match to the current platform-sans look.
 
 These came from `docs/`, are enforced in code, and are covered by tests.
 
-1. **Unknown fibre is never zero.** `fiberG` is null exactly when `fiberState ===
-   'unknown'`; such items are excluded from the numerator and counted in
-   `fiberUnmeasuredItems`. Coercing to 0 g under-reports every affected day
-   invisibly.
+1. **An unknown macro is never zero.** Carbs, fat and fibre each have their own
+   state: the value is null exactly when that state is `'unknown'`, such items
+   are excluded from that nutrient's numerator, and each is counted separately
+   in `carbsUnmeasuredItems` / `fatUnmeasuredItems` / `fiberUnmeasuredItems`.
+   Coercing to 0 g under-reports every affected day invisibly.
+
+   Counted per nutrient, not shared: the item missing fibre is usually not the
+   item missing carbs, and one number could not say which total to distrust.
 2. **Never invent an amount.** "Some nuts" → `none_given`, empty focused chip.
    An unlearned personal unit ("a bowl") gets a *range*, never a number.
 3. **Never auto-commit a parse.** Not on high confidence, not on a repeat.
@@ -167,7 +214,7 @@ These came from `docs/`, are enforced in code, and are covered by tests.
 
 ```bash
 cd "c:/Projects/New folder/nutricheck"
-npm run check                     # typecheck + lint + 77 tests (should be green)
+npm run check                     # typecheck + lint + 107 tests (should be green)
 ```
 
 **Then get v2 onto the phone and look at it:**
@@ -208,6 +255,7 @@ schemes; the phone is currently set to dark.
 | A phone **and** the emulator are both attached | Gradle installs to every attached device and reports one failure without naming it. `--deviceId=<serial>`, or stop the emulator. `adb devices -l` first — the AVD here has died mid-session more than once. |
 | Phone shows `unauthorized`, or vanishes from `adb devices` | `adb kill-server && adb start-server` after Windows enumerates it. Check Windows sees "ADB Interface" via `Get-PnpDevice`. |
 | `adb reverse` lost after a USB re-enumeration | Re-run it; Metro will otherwise show "Unable to load script". |
+| **App says "No connection" on sign-in while the backend is plainly running** | **`adb reverse tcp:3000 tcp:3000` is missing.** Since the app talks to the real API, port 3000 needs reversing too — not just Metro's 8081/8082 — and a reconnect wipes *all* reverses. `adb reverse --list` is the check; there should be three lines. The phone's `localhost` is the phone, so with no tunnel `fetch` throws, the transport turns that into `OfflineError`, and the screen honestly reports no connection. It looks like a server outage and is not one. Verify from the device, not the host: `adb shell '(printf "GET /health/ready HTTP/1.0\r\n\r\n"; sleep 2) \| nc localhost 3000'` |
 | Android 16 shows a local-network-access prompt on first launch | Expected — it is the debug build reaching Metro. Manifest declares only `INTERNET`. |
 | Emulator `nutricheck_x86_64` exists but boots slowly under software GL | Prefer the physical device. Delete with `avdmanager delete avd -n nutricheck_x86_64`. |
 | Metro wedged on 8081 | Kill the stale node process and restart; a wedged Metro returns nothing for `/index.bundle`. |
@@ -231,42 +279,92 @@ x86_64. `gradle.properties` is untouched, so release builds are unaffected. Note
 it does *not* solve the two-device case: with a phone and an emulator attached it
 detects both arches and builds both.
 
-### `@react-native-voice/voice` is patched — do not `npm install` it fresh and expect a build
+### Dictation is server-side now. The voice library is gone.
 
-The package is 3.2.4, last touched in 2021, and its `android/build.gradle`
-targets AGP 3.3.2. Against RN 0.87 / AGP 9 / Gradle 9.4.1 it fails four ways:
+`@react-native-voice/voice` has been **removed**, along with its three-file
+`patch-package` patch. Nothing in the app imports it. If you find a reference,
+it is stale.
 
-| Upstream | Why it breaks | Patched to |
-|---|---|---|
-| `jcenter()` ×3 | Removed in Gradle 9 — hard failure at *evaluation*, so no root-level hook can intercept it | `mavenCentral()` + `google()` |
-| `compileSdkVersion` | The setter is gone in AGP 9; reads as "does not specify `compileSdk`" | `compileSdk`, still read from `rootProject.ext` |
-| `package=` in `AndroidManifest.xml` | Removed in AGP 8 | `namespace "com.wenkesj.voice"` in `build.gradle` |
-| `com.android.support:appcompat-v7` | Support library; cannot coexist with `useAndroidX=true`, and Jetifier is long gone | `androidx.annotation:annotation` — the module only ever used `@NonNull` |
-| `com.facebook.react:react-native:+` | Coordinate last published in 2018; `+` resolves to something ancient | `com.facebook.react:react-android` |
+The short history, because it is the reason for the current design:
 
-**The Java itself was not touched and needed nothing** — it already imports
-`androidx.annotation` and uses bridge APIs that still exist in 0.87, so it
-compiles clean under the New Architecture's interop layer. Only build config
-was wrong.
+| Attempt | Outcome |
+|---|---|
+| `@react-native-voice/voice@3.2.4` (2021) | Five patches to build at all — `jcenter()`, `compileSdkVersion`, manifest `package`, `appcompat-v7`, `react-native:+`. Then it returned **null** at the JS boundary: `getName()` is `RCTVoice`, and the New Architecture stopped stripping the `RCT` prefix the old bridge stripped natively |
+| Its recognition quality | The real killer. `en-IN` renders Tanglish phonetically at best; `ta-IN` needs a language pack most phones lack and no Android API can query |
+| `react-native-audio-recorder-player@4.5.0` (Nitro) | Kotlin compiled after pinning Nitro to 0.29.x — then **crashed the app on launch**. `UnsatisfiedLinkError: cannot locate symbol "__cxa_init_primary_exception"`. Kotlin and C++ needed *different* Nitro versions; no single pin satisfies both |
 
-Held by [`patches/@react-native-voice+voice+3.2.4.patch`](nutricheck/patches/)
-via `patch-package`, run from the `postinstall` script. Verified by deleting
-`node_modules/@react-native-voice`, reinstalling, and building the APK.
+**Both failures were ABI mismatches in code we did not control.** So the
+recorder is now **ours**:
+`android/app/src/main/java/com/nutricheck/recorder/RecorderModule.kt`, ~180
+lines over the platform's own `MediaRecorder`. No third-party native
+dependency, nothing left to mismatch.
 
-Two traps if you ever regenerate it: run `patch-package` **before** any Gradle
-build, or it silently swallows the module's whole `build/` directory —
-`.class`, `.dex` and `.aar` binaries — into the patch (41 KB of rot vs. 4.8 KB
-clean). And check `patches/` is committed; it is the only copy of this fix.
+Four things in it are deliberate:
 
-This is a dead dependency held together by a local patch. It works, but the
-real decision is whether to keep it, move to a maintained recogniser, or drop
-to the keyboard's own mic key and delete `DictationOverlay`. Nothing forces
-that today.
+- **`NutriCheckRecorder`, unprefixed.** Naming it `RCTFoo` is exactly what made
+  the voice library resolve to null under the New Architecture.
+- **`VOICE_RECOGNITION` audio source**, not `MIC` — it disables the call-tuned
+  AGC and noise suppression that chew the consonants a transcriber needs.
+- **16 kHz mono at 32 kbps AAC.** Speech models resample to 16 kHz anyway, and
+  every extra kilobyte is billed and travels on the user's connection.
+- **The clip is deleted before `stop()` resolves.** A recording of somebody
+  saying what they ate is health-adjacent and has no reason to outlive the
+  request that consumed it.
 
-Native deps added this round (**require a rebuild, not just a Metro restart**):
-`react-native-linear-gradient`, `react-native-haptic-feedback`,
-`@react-navigation/bottom-tabs` (JS-only). Earlier: `react-native-screens`,
-`react-native-svg`, `@react-navigation/native{,-stack}`.
+### End-of-turn detection: two durations, never one threshold
+
+`src/lib/turnDetector.ts`. There is no Done button — the pause at the end of a
+sentence is the signal.
+
+The first version used a fixed amplitude threshold of 1500 and **never
+stopped**. Replaying a real trace off the test device explains why:
+
+```
+1475 real samples, MediaRecorder.getMaxAmplitude() at 100ms
+  quiet floor ~3400,  speech peaks ~9300
+
+fixed threshold 1500  ->  1473/1475 samples classed as SPEECH  (100%)
+adaptive (floor x1.5) ->   378 speech / 1097 silence  (26% / 74%)
+```
+
+At 100% speech a turn starts and can never end. That was not a tuning miss — it
+was a broken premise: phone noise floors are not "in the low hundreds".
+
+The deeper cause is worth remembering: **`getMaxAmplitude()` returns the PEAK of
+each window, not its RMS.** Peaks are dominated by transients, so speech and
+silence compress into the same band. The reference app in `C:\Ai_Chat_bot-`
+computes RMS over decoded PCM, which separates them properly — moving to
+`AudioRecord` and doing the same is the real fix if this stays temperamental.
+
+Two more decisions:
+
+- **`SILENCE_MS` is 1800, not the ~900 a chat assistant uses.** Listing a meal
+  is full of pauses — "two rotis… dal… and a bowl of curd". Waiting too long
+  costs a second; cutting in early costs half a meal.
+- **The detector never reads the clock.** `now` is a parameter, and the native
+  meter's fixed 100 ms interval doubles as the clock. That is what lets the
+  tests drive it with a plain counter — no microphone, no fake timers — and the
+  1,475-sample device trace is committed as a fixture two tests replay.
+
+**Traps.** `SPEECH_RATIO` and `MIN_MARGIN` are calibrated to one room on one
+device; a very different environment may need them moved. And dictation now
+needs the network, which on-device recognition did not — there is a dedicated
+`offline` failure that says so rather than "try again".
+
+**Native code added this round requires a rebuild, not just a Metro restart** —
+and it is ours, not a package: `com.nutricheck.recorder`, registered by hand in
+`MainApplication.kt` because autolinking has nothing to find for a module that
+lives in the app.
+
+Native deps still in use: `react-native-linear-gradient`,
+`react-native-haptic-feedback`, `react-native-screens`, `react-native-svg`,
+`react-native-safe-area-context`, `@react-native-async-storage/async-storage`.
+JS-only: `@react-navigation/*`, `axios`.
+
+**Removed:** `@react-native-voice/voice` (and its patch),
+`react-native-audio-recorder-player`, `react-native-nitro-modules`,
+`react-native-fs`. `patches/` is now empty — if `patch-package` has nothing to
+apply, that is correct, not a missing file.
 
 ---
 
@@ -278,6 +376,7 @@ Native deps added this round (**require a rebuild, not just a Metro restart**):
 | `resolver.test.ts` | quantity types + every contract invariant on `Quantity` |
 | `mockApi.test.ts` | auth, day/commit/undo, frozen entries, failure paths, learning |
 | `screens.test.tsx` | all 15 screens rendered past loading, **light and dark** |
+| `forms.test.tsx` | every schema's accepted/rejected table, plus the create-food screen driven end to end: typing, the message under each field, and the request that leaves |
 | `App.test.tsx` | full-tree boot smoke |
 
 Tests have caught three real bugs so far — a resolver that invented a portion

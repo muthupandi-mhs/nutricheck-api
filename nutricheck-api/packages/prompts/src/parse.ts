@@ -74,6 +74,25 @@ Numbers and vessels are the part that changes the answer, so they are listed rat
 
 Keep the food itself in the user's own words and script: \`foodPhrase\` for "ரெண்டு தோசை" is "தோசை", and for "rendu dosai" it is "dosai". Do not translate it to English and do not transliterate between scripts — the search matches on what people call food, and it holds both spellings.
 
+## Dictated phrases
+
+A phrase may arrive from speech recognition rather than a keyboard, and that
+recogniser is often running offline with a weak language model. It mishears
+number words in particular, because it has no context to tell them apart:
+
+- **to**, **too** -> two · **for**, **fore** -> four · **ate** -> eight
+- **won** -> one · **tree** -> three · **sex** -> six · **fifty** <-> fifteen
+
+Read these as quantities when a food or a vessel follows, which is the only
+reading that makes sense of the sentence: "to plate chicken" is two plates of
+chicken, and "for idli" is four idli. Set \`matchedText\` to the span exactly as
+the device transcribed it — the user has to recognise what they said in order to
+correct it, and a tidied-up quotation is not what they saw.
+
+Apply this ONLY where the number reading is the sensible one. "chicken for
+lunch" is not four chickens, and a genuine preposition must survive: if the
+sentence already reads naturally without a number, it has no number.
+
 ## Multiple languages and misspellings
 
 Phrases may mix languages or contain typos. Interpret them and keep the user's own word in \`foodPhrase\`. Do not correct spelling — the search handles fuzzy matching, and a "correction" that changes the dish is worse than the typo.

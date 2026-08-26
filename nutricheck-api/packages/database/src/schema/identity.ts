@@ -111,6 +111,8 @@ export const goals = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     kcal: integer('kcal').notNull(),
     proteinG: integer('protein_g').notNull(),
+    carbsG: integer('carbs_g').notNull().default(0),
+    fatG: integer('fat_g').notNull().default(0),
     fiberG: integer('fiber_g').notNull(),
     effectiveFrom: date('effective_from').notNull(),
     /** The visible math: bmr, tdee, activityFactor, adjustmentPct, flooredAtBmr. */

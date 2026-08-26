@@ -308,8 +308,11 @@ export class FoodsService {
         isGeneric: schema.foods.isGeneric,
         kcal: schema.foodNutrients.kcal,
         proteinG: schema.foodNutrients.proteinG,
-        fiberG: schema.foodNutrients.fiberG,
-        fiberState: schema.foodNutrients.fiberState,
+        carbsG: schema.foodNutrients.carbsG,
+        carbsState: schema.foodNutrients.carbsState,
+        fatG: schema.foodNutrients.fatG,
+        fatState: schema.foodNutrients.fatState,
+        fiberG: schema.foodNutrients.fiberG,        fiberState: schema.foodNutrients.fiberState,
       })
       .from(schema.foods)
       .innerJoin(
@@ -341,6 +344,10 @@ export class FoodsService {
       nutrients: {
         kcal: row.kcal,
         proteinG: row.proteinG,
+        carbsG: row.carbsG,
+        carbsState: row.carbsState,
+        fatG: row.fatG,
+        fatState: row.fatState,
         fiberG: row.fiberG,
         fiberState: row.fiberState,
       },

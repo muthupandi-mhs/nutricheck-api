@@ -220,6 +220,10 @@ export class ResolverService {
                   {
                     kcal: detail.nutrients.kcal,
                     proteinG: detail.nutrients.proteinG,
+                    carbsG: detail.nutrients.carbsG,
+                    carbsState: detail.nutrients.carbsState,
+                    fatG: detail.nutrients.fatG,
+                    fatState: detail.nutrients.fatState,
                     fiberG: detail.nutrients.fiberG,
                     fiberState: detail.nutrients.fiberState,
                   },

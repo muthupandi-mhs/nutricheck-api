@@ -1,3 +1,4 @@
+import { KCAL_PER_G } from '@nutricheck/contracts';
 import type {
   ActivityLevel,
   Objective,
@@ -55,6 +56,23 @@ const MAX_ADJUSTMENT = 0.2;
 
 const FIBER_G_PER_1000_KCAL = 14;
 
+/**
+ * The share of calories given to fat. Carbohydrate takes whatever is left.
+ *
+ * This is a POLICY, not a derivation, and it is the only number in this file
+ * that is. Mifflin–St Jeor produces calories; protein comes from bodyweight;
+ * fibre from a published per-1000-kcal figure. Nothing comparable exists for
+ * the carb/fat split — the evidence supports a wide band, and within it the
+ * split is a preference rather than a finding.
+ *
+ * 25% sits at the low end of the usual 20–35% range, which suits a protein
+ * target already set by bodyweight: raising fat here would squeeze carbohydrate
+ * without changing anything the tracker actually measures. It is recorded on
+ * every goal as `basis.fatPctOfKcal` so a target from six months ago can still
+ * explain itself after this constant moves.
+ */
+const FAT_PCT_OF_KCAL = 0.25;
+
 export interface GoalBasis {
   bmr: number;
   tdee: number;
@@ -69,6 +87,8 @@ export interface GoalBasis {
    * one, and the targets screen has to say so or the number looks arbitrary.
    */
   rateCapped: boolean;
+  /** The fat share used for this goal. See FAT_PCT_OF_KCAL — it is policy, so it is stored. */
+  fatPctOfKcal: number;
   /** The rate actually implied by the applied deficit, in kg/week. */
   effectiveRateKgPerWeek: number;
 }
@@ -76,6 +96,8 @@ export interface GoalBasis {
 export interface ComputedGoal {
   kcal: number;
   proteinG: number;
+  carbsG: number;
+  fatG: number;
   fiberG: number;
   basis: GoalBasis;
 }
@@ -123,9 +145,26 @@ export function computeGoal(profile: UserProfile, on: Date = new Date()): Comput
   const flooredAtBmr = uncapped < bmr;
   const kcal = Math.round(flooredAtBmr ? bmr : uncapped);
 
+  const proteinG = Math.round(proteinTarget(profile));
+  const fatG = Math.round((kcal * FAT_PCT_OF_KCAL) / KCAL_PER_G.fat);
+
+  // Carbohydrate takes the remainder, by difference — the same definition USDA
+  // uses for nutrient 1005 and the same one the curated dishes are built with.
+  // Clamped at zero: a very high protein target on a small calorie budget can
+  // consume the whole allowance, and a negative carbohydrate target is worse
+  // than an honest zero.
+  const carbsG = Math.max(
+    0,
+    Math.round(
+      (kcal - proteinG * KCAL_PER_G.protein - fatG * KCAL_PER_G.fat) / KCAL_PER_G.carbs,
+    ),
+  );
+
   return {
     kcal,
-    proteinG: Math.round(proteinTarget(profile)),
+    proteinG,
+    carbsG,
+    fatG,
     fiberG: Math.round((kcal / 1000) * FIBER_G_PER_1000_KCAL),
     basis: {
       bmr: Math.round(bmr),
@@ -135,6 +174,7 @@ export function computeGoal(profile: UserProfile, on: Date = new Date()): Comput
       adjustmentPct: tdee === 0 ? 0 : round2((signedDelta / tdee) * 100),
       flooredAtBmr,
       rateCapped,
+      fatPctOfKcal: FAT_PCT_OF_KCAL,
       effectiveRateKgPerWeek:
         profile.objective === 'maintain' ? 0 : round2((cappedDelta * 7) / KCAL_PER_KG),
     },

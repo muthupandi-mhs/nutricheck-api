@@ -16,6 +16,10 @@ import { join } from 'node:path';
 export const NUTRIENT_NBR = {
   protein: '203',
   energyKcal: '208',
+  /** 'Total lipid (fat)' — 1004 by id. */
+  fat: '204',
+  /** 'Carbohydrate, by difference' — 1005 by id, the same definition we derive curated dishes with. */
+  carbs: '205',
   fiber: '291',
 } as const;
 
@@ -70,11 +74,15 @@ async function* readCsv<T>(dir: string, file: string): AsyncGenerator<T> {
 export async function resolveNutrientIds(dir: string): Promise<{
   protein: string;
   energyKcal: string;
+  fat: string;
+  carbs: string;
   fiber: string;
 }> {
   const wanted = new Map<string, { nbr: string; unit: string }>([
     ['protein', { nbr: NUTRIENT_NBR.protein, unit: 'G' }],
     ['energyKcal', { nbr: NUTRIENT_NBR.energyKcal, unit: 'KCAL' }],
+    ['fat', { nbr: NUTRIENT_NBR.fat, unit: 'G' }],
+    ['carbs', { nbr: NUTRIENT_NBR.carbs, unit: 'G' }],
     ['fiber', { nbr: NUTRIENT_NBR.fiber, unit: 'G' }],
   ]);
 
@@ -100,6 +108,8 @@ export async function resolveNutrientIds(dir: string): Promise<{
   return {
     protein: found.get('protein')!,
     energyKcal: found.get('energyKcal')!,
+    fat: found.get('fat')!,
+    carbs: found.get('carbs')!,
     fiber: found.get('fiber')!,
   };
 }

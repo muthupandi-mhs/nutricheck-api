@@ -102,6 +102,8 @@ async function main(): Promise<void> {
     console.log(`  portions          ${report.portions}`);
     console.log(`  fiber known       ${report.fiberKnown}`);
     console.log(`  fiber unknown     ${report.fiberUnknown}`);
+    console.log(`  carbs known       ${report.carbsKnown}`);
+    console.log(`  fat known         ${report.fatKnown}`);
     console.log(`  skipped: no macros ${report.skippedNoMacros}`);
 
     // Never let a silent skip look like a clean run. If a whole data_type was

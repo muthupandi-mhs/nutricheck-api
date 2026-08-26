@@ -86,8 +86,11 @@ export class LogsService {
               grams: item.grams,
               kcal: nutrients.kcal,
               proteinG: nutrients.proteinG,
-              fiberG: nutrients.fiberG,
-              fiberState: nutrients.fiberState,
+              carbsG: nutrients.carbsG,
+              carbsState: nutrients.carbsState,
+              fatG: nutrients.fatG,
+              fatState: nutrients.fatState,
+              fiberG: nutrients.fiberG,              fiberState: nutrients.fiberState,
               quantityType: item.quantityType,
               quantitySource: item.quantitySource,
             };
@@ -250,8 +253,11 @@ export class LogsService {
             grams: item.grams,
             kcal: nutrients.kcal,
             proteinG: nutrients.proteinG,
-            fiberG: nutrients.fiberG,
-            fiberState: nutrients.fiberState,
+            carbsG: nutrients.carbsG,
+            carbsState: nutrients.carbsState,
+            fatG: nutrients.fatG,
+            fatState: nutrients.fatState,
+            fiberG: nutrients.fiberG,            fiberState: nutrients.fiberState,
             quantityType: item.quantityType,
             quantitySource: item.quantitySource,
           };
@@ -311,8 +317,11 @@ export class LogsService {
           grams: patch.grams,
           kcal: nutrients.kcal,
           proteinG: nutrients.proteinG,
-          fiberG: nutrients.fiberG,
-          fiberState: nutrients.fiberState,
+          carbsG: nutrients.carbsG,
+          carbsState: nutrients.carbsState,
+          fatG: nutrients.fatG,
+          fatState: nutrients.fatState,
+          fiberG: nutrients.fiberG,          fiberState: nutrients.fiberState,
           quantitySource: 'stated',
         })
         .where(eq(schema.logItems.id, itemId));
@@ -398,8 +407,8 @@ export class LogsService {
       date,
       totals,
       goal: goal
-        ? { kcal: goal.kcal, proteinG: goal.proteinG, fiberG: goal.fiberG }
-        : { kcal: 0, proteinG: 0, fiberG: 0 },
+        ? { kcal: goal.kcal, proteinG: goal.proteinG, carbsG: goal.carbsG, fatG: goal.fatG, fiberG: goal.fiberG }
+        : { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 },
       entries: withItems,
     };
   }
@@ -445,7 +454,14 @@ export class LogsService {
         COUNT(DISTINCT e.id)                   AS entry_count,
         COALESCE(SUM(li.kcal), 0)              AS kcal,
         COALESCE(SUM(li.protein_g), 0)         AS protein_g,
-        -- Unknown fiber is excluded, never counted as zero. Same rule as sumDay.
+        -- An unknown is excluded from its own sum, never counted as zero.
+        -- Same rule as sumDay, applied per nutrient rather than shared.
+        COALESCE(SUM(li.carbs_g) FILTER (
+          WHERE li.carbs_state <> 'unknown' AND li.carbs_g IS NOT NULL
+        ), 0)                                  AS carbs_g,
+        COALESCE(SUM(li.fat_g) FILTER (
+          WHERE li.fat_state <> 'unknown' AND li.fat_g IS NOT NULL
+        ), 0)                                  AS fat_g,
         COALESCE(SUM(li.fiber_g) FILTER (
           WHERE li.fiber_state <> 'unknown' AND li.fiber_g IS NOT NULL
         ), 0)                                  AS fiber_g
@@ -470,6 +486,8 @@ export class LogsService {
         date: day,
         kcal: round2(Number(row?.kcal ?? 0)),
         proteinG: round2(Number(row?.protein_g ?? 0)),
+        carbsG: round2(Number(row?.carbs_g ?? 0)),
+        fatG: round2(Number(row?.fat_g ?? 0)),
         fiberG: round2(Number(row?.fiber_g ?? 0)),
         logged: Number(row?.entry_count ?? 0) > 0,
       };
@@ -490,11 +508,13 @@ export class LogsService {
       to: date,
       days,
       goal: goal
-        ? { kcal: goal.kcal, proteinG: goal.proteinG, fiberG: goal.fiberG }
-        : { kcal: 0, proteinG: 0, fiberG: 0 },
+        ? { kcal: goal.kcal, proteinG: goal.proteinG, carbsG: goal.carbsG, fatG: goal.fatG, fiberG: goal.fiberG }
+        : { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 },
       averages: {
         kcal: mean((d) => d.kcal),
         proteinG: mean((d) => d.proteinG),
+        carbsG: mean((d) => d.carbsG),
+        fatG: mean((d) => d.fatG),
         fiberG: mean((d) => d.fiberG),
       },
       streakDays: await this.streak(userId, date, tz),
@@ -542,8 +562,11 @@ export class LogsService {
         foodId: schema.foodNutrients.foodId,
         kcal: schema.foodNutrients.kcal,
         proteinG: schema.foodNutrients.proteinG,
-        fiberG: schema.foodNutrients.fiberG,
-        fiberState: schema.foodNutrients.fiberState,
+        carbsG: schema.foodNutrients.carbsG,
+        carbsState: schema.foodNutrients.carbsState,
+        fatG: schema.foodNutrients.fatG,
+        fatState: schema.foodNutrients.fatState,
+        fiberG: schema.foodNutrients.fiberG,        fiberState: schema.foodNutrients.fiberState,
       })
       .from(schema.foodNutrients)
       .where(inArray(schema.foodNutrients.foodId, foodIds));
@@ -563,6 +586,10 @@ export class LogsService {
         grams: schema.logItems.grams,
         kcal: schema.logItems.kcal,
         proteinG: schema.logItems.proteinG,
+        carbsG: schema.logItems.carbsG,
+        carbsState: schema.logItems.carbsState,
+        fatG: schema.logItems.fatG,
+        fatState: schema.logItems.fatState,
         fiberG: schema.logItems.fiberG,
         fiberState: schema.logItems.fiberState,
         quantityType: schema.logItems.quantityType,
@@ -604,6 +631,10 @@ export class LogsService {
         nutrients: {
           kcal: item.kcal,
           proteinG: item.proteinG,
+          carbsG: item.carbsG,
+          carbsState: item.carbsState,
+          fatG: item.fatG,
+          fatState: item.fatState,
           fiberG: item.fiberG,
           fiberState: item.fiberState,
         },
@@ -642,6 +673,8 @@ interface WeekRow extends Record<string, unknown> {
   entry_count: number;
   kcal: number;
   protein_g: number;
+  carbs_g: number;
+  fat_g: number;
   fiber_g: number;
 }
 

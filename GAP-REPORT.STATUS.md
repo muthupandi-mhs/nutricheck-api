@@ -8,7 +8,14 @@ Every claim here was checked against the code, not inferred from the docs.
 API. What follows records what was built, what was verified and how, and what is
 still open — read §6 before touching the transport.
 
-Siblings: [BACKEND.STATUS.md](BACKEND.STATUS.md) · [MOBILEAPP.STATUS.md](MOBILEAPP.STATUS.md)
+> **Two additions since, 2026-08-26.** The surface in §2 has grown by one:
+> **`transcribe` → `POST /v1/transcribe`**, the only route that takes audio.
+> And every nutrient shape named here — `Nutrients`, `FoodNutrientsPer100g`,
+> `DaySummary.totals`, `Goal`, `DayPoint` — now carries **carbs and fat**
+> alongside calories, protein and fibre, each with its own three-state field.
+> The traps in §4 are unchanged and still apply.
+
+Siblings: [BACKEND.STATUS.md](BACKEND.STATUS.md) · [MOBILEAPP.STATUS.md](MOBILEAPP.STATUS.md) · [VOICE-REFERENCE.STATUS.md](VOICE-REFERENCE.STATUS.md)
 
 ---
 

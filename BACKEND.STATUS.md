@@ -16,9 +16,9 @@ of that rather than instead of it.
 | | |
 |---|---|
 | Routes | **33** under `/v1`, plus 3 health probes (the old "31" was a miscount) |
-| Tests | **189 green** — 65 unit, 124 Testcontainers integration |
-| Migrations | 4 applied (`0000`–`0003`) |
-| Corpus | **~8,000 foods** (7,929 USDA + 79 curated), 522 aliases, 8 locales |
+| Tests | **78 unit green** (66 api + 12 ingest). The 124 integration tests have not been re-run since the macro change |
+| Migrations | 5 applied (`0000`–`0004`) — `0004` adds carbohydrate and fat |
+| Corpus | **8,009 foods** (7,928 USDA + 81 curated), 540 aliases, 8 locales. **Carbs and fat on 100%**, fibre on 92% |
 | Live AI | Verified against OpenAI. **$0.000385/resolve**, ~2.2 s |
 | Image | One OCI image, three commands (api / worker / migrate), non-root, 488 MB |
 
@@ -30,7 +30,15 @@ of that rather than instead of it.
   family reuse detection, throttled
 - **Corpus** — full USDA Foundation + SR Legacy ingested (~7,900 ingredient rows),
   curated Indian dishes, Tamil aliases attached to USDA rows, trigram search, custom foods
-- **Goals** — Mifflin–St Jeor, append-only with `effective_from`
+- **Goals** — Mifflin–St Jeor, append-only with `effective_from`. Targets for all
+  five: calories, protein, carbs, fat, fibre. Fat is 25% of calories and carbs
+  take the remainder — that split is POLICY, not derivation, so the share used is
+  stored on every goal's `basis.fatPctOfKcal` and an old target can still explain
+  itself after the default moves
+- **Transcription** — `POST /v1/transcribe`, Gemini, the only route that takes
+  audio. Returns text, not a draft. A separate provider abstraction from the
+  resolver's on purpose: different vendor, different billing unit, different
+  failure modes, and the resolver keeps working when this is not configured
 - **Logs** — commit with server-side arithmetic frozen at write, idempotent on
   `clientId`, batch drain, edit, timezone-correct day view, **per-item portion
   edit that learns the unit**, **week summary with averages and streak**
@@ -53,7 +61,8 @@ of that rather than instead of it.
 | Embeddings + RRF | Search is trigram-only. `food_embeddings` exists and is empty |
 | Weight tracking (M3) | Not started. The **week summary** now exists — the insights tab has a backend — but weight logging and trend do not |
 | Password reset | Email+password with no recovery = a forgotten password is a lost account |
-| Server-side transcription | Backend does no speech recognition — by design, see §5 |
+| ~~Server-side transcription~~ | **Built 2026-08-26.** Reversed the deferral: on-device dictation could not carry Tamil or Tanglish, so `POST /v1/transcribe` now exists. See §5 |
+| Integration tests after the macro change | The 124 Testcontainers tests have **not** been re-run since carbs and fat landed. Unit tests are green; `npm run test:int` is the gap |
 
 ---
 
@@ -72,7 +81,7 @@ Then seed a corpus — without this, search returns nothing:
 ```bash
 npm run ingest -w @nutricheck/ingest -- --download   # ~7,900 USDA ingredients, pinned + checksummed
 npm run ingest -w @nutricheck/ingest -- --fixture    # 13-row test fixture only
-npm run ingest -w @nutricheck/ingest -- --curated    # 79 Indian dishes + aliases
+npm run ingest -w @nutricheck/ingest -- --curated    # 81 Indian dishes + aliases
 ```
 
 ```bash
@@ -176,17 +185,44 @@ which it could. The re-rank schema is a per-request Zod enum of the ids Postgres
 just returned, so an invented food is *unrepresentable*, not merely discouraged.
 `AI_STRICT_SCHEMA=false` gives that guarantee up — it is opt-out for a reason.
 
-**Fiber has three states.** `known`, `imputed` (shown with a `~`), `unknown`
-(excluded from the day's denominator). Never coalesce `null` to `0`. Curated dishes
-are `imputed` because their values are estimates.
+**Carbs, fat and fibre each have three states.** `known`, `imputed` (shown with a
+`~`), `unknown` (excluded from that nutrient's denominator). Never coalesce
+`null` to `0`. Curated dishes are `imputed` across all three, because their
+values are estimates.
+
+Each carries its OWN state and its own unmeasured count — the item missing fibre
+is usually not the item missing carbs, and one shared counter could not say which
+total to distrust. Measured against the corpus this is not symmetric: SR Legacy
+reports carbs and fat for **100%** of its 7,793 rows and fibre for **92.8%**, so
+in practice only fibre is often genuinely absent.
+
+`kcal` and `proteinG` are never null. Both are reported for every row and both
+are goal-bearing, so a missing one is a corpus bug rather than a state to render.
+
+**Curated carbohydrate is DERIVED, never authored.** Each dish supplies one fat
+estimate; carbs are `kcal − 4×protein − 9×fat`, clamped at zero. That is exactly
+how USDA defines nutrient 1005, "Carbohydrate, by difference", so the 81 curated
+rows are computed the same way the 7,793 beside them were. A dish with no fat
+estimate gets `unknown` for both rather than a guess.
 
 **Nutrients are frozen at commit.** History is served verbatim. A USDA reissue must
 not rewrite a Tuesday in March. There is a test that mutates the corpus and asserts
 the entry is unchanged.
 
-**Voice is not a backend feature.** The device transcribes; the backend receives
-text with `source: 'voice'` as a label. `/v1/resolve` returns **415** for audio.
-That is the design, not a gap.
+**Voice IS a backend feature now — this reversed.** It used to read: *the device
+transcribes, the backend receives text with `source: 'voice'` as a label, and
+`/v1/resolve` returns 415 for audio; that is the design, not a gap.*
+
+Android's offline models could not carry the language this app is actually
+spoken in. `en-IN` renders Tanglish phonetically at best, and `ta-IN` needs a
+language pack most phones do not have and no API can even ask about — both
+failed silently, in different ways, on the one input the product depends on.
+
+So **`POST /v1/transcribe`** accepts audio and Gemini transcribes it. Two things
+did NOT change, and both are load-bearing: `/v1/resolve` still returns **415**
+for audio, and transcription returns **text, never a draft**. The user reads the
+words before anything is resolved, and there is still one parse path rather than
+three.
 
 ---
 
@@ -194,7 +230,7 @@ That is the design, not a gap.
 
 | # | Question | Why it is blocked |
 |---|---|---|
-| 1 | **Deepen Tamil, or build recipe decomposition?** | Only 34 of 79 curated dishes are Tamil-reachable. Deepening is direct but every dish is a research task; recipe decomposition makes dishes derive from real USDA ingredient rows, needs full USDA first. **This was the live question when the last session ended** |
+| 1 | **Deepen Tamil, or build recipe decomposition?** | Only 34 of 81 curated dishes are Tamil-reachable. Deepening is direct but every dish is a research task; recipe decomposition makes dishes derive from real USDA ingredient rows, needs full USDA first. **This was the live question when the last session ended** |
 | 2 | Model choice for the re-rank | `gpt-4o-mini` picked battered-fried chicken over plain breast — correctly flagged low-confidence, but wrong. Unanswerable without the eval harness |
 | 3 | Free-tier quota | Currently 50/day + $1/day spend ceiling, both guesses |
 | 4 | Open Food Facts share-alike | Licence review never opened. A launch blocker if found late |

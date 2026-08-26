@@ -1,4 +1,4 @@
-import { normalizeSearchText } from '@nutricheck/contracts';
+import { normalizeSearchText, carbsByDifference } from '@nutricheck/contracts';
 import { inArray, schema, sql, type Database } from '@nutricheck/database';
 import { readFileSync } from 'node:fs';
 
@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 interface CuratedFood {
   key: string;
   name: string;
-  per100g: { kcal: number; proteinG: number; fiberG: number | null };
+  per100g: { kcal: number; proteinG: number; fatG?: number | null; fiberG: number | null };
   portions: Array<{ label: string; grams: number; isDefault: boolean }>;
   aliases: Record<string, string[]>;
 }
@@ -93,25 +93,52 @@ export async function ingestCurated(
     await tx
       .insert(schema.foodNutrients)
       .values(
-        foods.map((food) => ({
-          foodId: idByKey.get(food.key)!,
-          kcal: food.per100g.kcal,
-          proteinG: food.per100g.proteinG,
-          fiberG: food.per100g.fiberG,
-          // 'imputed', not 'known'. These are estimates from typical home
-          // preparation, not lab measurements, and the app renders imputed
-          // fiber with a "~" — so the honesty reaches the user rather than
-          // stopping at the JSON file.
-          fiberState: (food.per100g.fiberG === null ? 'unknown' : 'imputed') as
-            | 'unknown'
-            | 'imputed',
-        })),
+        foods.map((food) => {
+          const { kcal, proteinG, fatG } = food.per100g;
+
+          /**
+           * Carbohydrate is DERIVED, never authored.
+           *
+           * Each dish supplies one fat estimate; carbohydrate is whatever
+           * energy is left after protein and fat. That is not a shortcut —
+           * it is exactly how USDA defines nutrient 1005, "Carbohydrate, by
+           * difference", so the curated rows are computed the same way the
+           * 7,793 SR Legacy rows beside them were.
+           *
+           * A dish with no fat estimate yet gets `unknown` for both rather
+           * than a guess. Half a macro set is not worth inventing the rest for.
+           */
+          const hasFat = fatG !== null && fatG !== undefined;
+          const carbsG = hasFat ? carbsByDifference(kcal, proteinG, fatG) : null;
+
+          return {
+            foodId: idByKey.get(food.key)!,
+            kcal,
+            proteinG,
+            carbsG: carbsG === null ? null : Math.round(carbsG * 10) / 10,
+            carbsState: (carbsG === null ? 'unknown' : 'imputed') as 'unknown' | 'imputed',
+            fatG: hasFat ? fatG : null,
+            fatState: (hasFat ? 'imputed' : 'unknown') as 'unknown' | 'imputed',
+            fiberG: food.per100g.fiberG,
+            // 'imputed', not 'known'. These are estimates from typical home
+            // preparation, not lab measurements, and the app renders imputed
+            // values with a "~" — so the honesty reaches the user rather than
+            // stopping at the JSON file.
+            fiberState: (food.per100g.fiberG === null ? 'unknown' : 'imputed') as
+              | 'unknown'
+              | 'imputed',
+          };
+        }),
       )
       .onConflictDoUpdate({
         target: schema.foodNutrients.foodId,
         set: {
           kcal: sql`excluded.kcal`,
           proteinG: sql`excluded.protein_g`,
+          carbsG: sql`excluded.carbs_g`,
+          carbsState: sql`excluded.carbs_state`,
+          fatG: sql`excluded.fat_g`,
+          fatState: sql`excluded.fat_state`,
           fiberG: sql`excluded.fiber_g`,
           fiberState: sql`excluded.fiber_state`,
         },

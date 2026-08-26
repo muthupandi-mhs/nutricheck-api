@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CursorPage, paginated } from './common';
-import { FiberState } from './nutrition';
+import { NutrientState } from './nutrition';
 
 export const FoodSource = z.enum(['usda_foundation', 'usda_sr', 'usda_fndds', 'off', 'curated', 'user']);
 export type FoodSource = z.infer<typeof FoodSource>;
@@ -9,8 +9,12 @@ export type FoodSource = z.infer<typeof FoodSource>;
 export const FoodNutrientsPer100g = z.object({
   kcal: z.number().nonnegative(),
   proteinG: z.number().nonnegative(),
+  carbsG: z.number().nonnegative().nullable(),
+  carbsState: NutrientState,
+  fatG: z.number().nonnegative().nullable(),
+  fatState: NutrientState,
   fiberG: z.number().nonnegative().nullable(),
-  fiberState: FiberState,
+  fiberState: NutrientState,
 });
 export type FoodNutrientsPer100g = z.infer<typeof FoodNutrientsPer100g>;
 

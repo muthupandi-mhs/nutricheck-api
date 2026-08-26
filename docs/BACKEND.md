@@ -687,7 +687,7 @@ Inside PLAN §7's $0.010–0.015 band, and it locates the optimization: **the ca
 
 Re-measure with `client.messages.countTokens()` against the real prompts before any of this sets a quota.
 
-### 7.5 Voice is not a backend feature  **[built]**
+### 7.5 Voice: on-device first, then server-side  **[built — reversed 2026-08-26]**
 
 The backend performs **no speech recognition** and has no audio endpoint. Sent
 `Content-Type: audio/wav`, `/v1/resolve` returns **415**.
@@ -701,13 +701,31 @@ how an entry was made, for the miss log and analytics, not a processing mode.
 It is also why voice cost the backend nothing and the parked photo route will
 not: a photo cannot be turned into text on the device.
 
-**What is genuinely missing:** USER-FLOWS §5 also promises a fallback to
-server-side transcription "where platform dictation is weak for the user's
-language". That does not exist. It would need an audio upload endpoint, storage
-or a streaming pass-through, and a transcription provider — and it reopens a
-privacy position the product currently sells, since onboarding claims the app
-needs no camera, microphone or notifications. Decide it deliberately rather than
-drifting into it.
+**Decided, 2026-08-26 — and the decision went the other way.** The paragraph
+above ended "decide it deliberately rather than drifting into it". It was
+decided deliberately: server-side transcription is **built**, and it is no
+longer a fallback — it is the only path.
+
+The forcing argument was measured, not theoretical. Android's offline models
+could not carry the language this app is actually spoken in: `en-IN` renders
+Tanglish phonetically at best, and `ta-IN` needs a language pack most phones do
+not have and **no Android API can query**. The failure was silent in both
+directions, on the one input the product depends on.
+
+What that bought, and what it cost:
+
+- **`POST /v1/transcribe`** — the only route that accepts audio. Gemini
+  transcribes; the response is **text, never a draft**.
+- `/v1/resolve` **still returns 415** for audio. That separation is the point:
+  transcription answers "is this what I said", resolution answers "is this what
+  I ate", and folding them together would remove the step where a bad transcript
+  is fixed by typing rather than by re-recording.
+- The privacy position named above **did change**, and the docs it affects should
+  say so. Audio leaves the device. It is never written to disk server-side, and
+  the clip is deleted on the phone before the upload call resolves — but
+  "needs no microphone" was already false the moment dictation shipped, and
+  "audio never leaves the phone" is false now.
+- Dictation now needs the network, and takes ~5 s rather than being instant.
 
 ### 7.6 The phrase cache
 
@@ -723,9 +741,17 @@ Redis, keyed `resolve:v1:{sha256(normalizedPhrase + promptVersion + model)}`, TT
 -- corpus -----------------------------------------------------------------
 foods            (id, source, source_id, name, brand, is_generic,
                   search_text, created_at)
-food_nutrients   (food_id, kcal, protein_g,
-                  fiber_g   numeric NULL,             -- NULL ≠ 0
-                  fiber_state fiber_state NOT NULL)   -- known|imputed|unknown
+food_nutrients   (food_id, kcal, protein_g,          -- never NULL, always reported
+                  carbs_g   numeric NULL,             -- NULL ≠ 0
+                  carbs_state fiber_state NOT NULL,   -- known|imputed|unknown
+                  fat_g     numeric NULL,
+                  fat_state fiber_state NOT NULL,
+                  fiber_g   numeric NULL,
+                  fiber_state fiber_state NOT NULL)
+                  -- CHECK (state = 'unknown') = (value IS NULL) on each pair,
+                  -- enforced in the database, not just in Zod.
+                  -- Coverage is NOT symmetric: SR Legacy reports carbs and fat
+                  -- for 100% of rows, fibre for 92.8%.
 food_portions    (food_id, label, grams, is_default)
 food_embeddings  (food_id, embedding vector(384))     -- generic corpus only
 
@@ -733,7 +759,9 @@ food_embeddings  (food_id, embedding vector(384))     -- generic corpus only
 users, user_profiles, auth_identities, refresh_tokens
 
 -- targets ----------------------------------------------------------------
-goals            (id, user_id, kcal, protein_g, fiber_g, effective_from)
+goals            (id, user_id, kcal, protein_g, carbs_g, fat_g, fiber_g,
+                  effective_from, basis jsonb)  -- basis.fatPctOfKcal: the
+                  -- carb/fat split is POLICY, so the share used is stored
 
 -- personalization --------------------------------------------------------
 user_portions    (user_id, unit_label, food_id NULL, grams, n_corrections)
@@ -746,7 +774,9 @@ log_entries      (id, client_id, user_id, logged_at, meal,
                   phrase NULL, ai_run_id NULL, created_at)
 log_items        (id, entry_id, food_id, grams,
                   kcal, protein_g,            -- FROZEN at commit
-                  fiber_g NULL, fiber_state,
+                  carbs_g NULL, carbs_state,  -- its own copy, not a join:
+                  fat_g NULL, fat_state,      -- a USDA reissue must not
+                  fiber_g NULL, fiber_state,  -- rewrite a Tuesday in March
                   quantity_type, quantity_source)
 
 -- operations -------------------------------------------------------------
@@ -795,7 +825,7 @@ POST /v1/logs  { clientId, loggedAt, meal, source, phrase?, draftId?, items[] }
 
 ### 8.5 Commit semantics
 
-**The server recomputes nutrients; the client's numbers are never trusted.** The request carries `foodId` and `grams`; kcal, protein and fiber are recalculated from `food_nutrients` and frozen. The client's copy exists for optimistic rendering only. This keeps the arithmetic single-sourced when a log is committed weeks after its draft expired.
+**The server recomputes nutrients; the client's numbers are never trusted.** The request carries `foodId` and `grams`; kcal, protein, carbs, fat and fibre are recalculated from `food_nutrients` and frozen. The client's copy exists for optimistic rendering only. This keeps the arithmetic single-sourced when a log is committed weeks after its draft expired.
 
 A commit carrying a `draftId` also writes the learning signal, **inside the same transaction**: portion edits upsert `user_portions`, food swaps write `match_misses` with `resolved_to` set. In a separate request these are the writes that get lost, and they are the ones that make the product improve with use.
 

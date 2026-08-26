@@ -66,6 +66,29 @@ export const configSchema = z.object({
   AI_STRICT_SCHEMA: booleanString.default('true'),
 
   /**
+   * Speech transcription — a FALLBACK, not the primary path.
+   *
+   * USER-FLOWS §5 promises server-side transcription "where platform dictation
+   * is weak for the user's language". On-device recognition stays the default:
+   * it is free, private and works offline. This exists because Android's
+   * offline models are poor at Tamil and at code-switched Tanglish, which is
+   * most of this product's audience.
+   *
+   * Optional, exactly like the resolver keys. Without one the route returns 503
+   * and dictation simply stays on-device — the same degradation USER-FLOWS §8
+   * describes for the resolver.
+   */
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-3.7-flash'),
+  /**
+   * Inline audio ceiling. Gemini's own request limit is 20 MB including the
+   * prompt; this is far below it because a dictated meal is seconds long, and a
+   * generous cap is a way to be billed for someone else's podcast.
+   */
+  TRANSCRIBE_MAX_BYTES: z.coerce.number().int().positive().default(2_000_000),
+
+
+  /**
    * Per-million-token rates, for a model with no entry in the built-in table.
    * Without these an unknown model refuses to run rather than costing zero —
    * a spend ceiling that silently reads 0 is not a ceiling.

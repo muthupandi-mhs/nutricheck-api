@@ -14,7 +14,9 @@ const SOURCE_BY_DATA_TYPE: Record<string, 'usda_foundation' | 'usda_sr' | 'usda_
 interface Nutrients {
   kcal?: number;
   proteinG?: number;
-  /** Present only if USDA actually reports fiber. Absence is the whole point. */
+  /** Present only if USDA actually reports each. Absence is the whole point. */
+  carbsG?: number;
+  fatG?: number;
   fiberG?: number;
 }
 
@@ -25,6 +27,8 @@ export interface IngestReport {
   skippedNoMacros: number;
   fiberKnown: number;
   fiberUnknown: number;
+  carbsKnown: number;
+  fatKnown: number;
   portions: number;
 }
 
@@ -39,6 +43,8 @@ export async function ingestUsda(db: Database, dir: string): Promise<IngestRepor
   const byId = new Map<string, keyof Nutrients>([
     [nutrientIds.energyKcal, 'kcal'],
     [nutrientIds.protein, 'proteinG'],
+    [nutrientIds.fat, 'fatG'],
+    [nutrientIds.carbs, 'carbsG'],
     [nutrientIds.fiber, 'fiberG'],
   ]);
 
@@ -49,6 +55,8 @@ export async function ingestUsda(db: Database, dir: string): Promise<IngestRepor
     skippedNoMacros: 0,
     fiberKnown: 0,
     fiberUnknown: 0,
+    carbsKnown: 0,
+    fatKnown: 0,
     portions: 0,
   };
 
@@ -154,10 +162,21 @@ export async function ingestUsda(db: Database, dir: string): Promise<IngestRepor
             if (fiberKnown) report.fiberKnown += 1;
             else report.fiberUnknown += 1;
 
+            // Same rule for all three: a missing row means "not measured",
+            // never zero. A reported 0.0 is a real known zero and stays one.
+            const carbsKnown = n.carbsG !== undefined;
+            const fatKnown = n.fatG !== undefined;
+            if (carbsKnown) report.carbsKnown += 1;
+            if (fatKnown) report.fatKnown += 1;
+
             return {
               foodId: idBySourceId.get(fdcId)!,
               kcal: n.kcal!,
               proteinG: n.proteinG!,
+              carbsG: carbsKnown ? n.carbsG! : null,
+              carbsState: (carbsKnown ? 'known' : 'unknown') as 'known' | 'unknown',
+              fatG: fatKnown ? n.fatG! : null,
+              fatState: (fatKnown ? 'known' : 'unknown') as 'known' | 'unknown',
               fiberG: fiberKnown ? n.fiberG! : null,
               fiberState: (fiberKnown ? 'known' : 'unknown') as 'known' | 'unknown',
             };
@@ -168,6 +187,10 @@ export async function ingestUsda(db: Database, dir: string): Promise<IngestRepor
           set: {
             kcal: sql`excluded.kcal`,
             proteinG: sql`excluded.protein_g`,
+            carbsG: sql`excluded.carbs_g`,
+            carbsState: sql`excluded.carbs_state`,
+            fatG: sql`excluded.fat_g`,
+            fatState: sql`excluded.fat_state`,
             fiberG: sql`excluded.fiber_g`,
             fiberState: sql`excluded.fiber_state`,
           },

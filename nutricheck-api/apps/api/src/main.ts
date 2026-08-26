@@ -21,7 +21,21 @@ async function bootstrap(): Promise<void> {
       // Behind an ingress, so client IPs come from X-Forwarded-For. Without
       // this the rate limiter sees one address for the entire internet.
       trustProxy: true,
-      bodyLimit: 256 * 1024,
+      /**
+       * Sized for the ONE route that carries a payload: `POST /v1/transcribe`.
+       *
+       * This is Fastify's limit on the RAW body, and it is checked long before
+       * any controller runs — so it silently outranks `TRANSCRIBE_MAX_BYTES`.
+       * At 256 KB it did: that route advertised a 2 MB ceiling and its own
+       * friendly 413, neither of which could ever be reached, because base64
+       * inflates audio by a third and the framework had already refused the
+       * request.
+       *
+       * 2 MB of audio needs ~2.67 MB of base64 plus the JSON around it. Keep
+       * these two in step — lowering this without lowering the route's limit
+       * puts the lie back.
+       */
+      bodyLimit: 3 * 1024 * 1024,
       genReqId: () => crypto.randomUUID(),
     }),
     // Buffer until the pino logger is resolved, so boot-time errors are not

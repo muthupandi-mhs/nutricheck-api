@@ -54,7 +54,17 @@ export const foodNutrients = pgTable('food_nutrients', {
   /** All values per 100 g. Every displayed number is (value * grams / 100). */
   kcal: doublePrecision('kcal').notNull(),
   proteinG: doublePrecision('protein_g').notNull(),
-  /** NULL is a real state, not a missing zero. Paired with fiberState below. */
+  /**
+   * NULL is a real state on each of these, not a missing zero — always paired
+   * with the state column beside it. Measured against the corpus: SR Legacy
+   * reports carbs and fat for 100% of its rows and fibre for 92.8%, so in
+   * practice only fibre is often unknown. Curated dishes are estimates and
+   * arrive 'imputed' across all three.
+   */
+  carbsG: doublePrecision('carbs_g'),
+  carbsState: fiberStateEnum('carbs_state').notNull().default('unknown'),
+  fatG: doublePrecision('fat_g'),
+  fatState: fiberStateEnum('fat_state').notNull().default('unknown'),
   fiberG: doublePrecision('fiber_g'),
   fiberState: fiberStateEnum('fiber_state').notNull(),
 });

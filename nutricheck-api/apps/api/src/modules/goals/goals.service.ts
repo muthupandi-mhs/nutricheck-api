@@ -89,6 +89,8 @@ export class GoalsService {
       {
         kcal: computed.kcal,
         proteinG: computed.proteinG,
+        carbsG: computed.carbsG,
+        fatG: computed.fatG,
         fiberG: computed.fiberG,
         basis: computed.basis,
       },
@@ -109,6 +111,8 @@ export class GoalsService {
     return {
       kcal: computed.kcal,
       proteinG: computed.proteinG,
+      carbsG: computed.carbsG,
+      fatG: computed.fatG,
       fiberG: computed.fiberG,
       basis: computed.basis,
     };
@@ -123,6 +127,8 @@ export class GoalsService {
     return this.append(userId, {
       kcal: patch.kcal ?? current.kcal,
       proteinG: patch.proteinG ?? current.proteinG,
+      carbsG: patch.carbsG ?? current.carbsG,
+      fatG: patch.fatG ?? current.fatG,
       fiberG: patch.fiberG ?? current.fiberG,
       basis: current.basis,
       effectiveFrom: patch.effectiveFrom,
@@ -173,6 +179,8 @@ export class GoalsService {
     input: {
       kcal: number;
       proteinG: number;
+      carbsG: number;
+      fatG: number;
       fiberG: number;
       basis: GoalBasis;
       effectiveFrom?: string;
@@ -187,6 +195,8 @@ export class GoalsService {
         userId,
         kcal: input.kcal,
         proteinG: input.proteinG,
+        carbsG: input.carbsG,
+        fatG: input.fatG,
         fiberG: input.fiberG,
         effectiveFrom,
         basis: input.basis,
@@ -196,6 +206,8 @@ export class GoalsService {
         set: {
           kcal: input.kcal,
           proteinG: input.proteinG,
+          carbsG: input.carbsG,
+          fatG: input.fatG,
           fiberG: input.fiberG,
           basis: input.basis,
         },
@@ -241,6 +253,8 @@ function toGoal(row: typeof schema.goals.$inferSelect): Goal {
     id: row.id,
     kcal: row.kcal,
     proteinG: row.proteinG,
+    carbsG: row.carbsG,
+    fatG: row.fatG,
     fiberG: row.fiberG,
     effectiveFrom: row.effectiveFrom,
     basis: row.basis as Goal['basis'],

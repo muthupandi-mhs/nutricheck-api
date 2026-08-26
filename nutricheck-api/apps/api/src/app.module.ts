@@ -18,6 +18,7 @@ import { QuotaModule } from './modules/quota/quota.module';
 import { ResolverModule } from './modules/resolver/resolver.module';
 import { MealsModule } from './modules/meals/meals.module';
 import { SuggestionsModule } from './modules/suggestions/suggestions.module';
+import { TranscriptionModule } from './modules/transcription/transcription.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -85,6 +86,7 @@ import { UsersModule } from './modules/users/users.module';
     LogsModule,
     MealsModule,
     SuggestionsModule,
+    TranscriptionModule,
     QuotaModule,
     ResolverModule,
   ],

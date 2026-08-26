@@ -1,6 +1,7 @@
 # NutriCheck
 
-AI nutrition tracker. Daily calories, protein and fiber.
+AI nutrition tracker. Daily calories, protein, carbohydrate, fat and fibre —
+logged by speaking a sentence in English, Tamil or Tanglish.
 
 ## Layout
 
@@ -20,6 +21,8 @@ are not obvious from the code:
 - **[MOBILEAPP.STATUS.md](MOBILEAPP.STATUS.md)** — mobile app state
 - **[GAP-REPORT.STATUS.md](GAP-REPORT.STATUS.md)** — what the app expects vs. what the API
   serves, method by method. Read before writing the HTTP client
+- **[VOICE-REFERENCE.STATUS.md](VOICE-REFERENCE.STATUS.md)** — server-side speech recognition
+  studied from a reference app, and whether NutriCheck should adopt it
 
 ## Docs
 

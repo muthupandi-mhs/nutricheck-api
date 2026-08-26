@@ -1,4 +1,4 @@
-import type { FiberState, Nutrients } from '@nutricheck/contracts';
+import type { Nutrients, NutrientState } from '@nutricheck/contracts';
 
 /**
  * Nutrition is arithmetic, not generation.
@@ -12,9 +12,22 @@ import type { FiberState, Nutrients } from '@nutricheck/contracts';
 export interface Per100g {
   kcal: number;
   proteinG: number;
-  /** Null exactly when fiberState is 'unknown'. */
+  /** Each is null exactly when its own state is 'unknown'. */
+  carbsG: number | null;
+  carbsState: NutrientState;
+  fatG: number | null;
+  fatState: NutrientState;
   fiberG: number | null;
-  fiberState: FiberState;
+  fiberState: NutrientState;
+}
+
+/** Scales one value, carrying its state. An unknown stays unknown. */
+function scale(
+  value: number | null,
+  state: NutrientState,
+  factor: number,
+): number | null {
+  return state === 'unknown' || value === null ? null : round2(value * factor);
 }
 
 /**
@@ -31,14 +44,16 @@ export function computeItemNutrients(per100g: Per100g, grams: number): Nutrients
 
   const factor = grams / 100;
 
-  // Fiber carries its state through the arithmetic. An unknown stays unknown:
-  // multiplying a missing measurement by a portion does not measure it.
-  const fiberKnown = per100g.fiberState !== 'unknown' && per100g.fiberG !== null;
-
+  // Each nutrient carries its state through the arithmetic. An unknown stays
+  // unknown: multiplying a missing measurement by a portion does not measure it.
   return {
     kcal: round2(per100g.kcal * factor),
     proteinG: round2(per100g.proteinG * factor),
-    fiberG: fiberKnown ? round2(per100g.fiberG! * factor) : null,
+    carbsG: scale(per100g.carbsG, per100g.carbsState, factor),
+    carbsState: per100g.carbsState,
+    fatG: scale(per100g.fatG, per100g.fatState, factor),
+    fatState: per100g.fatState,
+    fiberG: scale(per100g.fiberG, per100g.fiberState, factor),
     fiberState: per100g.fiberState,
   };
 }
@@ -46,9 +61,17 @@ export function computeItemNutrients(per100g: Per100g, grams: number): Nutrients
 export interface DayTotals {
   kcal: number;
   proteinG: number;
-  /** Sum of the items whose fiber is known or imputed. */
+  /** Each is the sum over items whose own state is known or imputed. */
+  carbsG: number;
+  fatG: number;
   fiberG: number;
-  /** How many items were excluded from that sum. Displayed, never hidden. */
+  /**
+   * How many items were excluded from each sum, counted separately. Displayed,
+   * never hidden. One count could not say which total to distrust — the item
+   * missing fibre is usually not the item missing carbs.
+   */
+  carbsUnmeasuredItems: number;
+  fatUnmeasuredItems: number;
   fiberUnmeasuredItems: number;
 }
 
@@ -63,24 +86,35 @@ export interface DayTotals {
 export function sumDay(items: readonly Nutrients[]): DayTotals {
   let kcal = 0;
   let proteinG = 0;
+  let carbsG = 0;
+  let fatG = 0;
   let fiberG = 0;
+  let carbsUnmeasuredItems = 0;
+  let fatUnmeasuredItems = 0;
   let fiberUnmeasuredItems = 0;
 
   for (const item of items) {
     kcal += item.kcal;
     proteinG += item.proteinG;
 
-    if (item.fiberState === 'unknown' || item.fiberG === null) {
-      fiberUnmeasuredItems += 1;
-    } else {
-      fiberG += item.fiberG;
-    }
+    if (item.carbsState === 'unknown' || item.carbsG === null) carbsUnmeasuredItems += 1;
+    else carbsG += item.carbsG;
+
+    if (item.fatState === 'unknown' || item.fatG === null) fatUnmeasuredItems += 1;
+    else fatG += item.fatG;
+
+    if (item.fiberState === 'unknown' || item.fiberG === null) fiberUnmeasuredItems += 1;
+    else fiberG += item.fiberG;
   }
 
   return {
     kcal: round2(kcal),
     proteinG: round2(proteinG),
+    carbsG: round2(carbsG),
+    fatG: round2(fatG),
     fiberG: round2(fiberG),
+    carbsUnmeasuredItems,
+    fatUnmeasuredItems,
     fiberUnmeasuredItems,
   };
 }

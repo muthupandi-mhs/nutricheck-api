@@ -12,7 +12,8 @@
       "per100g": {
         "kcal": 300,
         "proteinG": 5,
-        "fiberG": 3
+        "fiberG": 3,
+        "fatG": 17
       },
       "portions": [
         {
@@ -46,7 +47,8 @@
       "per100g": {
         "kcal": 165,
         "proteinG": 3.8,
-        "fiberG": 3.2
+        "fiberG": 3.2,
+        "fatG": 8
       },
       "portions": [
         {
@@ -74,7 +76,8 @@
       "per100g": {
         "kcal": 290,
         "proteinG": 6.5,
-        "fiberG": 3
+        "fiberG": 3,
+        "fatG": 13
       },
       "portions": [
         {
@@ -102,7 +105,8 @@
       "per100g": {
         "kcal": 150,
         "proteinG": 6,
-        "fiberG": 4.5
+        "fiberG": 4.5,
+        "fatG": 6
       },
       "portions": [
         {
@@ -130,7 +134,8 @@
       "per100g": {
         "kcal": 130,
         "proteinG": 2.5,
-        "fiberG": 1.2
+        "fiberG": 1.2,
+        "fatG": 4
       },
       "portions": [
         {
@@ -159,7 +164,8 @@
       "per100g": {
         "kcal": 200,
         "proteinG": 3.5,
-        "fiberG": 2
+        "fiberG": 2,
+        "fatG": 8
       },
       "portions": [
         {
@@ -201,7 +207,8 @@
       "per100g": {
         "kcal": 220,
         "proteinG": 5,
-        "fiberG": 3.5
+        "fiberG": 3.5,
+        "fatG": 9
       },
       "portions": [
         {
@@ -230,7 +237,8 @@
       "per100g": {
         "kcal": 315,
         "proteinG": 7,
-        "fiberG": 4
+        "fiberG": 4,
+        "fatG": 18
       },
       "portions": [
         {
@@ -267,7 +275,8 @@
       "per100g": {
         "kcal": 160,
         "proteinG": 6.5,
-        "fiberG": 2.5
+        "fiberG": 2.5,
+        "fatG": 5
       },
       "portions": [
         {
@@ -296,7 +305,8 @@
       "per100g": {
         "kcal": 300,
         "proteinG": 7.5,
-        "fiberG": 4.5
+        "fiberG": 4.5,
+        "fatG": 12
       },
       "portions": [
         {
@@ -324,7 +334,8 @@
       "per100g": {
         "kcal": 120,
         "proteinG": 4.5,
-        "fiberG": 1.8
+        "fiberG": 1.8,
+        "fatG": 3.5
       },
       "portions": [
         {
@@ -358,7 +369,8 @@
       "per100g": {
         "kcal": 320,
         "proteinG": 8,
-        "fiberG": 4
+        "fiberG": 4,
+        "fatG": 14
       },
       "portions": [
         {
@@ -386,7 +398,8 @@
       "per100g": {
         "kcal": 300,
         "proteinG": 6.5,
-        "fiberG": 3
+        "fiberG": 3,
+        "fatG": 8
       },
       "portions": [
         {
@@ -415,7 +428,8 @@
       "per100g": {
         "kcal": 180,
         "proteinG": 3,
-        "fiberG": 3
+        "fiberG": 3,
+        "fatG": 8
       },
       "portions": [
         {
@@ -443,7 +457,8 @@
       "per100g": {
         "kcal": 240,
         "proteinG": 6.5,
-        "fiberG": 2.8
+        "fiberG": 2.8,
+        "fatG": 10
       },
       "portions": [
         {

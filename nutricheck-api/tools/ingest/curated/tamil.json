@@ -19,233 +19,718 @@
     {
       "key": "dosai-plain",
       "name": "Dosai, plain",
-      "per100g": { "kcal": 168, "proteinG": 3.9, "fiberG": 1.2 },
-      "portions": [{ "label": "1 dosai", "grams": 60, "isDefault": true }],
+      "per100g": {
+        "kcal": 168,
+        "proteinG": 3.9,
+        "fiberG": 1.2,
+        "fatG": 5.5
+      },
+      "portions": [
+        {
+          "label": "1 dosai",
+          "grams": 60,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["தோசை", "சாதா தோசை"],
-        "ta-Latn": ["dosai", "dosa", "thosai", "thosai plain", "sada dosai"],
-        "en": ["plain dosa", "rice crepe"]
+        "ta": [
+          "தோசை",
+          "சாதா தோசை"
+        ],
+        "ta-Latn": [
+          "dosai",
+          "dosa",
+          "thosai",
+          "thosai plain",
+          "sada dosai"
+        ],
+        "en": [
+          "plain dosa",
+          "rice crepe"
+        ]
       }
     },
     {
       "key": "dosai-masala",
       "name": "Dosai, masala (potato filled)",
-      "per100g": { "kcal": 185, "proteinG": 4.1, "fiberG": 2.0 },
-      "portions": [{ "label": "1 masala dosai", "grams": 150, "isDefault": true }],
+      "per100g": {
+        "kcal": 185,
+        "proteinG": 4.1,
+        "fiberG": 2,
+        "fatG": 7
+      },
+      "portions": [
+        {
+          "label": "1 masala dosai",
+          "grams": 150,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["மசாலா தோசை"],
-        "ta-Latn": ["masala dosai", "masala dosa", "masaal dosa"],
-        "en": ["potato filled dosa"]
+        "ta": [
+          "மசாலா தோசை"
+        ],
+        "ta-Latn": [
+          "masala dosai",
+          "masala dosa",
+          "masaal dosa"
+        ],
+        "en": [
+          "potato filled dosa"
+        ]
       }
     },
     {
       "key": "idli",
       "name": "Idli, steamed rice cake",
-      "per100g": { "kcal": 140, "proteinG": 4.2, "fiberG": 1.0 },
-      "portions": [{ "label": "1 idli", "grams": 40, "isDefault": true }],
+      "per100g": {
+        "kcal": 140,
+        "proteinG": 4.2,
+        "fiberG": 1,
+        "fatG": 0.6
+      },
+      "portions": [
+        {
+          "label": "1 idli",
+          "grams": 40,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["இட்லி"],
-        "ta-Latn": ["idli", "idly", "iddli", "itly"],
-        "en": ["steamed rice cake"]
+        "ta": [
+          "இட்லி"
+        ],
+        "ta-Latn": [
+          "idli",
+          "idly",
+          "iddli",
+          "itly"
+        ],
+        "en": [
+          "steamed rice cake"
+        ]
       }
     },
     {
       "key": "sambar",
       "name": "Sambar, lentil and vegetable stew",
-      "per100g": { "kcal": 85, "proteinG": 3.5, "fiberG": 2.5 },
+      "per100g": {
+        "kcal": 85,
+        "proteinG": 3.5,
+        "fiberG": 2.5,
+        "fatG": 3
+      },
       "portions": [
-        { "label": "1 cup", "grams": 200, "isDefault": true },
-        { "label": "1 bowl", "grams": 250, "isDefault": false }
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        },
+        {
+          "label": "1 bowl",
+          "grams": 250,
+          "isDefault": false
+        }
       ],
       "aliases": {
-        "ta": ["சாம்பார்"],
-        "ta-Latn": ["sambar", "sambhar", "saambar"],
-        "en": ["lentil stew", "lentil vegetable stew"]
+        "ta": [
+          "சாம்பார்"
+        ],
+        "ta-Latn": [
+          "sambar",
+          "sambhar",
+          "saambar"
+        ],
+        "en": [
+          "lentil stew",
+          "lentil vegetable stew"
+        ]
       }
     },
     {
       "key": "rasam",
       "name": "Rasam, tamarind and pepper broth",
-      "per100g": { "kcal": 35, "proteinG": 1.5, "fiberG": 0.8 },
-      "portions": [{ "label": "1 cup", "grams": 200, "isDefault": true }],
+      "per100g": {
+        "kcal": 35,
+        "proteinG": 1.5,
+        "fiberG": 0.8,
+        "fatG": 1.2
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["ரசம்"],
-        "ta-Latn": ["rasam", "rassam", "charu"],
-        "en": ["tamarind broth", "pepper soup"]
+        "ta": [
+          "ரசம்"
+        ],
+        "ta-Latn": [
+          "rasam",
+          "rassam",
+          "charu"
+        ],
+        "en": [
+          "tamarind broth",
+          "pepper soup"
+        ]
       }
     },
     {
       "key": "chutney-coconut",
       "name": "Chutney, coconut",
-      "per100g": { "kcal": 180, "proteinG": 3.0, "fiberG": 4.0 },
-      "portions": [{ "label": "1 tablespoon", "grams": 20, "isDefault": true }],
+      "per100g": {
+        "kcal": 180,
+        "proteinG": 3,
+        "fiberG": 4,
+        "fatG": 15
+      },
+      "portions": [
+        {
+          "label": "1 tablespoon",
+          "grams": 20,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["தேங்காய் சட்னி", "சட்னி"],
-        "ta-Latn": ["thengai chutney", "chutney", "coconut chutney", "chatni"],
-        "en": ["coconut chutney"]
+        "ta": [
+          "தேங்காய் சட்னி",
+          "சட்னி"
+        ],
+        "ta-Latn": [
+          "thengai chutney",
+          "chutney",
+          "coconut chutney",
+          "chatni"
+        ],
+        "en": [
+          "coconut chutney"
+        ]
       }
     },
     {
       "key": "vadai-medhu",
       "name": "Vadai, medhu (urad dal fritter)",
-      "per100g": { "kcal": 245, "proteinG": 7.0, "fiberG": 3.0 },
-      "portions": [{ "label": "1 vadai", "grams": 45, "isDefault": true }],
+      "per100g": {
+        "kcal": 245,
+        "proteinG": 7,
+        "fiberG": 3,
+        "fatG": 13
+      },
+      "portions": [
+        {
+          "label": "1 vadai",
+          "grams": 45,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["வடை", "மெது வடை"],
-        "ta-Latn": ["vadai", "vada", "medhu vadai", "medu vada", "ulundhu vadai"],
-        "en": ["lentil fritter", "savoury doughnut"]
+        "ta": [
+          "வடை",
+          "மெது வடை"
+        ],
+        "ta-Latn": [
+          "vadai",
+          "vada",
+          "medhu vadai",
+          "medu vada",
+          "ulundhu vadai"
+        ],
+        "en": [
+          "lentil fritter",
+          "savoury doughnut"
+        ]
       }
     },
     {
       "key": "pongal-ven",
       "name": "Pongal, ven (savoury rice and lentil)",
-      "per100g": { "kcal": 180, "proteinG": 5.0, "fiberG": 1.5 },
-      "portions": [{ "label": "1 cup", "grams": 200, "isDefault": true }],
+      "per100g": {
+        "kcal": 180,
+        "proteinG": 5,
+        "fiberG": 1.5,
+        "fatG": 7
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["வெண் பொங்கல்", "பொங்கல்"],
-        "ta-Latn": ["ven pongal", "pongal", "khara pongal"],
-        "en": ["savoury rice and lentil porridge"]
+        "ta": [
+          "வெண் பொங்கல்",
+          "பொங்கல்"
+        ],
+        "ta-Latn": [
+          "ven pongal",
+          "pongal",
+          "khara pongal"
+        ],
+        "en": [
+          "savoury rice and lentil porridge"
+        ]
       }
     },
     {
       "key": "upma",
       "name": "Upma, semolina",
-      "per100g": { "kcal": 150, "proteinG": 3.5, "fiberG": 1.8 },
-      "portions": [{ "label": "1 cup", "grams": 180, "isDefault": true }],
+      "per100g": {
+        "kcal": 150,
+        "proteinG": 3.5,
+        "fiberG": 1.8,
+        "fatG": 6
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 180,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["உப்புமா"],
-        "ta-Latn": ["upma", "uppuma", "uppittu"],
-        "en": ["semolina porridge"]
+        "ta": [
+          "உப்புமா"
+        ],
+        "ta-Latn": [
+          "upma",
+          "uppuma",
+          "uppittu"
+        ],
+        "en": [
+          "semolina porridge"
+        ]
       }
     },
     {
       "key": "curd-rice",
       "name": "Curd rice (thayir sadam)",
-      "per100g": { "kcal": 120, "proteinG": 3.0, "fiberG": 0.5 },
+      "per100g": {
+        "kcal": 120,
+        "proteinG": 3,
+        "fiberG": 0.5,
+        "fatG": 3
+      },
       "portions": [
-        { "label": "1 cup", "grams": 200, "isDefault": true },
-        { "label": "1 bowl", "grams": 250, "isDefault": false }
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        },
+        {
+          "label": "1 bowl",
+          "grams": 250,
+          "isDefault": false
+        }
       ],
       "aliases": {
-        "ta": ["தயிர் சாதம்"],
-        "ta-Latn": ["thayir sadam", "curd rice", "thayir saadham", "dahi rice"],
-        "en": ["yoghurt rice"]
+        "ta": [
+          "தயிர் சாதம்"
+        ],
+        "ta-Latn": [
+          "thayir sadam",
+          "curd rice",
+          "thayir saadham",
+          "dahi rice"
+        ],
+        "en": [
+          "yoghurt rice"
+        ]
       }
     },
     {
       "key": "lemon-rice",
       "name": "Lemon rice (elumichai sadam)",
-      "per100g": { "kcal": 180, "proteinG": 3.0, "fiberG": 1.2 },
-      "portions": [{ "label": "1 cup", "grams": 200, "isDefault": true }],
+      "per100g": {
+        "kcal": 180,
+        "proteinG": 3,
+        "fiberG": 1.2,
+        "fatG": 7
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["எலுமிச்சை சாதம்"],
-        "ta-Latn": ["elumichai sadam", "lemon rice", "chitranna"],
-        "en": ["lemon rice"]
+        "ta": [
+          "எலுமிச்சை சாதம்"
+        ],
+        "ta-Latn": [
+          "elumichai sadam",
+          "lemon rice",
+          "chitranna"
+        ],
+        "en": [
+          "lemon rice"
+        ]
       }
     },
     {
       "key": "poori",
       "name": "Poori, deep fried wheat bread",
-      "per100g": { "kcal": 300, "proteinG": 5.0, "fiberG": 2.0 },
-      "portions": [{ "label": "1 poori", "grams": 35, "isDefault": true }],
+      "per100g": {
+        "kcal": 300,
+        "proteinG": 5,
+        "fiberG": 2,
+        "fatG": 15
+      },
+      "portions": [
+        {
+          "label": "1 poori",
+          "grams": 35,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["பூரி"],
-        "ta-Latn": ["poori", "puri"],
-        "en": ["fried wheat bread"]
+        "ta": [
+          "பூரி"
+        ],
+        "ta-Latn": [
+          "poori",
+          "puri"
+        ],
+        "en": [
+          "fried wheat bread"
+        ]
       }
     },
     {
       "key": "parotta",
       "name": "Parotta, layered flatbread",
-      "per100g": { "kcal": 330, "proteinG": 7.0, "fiberG": 2.0 },
-      "portions": [{ "label": "1 parotta", "grams": 90, "isDefault": true }],
+      "per100g": {
+        "kcal": 330,
+        "proteinG": 7,
+        "fiberG": 2,
+        "fatG": 15
+      },
+      "portions": [
+        {
+          "label": "1 parotta",
+          "grams": 90,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["பரோட்டா"],
-        "ta-Latn": ["parotta", "porotta", "barotta", "kerala parotta"],
-        "en": ["layered flatbread"]
+        "ta": [
+          "பரோட்டா"
+        ],
+        "ta-Latn": [
+          "parotta",
+          "porotta",
+          "barotta",
+          "kerala parotta"
+        ],
+        "en": [
+          "layered flatbread"
+        ]
       }
     },
     {
       "key": "idiyappam",
       "name": "Idiyappam, string hoppers",
-      "per100g": { "kcal": 130, "proteinG": 2.5, "fiberG": 1.5 },
-      "portions": [{ "label": "1 idiyappam", "grams": 50, "isDefault": true }],
+      "per100g": {
+        "kcal": 130,
+        "proteinG": 2.5,
+        "fiberG": 1.5,
+        "fatG": 0.5
+      },
+      "portions": [
+        {
+          "label": "1 idiyappam",
+          "grams": 50,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["இடியாப்பம்"],
-        "ta-Latn": ["idiyappam", "idiappam", "sevai"],
-        "en": ["string hoppers", "rice noodle cake"]
+        "ta": [
+          "இடியாப்பம்"
+        ],
+        "ta-Latn": [
+          "idiyappam",
+          "idiappam",
+          "sevai"
+        ],
+        "en": [
+          "string hoppers",
+          "rice noodle cake"
+        ]
       }
     },
     {
       "key": "appam",
       "name": "Appam, fermented rice hopper",
-      "per100g": { "kcal": 120, "proteinG": 2.5, "fiberG": 1.0 },
-      "portions": [{ "label": "1 appam", "grams": 55, "isDefault": true }],
+      "per100g": {
+        "kcal": 120,
+        "proteinG": 2.5,
+        "fiberG": 1,
+        "fatG": 2.5
+      },
+      "portions": [
+        {
+          "label": "1 appam",
+          "grams": 55,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["ஆப்பம்"],
-        "ta-Latn": ["appam", "aappam"],
-        "en": ["rice hopper"]
+        "ta": [
+          "ஆப்பம்"
+        ],
+        "ta-Latn": [
+          "appam",
+          "aappam"
+        ],
+        "en": [
+          "rice hopper"
+        ]
       }
     },
     {
       "key": "poriyal",
       "name": "Poriyal, dry vegetable stir fry",
-      "per100g": { "kcal": 90, "proteinG": 2.5, "fiberG": 3.5 },
-      "portions": [{ "label": "1 cup", "grams": 120, "isDefault": true }],
+      "per100g": {
+        "kcal": 90,
+        "proteinG": 2.5,
+        "fiberG": 3.5,
+        "fatG": 5
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 120,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["பொரியல்"],
-        "ta-Latn": ["poriyal", "porial", "thoran"],
-        "en": ["dry vegetable stir fry"]
+        "ta": [
+          "பொரியல்"
+        ],
+        "ta-Latn": [
+          "poriyal",
+          "porial",
+          "thoran"
+        ],
+        "en": [
+          "dry vegetable stir fry"
+        ]
       }
     },
     {
       "key": "kootu",
       "name": "Kootu, lentil and vegetable",
-      "per100g": { "kcal": 95, "proteinG": 4.0, "fiberG": 3.0 },
-      "portions": [{ "label": "1 cup", "grams": 180, "isDefault": true }],
+      "per100g": {
+        "kcal": 95,
+        "proteinG": 4,
+        "fiberG": 3,
+        "fatG": 3.5
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 180,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["கூட்டு"],
-        "ta-Latn": ["kootu", "koottu"],
-        "en": ["lentil vegetable curry"]
+        "ta": [
+          "கூட்டு"
+        ],
+        "ta-Latn": [
+          "kootu",
+          "koottu"
+        ],
+        "en": [
+          "lentil vegetable curry"
+        ]
       }
     },
     {
       "key": "biryani-chicken",
       "name": "Biryani, chicken",
-      "per100g": { "kcal": 180, "proteinG": 9.0, "fiberG": 1.5 },
+      "per100g": {
+        "kcal": 180,
+        "proteinG": 9,
+        "fiberG": 1.5,
+        "fatG": 7
+      },
       "portions": [
-        { "label": "1 plate", "grams": 350, "isDefault": true },
-        { "label": "1 cup", "grams": 200, "isDefault": false }
+        {
+          "label": "1 plate",
+          "grams": 350,
+          "isDefault": true
+        },
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": false
+        }
       ],
       "aliases": {
-        "ta": ["பிரியாணி", "சிக்கன் பிரியாணி"],
-        "ta-Latn": ["biryani", "biriyani", "chicken biryani", "briyani"],
-        "en": ["chicken biryani"]
+        "ta": [
+          "பிரியாணி",
+          "சிக்கன் பிரியாணி"
+        ],
+        "ta-Latn": [
+          "biryani",
+          "biriyani",
+          "chicken biryani",
+          "briyani"
+        ],
+        "en": [
+          "chicken biryani"
+        ]
       }
     },
     {
       "key": "filter-coffee",
       "name": "Filter coffee, with milk and sugar",
-      "per100g": { "kcal": 60, "proteinG": 2.0, "fiberG": 0 },
+      "per100g": {
+        "kcal": 60,
+        "proteinG": 2,
+        "fiberG": 0,
+        "fatG": 2.5
+      },
       "portions": [
-        { "label": "1 tumbler", "grams": 120, "isDefault": true },
-        { "label": "1 cup", "grams": 150, "isDefault": false }
+        {
+          "label": "1 tumbler",
+          "grams": 120,
+          "isDefault": true
+        },
+        {
+          "label": "1 cup",
+          "grams": 150,
+          "isDefault": false
+        }
       ],
       "aliases": {
-        "ta": ["காபி", "பில்டர் காபி"],
-        "ta-Latn": ["filter coffee", "kaapi", "kapi", "degree coffee"],
-        "en": ["south indian filter coffee"]
+        "ta": [
+          "காபி",
+          "பில்டர் காபி"
+        ],
+        "ta-Latn": [
+          "filter coffee",
+          "kaapi",
+          "kapi",
+          "degree coffee"
+        ],
+        "en": [
+          "south indian filter coffee"
+        ]
       }
     },
     {
       "key": "sambar-sadam",
       "name": "Sambar sadam (sambar rice)",
-      "per100g": { "kcal": 130, "proteinG": 4.0, "fiberG": 2.2 },
-      "portions": [{ "label": "1 cup", "grams": 220, "isDefault": true }],
+      "per100g": {
+        "kcal": 130,
+        "proteinG": 4,
+        "fiberG": 2.2,
+        "fatG": 4
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 220,
+          "isDefault": true
+        }
+      ],
       "aliases": {
-        "ta": ["சாம்பார் சாதம்"],
-        "ta-Latn": ["sambar sadam", "sambar rice", "bisi bele bath"],
-        "en": ["sambar rice"]
+        "ta": [
+          "சாம்பார் சாதம்"
+        ],
+        "ta-Latn": [
+          "sambar sadam",
+          "sambar rice",
+          "bisi bele bath"
+        ],
+        "en": [
+          "sambar rice"
+        ]
+      }
+    },
+    {
+      "key": "ghee-rice",
+      "name": "Ghee rice (ney sadam)",
+      "per100g": {
+        "kcal": 185,
+        "proteinG": 3.2,
+        "fiberG": 0.6,
+        "fatG": 7
+      },
+      "portions": [
+        {
+          "label": "1 cup",
+          "grams": 200,
+          "isDefault": true
+        },
+        {
+          "label": "1 plate",
+          "grams": 250,
+          "isDefault": false
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "நெய் சோறு",
+          "நெய் சாதம்"
+        ],
+        "ta-Latn": [
+          "ney sadam",
+          "ney saadham",
+          "ney choru",
+          "nei sadam",
+          "neyi sadam",
+          "ghee rice",
+          "ghee sadam"
+        ],
+        "en": [
+          "ghee rice",
+          "buttered rice"
+        ]
+      }
+    },
+    {
+      "key": "kothu-parotta",
+      "name": "Kothu parotta",
+      "per100g": {
+        "kcal": 265,
+        "proteinG": 7.5,
+        "fiberG": 1.8,
+        "fatG": 12
+      },
+      "portions": [
+        {
+          "label": "1 plate",
+          "grams": 250,
+          "isDefault": true
+        },
+        {
+          "label": "1 half plate",
+          "grams": 150,
+          "isDefault": false
+        }
+      ],
+      "aliases": {
+        "ta": [
+          "கொத்து பரோட்டா"
+        ],
+        "ta-Latn": [
+          "kothu parotta",
+          "kothu porotta",
+          "kotthu parotta",
+          "kothu barotta",
+          "kothu parota"
+        ],
+        "en": [
+          "shredded parotta stir fry",
+          "chopped parotta"
+        ]
       }
     }
   ]

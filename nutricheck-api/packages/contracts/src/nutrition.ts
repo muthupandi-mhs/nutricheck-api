@@ -1,30 +1,85 @@
 import { z } from 'zod';
 
 /**
- * Fiber has three states, not two. `unknown` is excluded from the day's
- * denominator; treating it as 0 under-reports every day, invisibly.
+ * How much to trust one number.
+ *
+ * Three states, not two. `unknown` is excluded from the day's denominator;
+ * treating it as 0 under-reports every day, invisibly. `imputed` is a real
+ * value from an estimate rather than a measurement — the UI shows those with a
+ * `~` so the uncertainty reaches the user instead of stopping at the database.
  * See BACKEND.md §8.3 and PLAN.md §5.
  */
-export const FiberState = z.enum(['known', 'imputed', 'unknown']);
-export type FiberState = z.infer<typeof FiberState>;
+export const NutrientState = z.enum(['known', 'imputed', 'unknown']);
+export type NutrientState = z.infer<typeof NutrientState>;
+
+/** The original name. Fiber is the nutrient this was written for. */
+export const FiberState = NutrientState;
+export type FiberState = NutrientState;
 
 /**
- * A computed nutrient triple. `fiberG` is null if and only if
- * `fiberState === 'unknown'` — enforced by the refinement below, so an
- * inconsistent pair cannot be serialized.
+ * The macro set.
+ *
+ * `kcal` and `proteinG` are never null: SR Legacy reports both for 100% of its
+ * 7,793 foods, and both are goal-bearing, so a missing one is a corpus bug
+ * rather than a state to render.
+ *
+ * Carbs, fat and fibre each carry their own state because they can each be
+ * genuinely absent, and at different rates — measured against the real corpus,
+ * carbs and fat are present for 100% of SR Legacy rows while fibre is present
+ * for 92.8%. Curated dishes are `imputed` across the board. Every one of these
+ * is null if and only if its state is `unknown`, enforced below so an
+ * inconsistent pair cannot be serialized at all.
  */
 export const Nutrients = z
   .object({
     kcal: z.number().nonnegative(),
     proteinG: z.number().nonnegative(),
+    carbsG: z.number().nonnegative().nullable(),
+    carbsState: NutrientState,
+    fatG: z.number().nonnegative().nullable(),
+    fatState: NutrientState,
     fiberG: z.number().nonnegative().nullable(),
-    fiberState: FiberState,
+    fiberState: NutrientState,
   })
   .refine((n) => (n.fiberState === 'unknown') === (n.fiberG === null), {
     message: "fiberG must be null exactly when fiberState is 'unknown'",
     path: ['fiberG'],
+  })
+  .refine((n) => (n.carbsState === 'unknown') === (n.carbsG === null), {
+    message: "carbsG must be null exactly when carbsState is 'unknown'",
+    path: ['carbsG'],
+  })
+  .refine((n) => (n.fatState === 'unknown') === (n.fatG === null), {
+    message: "fatG must be null exactly when fatState is 'unknown'",
+    path: ['fatG'],
   });
 export type Nutrients = z.infer<typeof Nutrients>;
+
+/**
+ * Atwater factors, used to derive carbohydrate by difference.
+ *
+ * This is how USDA itself defines nutrient 1005, "Carbohydrate, by difference",
+ * so deriving a curated dish's carbs the same way is the published method
+ * rather than a shortcut: given calories, protein and fat, carbohydrate is
+ * whatever energy is left over.
+ *
+ * It is only ever applied to values that are ALREADY estimates, and the result
+ * is marked `imputed` like its inputs. It must never be used to manufacture a
+ * number that looks measured.
+ */
+export const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const;
+
+export function carbsByDifference(
+  kcal: number,
+  proteinG: number,
+  fatG: number,
+): number {
+  const fromProtein = proteinG * KCAL_PER_G.protein;
+  const fromFat = fatG * KCAL_PER_G.fat;
+  // Clamped at zero: rounding across three estimates can put the remainder
+  // slightly negative, and a negative carbohydrate is worse than a zero.
+  return Math.max(0, (kcal - fromProtein - fromFat) / KCAL_PER_G.carbs);
+}
 
 /**
  * How the amount was expressed. This field drives every branch of the confirm

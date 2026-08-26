@@ -94,12 +94,23 @@ export const DaySummary = z.object({
   totals: z.object({
     kcal: z.number(),
     proteinG: z.number(),
+    carbsG: z.number(),
+    fatG: z.number(),
     fiberG: z.number(),
+    /**
+     * One count per nutrient that can go unknown, not a shared one. An item
+     * missing fibre is usually not the item missing carbs, and a single number
+     * could not say which total to distrust.
+     */
+    carbsUnmeasuredItems: z.number().int().nonnegative(),
+    fatUnmeasuredItems: z.number().int().nonnegative(),
     fiberUnmeasuredItems: z.number().int().nonnegative(),
   }),
   goal: z.object({
     kcal: z.number(),
     proteinG: z.number(),
+    carbsG: z.number(),
+    fatG: z.number(),
     fiberG: z.number(),
   }),
   entries: z.array(LogEntry),
@@ -161,6 +172,8 @@ export const DayPoint = z.object({
   date: LocalDate,
   kcal: z.number(),
   proteinG: z.number(),
+  carbsG: z.number(),
+  fatG: z.number(),
   fiberG: z.number(),
   logged: z.boolean(),
 });
@@ -184,11 +197,15 @@ export const WeekSummary = z.object({
   goal: z.object({
     kcal: z.number(),
     proteinG: z.number(),
+    carbsG: z.number(),
+    fatG: z.number(),
     fiberG: z.number(),
   }),
   averages: z.object({
     kcal: z.number(),
     proteinG: z.number(),
+    carbsG: z.number(),
+    fatG: z.number(),
     fiberG: z.number(),
   }),
   streakDays: z.number().int().nonnegative(),

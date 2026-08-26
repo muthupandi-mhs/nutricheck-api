@@ -45,6 +45,8 @@ export const Goal = z.object({
   id: z.string().uuid(),
   kcal: z.number().int().positive(),
   proteinG: z.number().int().positive(),
+  carbsG: z.number().int().nonnegative(),
+  fatG: z.number().int().nonnegative(),
   fiberG: z.number().int().positive(),
   effectiveFrom: LocalDate,
   /** Shown on the targets screen so the user can see the math and trust it. */
@@ -56,14 +58,33 @@ export const Goal = z.object({
     flooredAtBmr: z.boolean(),
     rateCapped: z.boolean(),
     effectiveRateKgPerWeek: z.number(),
+    /**
+     * The share of calories given to fat, before carbohydrate takes the rest.
+     *
+     * Recorded rather than assumed because it is a POLICY, not a derivation:
+     * Mifflin–St Jeor produces calories, protein comes from bodyweight, and
+     * fibre from a fixed rule — but nothing in the literature hands you a
+     * carb/fat split. Storing the number that was used means a goal from six
+     * months ago can still explain itself after the default changes.
+     */
+    fatPctOfKcal: z.number(),
   }),
 });
 export type Goal = z.infer<typeof Goal>;
 
-/** Every field optional: the targets screen lets the user override any of the three. */
+/**
+ * Every field optional: the targets screen lets the user override any of them.
+ *
+ * Note that kcal, protein, carbs and fat are not independent — four numbers
+ * constrained by one equation. The server does not silently rebalance them:
+ * an override is taken literally, because a target the user set and the app
+ * quietly changed is worse than one that does not add up.
+ */
 export const SetGoal = z.object({
   kcal: z.number().int().min(800).max(8000).optional(),
   proteinG: z.number().int().min(20).max(500).optional(),
+  carbsG: z.number().int().min(0).max(1200).optional(),
+  fatG: z.number().int().min(0).max(400).optional(),
   fiberG: z.number().int().min(5).max(120).optional(),
   effectiveFrom: LocalDate.optional(),
 });
