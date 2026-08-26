@@ -13,7 +13,11 @@ coverage/
 model/
 *.onnx
 
-logs/
+# Anchored to the repo root. Unanchored, `logs/` matches a directory of that
+# name at ANY depth — which silently excluded the whole of
+# apps/api/src/modules/logs, the module that owns commit, the day view and the
+# batch drain. It had never been committed.
+/logs/
 *.log
 npm-debug.log*
 
