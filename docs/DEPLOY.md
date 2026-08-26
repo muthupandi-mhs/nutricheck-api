@@ -10,6 +10,38 @@ enough.
 
 ---
 
+## Staging or production?
+
+The same stack serves both. There is no second compose file: everything that
+actually differs -- hostname, secrets, log level, whether an AI key exists -- is
+a value, not a service, and duplicating the topology to change a domain name is
+how two environments quietly stop resembling each other.
+
+**One machine, one environment, one `.env.deploy`.** Which template you copy
+into it is the only fork in this guide:
+
+| | Staging | Production |
+|---|---|---|
+| Template | `.env.staging.example` | `.env.prod.example` |
+| Hostname | `<ip>.sslip.io`, free | a domain you own |
+| `LOG_LEVEL` | `debug` | `info` |
+| Refresh TTL | 7d | 30d |
+| Resolver ceiling | 20/day, $0.25 | 50/day, $1.00 |
+
+`NODE_ENV` is `production` on **both**. `config.schema.ts` accepts only
+`development | test | production`, and the value selects build behaviour, not
+which environment this is. Which environment it is, is which machine it is.
+
+**Staging needs no domain.** `sslip.io` resolves any IP embedded in the
+hostname, so `43-205-194-160.sslip.io` points at `43.205.194.160` with nothing
+to configure -- and because it genuinely resolves, Caddy still gets a real
+Let's Encrypt certificate. That is worth having: Android and iOS block cleartext
+HTTP by default, so a plain-HTTP staging API means weakening the mobile app's
+network config just to test against it. If you truly want no TLS, set
+`DOMAIN=:80` and skip step 6's DNS check entirely.
+
+---
+
 ## 0. Before you start
 
 You need two things this guide cannot create for you:
@@ -105,7 +137,7 @@ fails with a confusing schema error that looks like a typo in the file.
 sudo apt-get update && sudo apt-get install -y git
 git clone YOUR_REPO_URL nutricheck
 cd nutricheck/nutricheck-api
-cp .env.prod.example .env.prod
+cp .env.staging.example .env.deploy   # or .env.prod.example on a production box
 ```
 
 Generate the three secrets:
@@ -121,7 +153,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 No Node on the box yet? `openssl rand -base64 48 | tr -d '/+='` gives an
 equally good secret.
 
-Then `nano .env.prod` and fill in `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`,
+Then `nano .env.deploy` and fill in `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`,
 `JWT_REFRESH_SECRET`, `DOMAIN`, and `ACME_EMAIL`. Leave `ANTHROPIC_API_KEY` and
 `GEMINI_API_KEY` blank for now if you like — the API boots without them and
 only `/v1/resolve` and `/v1/transcribe` are disabled. M1 core is fully usable
@@ -130,10 +162,10 @@ with zero AI.
 Reuse of one secret for both JWT values is a real vulnerability, not a style
 point: it lets a stolen access token be replayed as a refresh token.
 
-`.env.prod` is gitignored. Confirm before you ever commit from this box:
+`.env.deploy` is gitignored. Confirm before you ever commit from this box:
 
 ```bash
-git check-ignore -v .env.prod   # must print a match
+git check-ignore -v .env.deploy   # must print a match
 ```
 
 ## 6. Point DNS at the server, then build
@@ -154,7 +186,7 @@ situation.)
 Then build and start:
 
 ```bash
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d --build
+docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml up -d --build
 ```
 
 The build takes **5–10 minutes** on 2 vCPU. It runs `npm ci` across the whole
@@ -176,7 +208,7 @@ docker build -f docker/Dockerfile --target runtime -t youruser/nutricheck-api:1.
 docker push youruser/nutricheck-api:1.0.0
 ```
 
-Then set `IMAGE=docker.io/youruser/nutricheck-api:1.0.0` in `.env.prod` and drop
+Then set `IMAGE=docker.io/youruser/nutricheck-api:1.0.0` in `.env.deploy` and drop
 `--build` from the command above. One image serves api, worker, and migrate, so
 there is only ever one artifact to promote.
 
@@ -198,14 +230,14 @@ On the server:
 ```bash
 cd ~/nutricheck/nutricheck-api
 gunzip -c ~/corpus-seed.sql.gz | \
-  docker compose --env-file .env.prod -f docker/docker-compose.prod.yml \
+  docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml \
   exec -T postgres psql -U nutricheck -d nutricheck
 ```
 
 Verify:
 
 ```bash
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml \
+docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml \
   exec -T postgres psql -U nutricheck -d nutricheck \
   -c "SELECT source, count(*) FROM foods GROUP BY ROLLUP(source) ORDER BY 2 DESC;"
 ```
@@ -238,7 +270,7 @@ that will not exist on a fresh server.
 ```bash
 curl -s https://api.yourdomain.com/health/live
 curl -s https://api.yourdomain.com/health/ready
-docker compose --env-file .env.prod -f docker/docker-compose.prod.yml ps
+docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml ps
 ```
 
 All services should read `running`, except `migrate`, which correctly shows
@@ -261,7 +293,7 @@ being used heavily at idle, something is wrong — look at Postgres first.
 
 ```bash
 # from ~/nutricheck/nutricheck-api — define this once to save typing
-alias dc='docker compose --env-file .env.prod -f docker/docker-compose.prod.yml'
+alias dc='docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml'
 
 dc logs -f api          # follow API logs
 dc ps                   # what's running
@@ -314,8 +346,8 @@ state, and 35 MB of it fits in `shared_buffers` with room to spare.
 | Instance | Lightsail 4 GB / 2 vCPU / 80 GB, Ubuntu 24.04 LTS, OS Only |
 | Open ports | 22, 80, 443 — never 5432 or 6379 |
 | Swap | 4 GB, added manually |
-| Compose | `docker/docker-compose.prod.yml`, project `nutricheck-prod` |
-| Secrets | `.env.prod` on the server, gitignored, from `.env.prod.example` |
+| Compose | `docker/docker-compose.deploy.yml`, project `nutricheck-deploy` |
+| Secrets | `.env.deploy` on the server, gitignored, from `.env.staging.example` or `.env.prod.example` |
 | TLS | Caddy, automatic Let's Encrypt, needs DNS first |
 | Corpus | restore `corpus-seed.sql.gz`, 13,440 foods |
 | Migrations | one-shot `migrate` service, never on app boot |

@@ -1,4 +1,4 @@
-name: nutricheck-prod
+name: nutricheck-deploy
 
 # NOTE the project name differs from the dev stack deliberately. Sharing
 # 'nutricheck' would make this file adopt the dev containers and volumes on a
@@ -7,8 +7,18 @@ name: nutricheck-prod
 # result is a stack that will not authenticate against a database you still
 # need. Distinct names make that collision impossible.
 
-# Production stack for a single host. Sized against a 4 GB / 2 vCPU instance
-# (AWS Lightsail $24 plan) running nothing else.
+# The deployed stack for a single host -- STAGING AND PRODUCTION BOTH. There is
+# no second copy of this file per environment, because everything that actually
+# differs between them (hostname, secrets, log level, whether an AI key exists)
+# is a value, not a service. Duplicating the topology to change a domain name
+# is how two environments quietly stop resembling each other.
+#
+# One machine, one environment, one .env.deploy. Copy .env.staging.example on a
+# staging box or .env.prod.example on a production one; both land at the same
+# filename so this file never has to know which it is.
+#
+# Sized against a 4 GB / 2 vCPU instance (AWS Lightsail $24 plan) running
+# nothing else.
 #
 # This is a STANDALONE file, deliberately not an override of
 # docker-compose.yml. Compose merges `ports` additively, so an override can
@@ -17,9 +27,9 @@ name: nutricheck-prod
 # security story, so production gets its own file instead of a patch.
 #
 #   cd nutricheck-api
-#   docker compose --env-file .env.prod -f docker/docker-compose.prod.yml up -d
+#   docker compose --env-file .env.deploy -f docker/docker-compose.deploy.yml up -d
 #
-# Every value below comes from .env.prod. The `:?` suffix makes compose refuse
+# Every value below comes from .env.deploy. The `:?` suffix makes compose refuse
 # to start on a missing one rather than silently substituting an empty string,
 # which is how a database ends up with a blank password.
 
@@ -28,9 +38,9 @@ services:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.prod}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
-      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.prod}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.deploy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.deploy}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.deploy}
     # No `ports:` on purpose. Postgres is reachable only over the compose
     # network, by service name. Nothing on the internet can open a socket to it
     # even if the password leaks.
@@ -123,7 +133,7 @@ services:
     # stack does -- shipping the committed dev JWT secrets to production is
     # exactly the accident that file's own comments warn about.
     env_file:
-      - path: ../.env.prod
+      - path: ../.env.deploy
         required: true
     environment:
       NODE_ENV: production
@@ -154,7 +164,7 @@ services:
     command: ['node', 'apps/api/dist/worker.js']
     restart: unless-stopped
     env_file:
-      - path: ../.env.prod
+      - path: ../.env.deploy
         required: true
     environment:
       NODE_ENV: production
@@ -182,8 +192,8 @@ services:
       - '80:80'
       - '443:443'
     environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN in .env.prod}
-      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.prod}
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env.deploy}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.deploy}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificates live here. Losing this volume means re-issuing on next

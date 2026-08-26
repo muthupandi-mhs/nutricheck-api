@@ -8,11 +8,14 @@ coverage/
 .env
 .env.local
 .env.*.local
-# Real production secrets, filled in on the server. Not matched by any rule
-# above -- .env.*.local does not cover .env.prod.
+# Real secrets, filled in on a deployed machine -- staging or production, the
+# filename is the same on both. Not matched by any rule above: .env.*.local
+# does not cover .env.deploy. The templates beside it are safe and tracked.
+.env.deploy
 .env.prod
 !.env.example
 !.env.prod.example
+!.env.staging.example
 
 model/
 *.onnx
