@@ -292,6 +292,10 @@ describe('log commit', () => {
       dayLogs = new LogsService(pg.db, goals);
 
       await goals.upsertProfile(dayUserId, PROFILE);
+      // Backdated: upsertProfile derives a goal effective TODAY, and this suite
+      // queries a fixed 2026-08-26. Left alone, the goal assertions passed only
+      // on the day they were written.
+      await goals.override(dayUserId, { effectiveFrom: '2026-08-01' });
     });
 
     it('totals the day and excludes unmeasured fiber from the sum', async () => {

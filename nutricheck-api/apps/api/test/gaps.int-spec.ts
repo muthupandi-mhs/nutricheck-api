@@ -471,6 +471,13 @@ describe('client/backend gaps', () => {
       // last month was a good month.
       const userId = await newUser('week-goal');
       await goals.upsertProfile(userId, PROFILE);
+      // Backdated on purpose. upsertProfile derives a goal effective TODAY, and
+      // every date in this suite is fixed at 2026-08-26 -- so from the day after
+      // these tests were written the goal did not yet exist on the date being
+      // queried, and the assertion failed for the rest of time. The app was
+      // right to report zero; the test was asking about a day before the user
+      // had a goal.
+      await goals.override(userId, { effectiveFrom: '2026-08-01' });
       const original = (await goals.currentGoal(userId)).kcal;
 
       await goals.override(userId, { kcal: 1500, effectiveFrom: '2026-09-01' });
