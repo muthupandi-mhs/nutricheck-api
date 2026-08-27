@@ -3,6 +3,7 @@ import {
   PROBLEM_TYPES,
   type AuthResponse,
   type ChangePasswordRequest,
+  type CheckEmailResponse,
   type LoginRequest,
   type RegisterRequest,
   type SessionUser,
@@ -71,6 +72,34 @@ export class AuthService {
 
     const tokens = await this.tokens.issue(user.id, user.email);
     return { user: toSessionUser(user, false), tokens };
+  }
+
+  /**
+   * Whether an address can be signed in to.
+   *
+   * Deliberately the same conditions `login` treats as an account: the email
+   * identity exists AND the user is not soft-deleted. Answering on the identity
+   * alone would send someone whose account was deleted to a password screen
+   * that could only ever reject them.
+   *
+   * Returns a boolean and nothing else — no id, no timestamps, no onboarding
+   * state. Whatever this endpoint returns is readable by anyone who can guess
+   * an address, so it says the one thing the flow needs and stops.
+   */
+  async checkEmail(email: string): Promise<CheckEmailResponse> {
+    const [row] = await this.db
+      .select({ deletedAt: schema.users.deletedAt })
+      .from(schema.authIdentities)
+      .innerJoin(schema.users, eq(schema.users.id, schema.authIdentities.userId))
+      .where(
+        and(
+          eq(schema.authIdentities.provider, 'email'),
+          eq(schema.authIdentities.subject, email),
+        ),
+      )
+      .limit(1);
+
+    return { registered: row !== undefined && row.deletedAt === null };
   }
 
   async login(input: LoginRequest): Promise<AuthResponse> {

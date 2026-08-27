@@ -1,5 +1,6 @@
 import {
   ChangePasswordRequest,
+  CheckEmailRequest,
   LoginRequest,
   RefreshRequest,
   RegisterRequest,
@@ -11,6 +12,7 @@ import { createZodDto } from '../../common/zod/zod-dto';
  * @nutricheck/contracts so the mobile client infers its types from the same
  * definition the server validates against.
  */
+export class CheckEmailDto extends createZodDto(CheckEmailRequest) {}
 export class RegisterDto extends createZodDto(RegisterRequest) {}
 export class LoginDto extends createZodDto(LoginRequest) {}
 export class RefreshDto extends createZodDto(RefreshRequest) {}

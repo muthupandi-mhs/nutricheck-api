@@ -8,17 +8,12 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { AuthResponse, TokenPair } from '@nutricheck/contracts';
+import type { AuthResponse, CheckEmailResponse, TokenPair } from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { ProblemThrottlerGuard } from '../../common/guards/problem-throttler.guard';
 import { AuthService } from './auth.service';
-import {
-  ChangePasswordDto,
-  LoginDto,
-  RefreshDto,
-  RegisterDto,
-} from './auth.dto';
+import { ChangePasswordDto, CheckEmailDto, LoginDto, RefreshDto, RegisterDto } from './auth.dto';
 
 /**
  * Email + password only.
@@ -32,6 +27,18 @@ import {
 @UseGuards(ProblemThrottlerGuard)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  @Public()
+  @Post('check-email')
+  @HttpCode(HttpStatus.OK)
+  // Tighter than login, which allows 10 in 15 minutes. This one needs no
+  // password, so a permissive limit here would turn it into a fast enumeration
+  // oracle -- the volume is the part worth denying, not the single answer.
+  @Throttle({ default: { ttl: 900_000, limit: 8 } })
+  @ApiOperation({ summary: 'Whether an address already has an account' })
+  checkEmail(@Body() body: CheckEmailDto): Promise<CheckEmailResponse> {
+    return this.auth.checkEmail(body.email);
+  }
 
   @Public()
   @Post('register')

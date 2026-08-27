@@ -44,6 +44,41 @@ export const LoginRequest = z.object({
 });
 export type LoginRequest = z.infer<typeof LoginRequest>;
 
+/**
+ * Step one of the single auth flow: is there already an account on this
+ * address?
+ *
+ * It decides which screen step two is — "enter your password" or "set one up" —
+ * and it is the reason the client can make exactly one call at step two instead
+ * of guessing with the user's password.
+ *
+ * This answers, without a password, a question `login` goes to real trouble to
+ * refuse: it returns the same error for an unknown address as for a wrong
+ * password, and spends the same CPU doing it. That defence is now half spent,
+ * and it is worth being honest about why it is an acceptable trade rather than
+ * pretending it is free:
+ *
+ *   - `register` already answers it. A 409 on a taken address is the same
+ *     oracle, reachable today by anyone willing to send a junk password.
+ *   - The alternative is worse for the user, not just different: without it,
+ *     step two has to send a password to find out which call it should have
+ *     made, and a mistyped password burns a registration attempt.
+ *   - What it must not become is a *fast* oracle. It carries a tighter throttle
+ *     than login for that reason — enumeration is a volume attack, and volume
+ *     is the part worth denying.
+ *
+ * It deliberately reveals nothing else. Not whether the account is onboarded,
+ * not when it was made, not how it signs in.
+ */
+export const CheckEmailRequest = z.object({ email: Email });
+export type CheckEmailRequest = z.infer<typeof CheckEmailRequest>;
+
+export const CheckEmailResponse = z.object({
+  /** True when a live account signs in with this address. */
+  registered: z.boolean(),
+});
+export type CheckEmailResponse = z.infer<typeof CheckEmailResponse>;
+
 export const RefreshRequest = z.object({
   refreshToken: z.string().min(1).max(512),
 });
