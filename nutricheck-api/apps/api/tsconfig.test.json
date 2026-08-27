@@ -1,0 +1,19 @@
+{
+  // The build's tsconfig.json covers `src/**` only — it has to, because
+  // `rootDir` and `outDir` describe what ships, and widening it would drag the
+  // tests into dist. So `test/**` went unchecked by `npm run typecheck`, and a
+  // stub that no longer matched the abstract class it extends reached CI.
+  //
+  // This config is typecheck-only (`noEmit`, no `rootDir`) and is the second
+  // half of the `typecheck` script. ts-jest does catch these at test time, but
+  // only for whoever runs the tests — and the tests are deliberately not in CI.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "types": ["node", "jest"],
+    "strictPropertyInitialization": false,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
