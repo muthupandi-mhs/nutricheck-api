@@ -1,5 +1,9 @@
 # NutriCheck
 
+> **Picking this up mid-flight?** Start with
+> [SESSION.STATUS.md](SESSION.STATUS.md) — it lists what is committed but not
+> pushed, what is verified, and the traps that cost time.
+
 AI nutrition tracker. Daily calories, protein, carbohydrate, fat and fibre —
 logged by speaking a sentence in English, Tamil or Tanglish.
 
