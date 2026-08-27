@@ -134,7 +134,8 @@ describe('computeGoal', () => {
     ['sedentary', 1.2],
     ['light', 1.375],
     ['moderate', 1.55],
-    ['active', 1.725],
+    // No 1.725. 'active' was dropped in 0007 and the remaining four keep the
+    // standard figures -- the scale lost a rung, it was not rescaled.
     ['very_active', 1.9],
   ] as const)('uses the %s activity factor %p', (activityLevel, factor) => {
     const goal = computeGoal(profile({ activityLevel }), ON);

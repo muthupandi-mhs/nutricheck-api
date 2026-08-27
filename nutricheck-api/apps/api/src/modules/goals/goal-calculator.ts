@@ -18,12 +18,17 @@ import type {
  *   Fiber    14 g per 1000 kcal (US Dietary Guidelines basis)
  */
 
-/** Harris-Benedict style multipliers, 1.2 sedentary to 1.9 very active. */
+/**
+ * Harris-Benedict style multipliers, 1.2 sedentary to 1.9 very active.
+ *
+ * Four of the usual five: 1.725 went with the 'active' level. The remaining
+ * four are the standard figures, unchanged -- the scale lost a rung, it was
+ * not rescaled.
+ */
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
   sedentary: 1.2,
   light: 1.375,
   moderate: 1.55,
-  active: 1.725,
   very_active: 1.9,
 };
 
@@ -35,7 +40,6 @@ const PROTEIN_G_PER_KG: Record<ActivityLevel, number> = {
   sedentary: 1.6,
   light: 1.8,
   moderate: 1.8,
-  active: 2.0,
   very_active: 2.2,
 };
 

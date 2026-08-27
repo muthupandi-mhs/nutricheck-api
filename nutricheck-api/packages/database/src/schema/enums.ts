@@ -54,11 +54,15 @@ export const quantitySourceEnum = pgEnum('quantity_source', [
 
 export const sexEnum = pgEnum('sex', ['male', 'female']);
 
+/**
+ * Four levels. 'active' was the fifth, between moderate and very_active, and
+ * was dropped -- see migration 0007, which rewrites the type because Postgres
+ * cannot remove a value from one.
+ */
 export const activityLevelEnum = pgEnum('activity_level', [
   'sedentary',
   'light',
   'moderate',
-  'active',
   'very_active',
 ]);
 
