@@ -15,6 +15,7 @@ import { FoodsModule } from './modules/foods/foods.module';
 import { GoalsModule } from './modules/goals/goals.module';
 import { LogsModule } from './modules/logs/logs.module';
 import { QuotaModule } from './modules/quota/quota.module';
+import { AiMealModule } from './modules/ai-meal/ai-meal.module';
 import { ResolverModule } from './modules/resolver/resolver.module';
 import { MealsModule } from './modules/meals/meals.module';
 import { SuggestionsModule } from './modules/suggestions/suggestions.module';
@@ -90,6 +91,7 @@ import { UsersModule } from './modules/users/users.module';
     TranscriptionModule,
     InsightsModule,
     QuotaModule,
+    AiMealModule,
     ResolverModule,
   ],
   providers: [

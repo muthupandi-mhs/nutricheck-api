@@ -20,3 +20,4 @@ export * from './meals';
 export * from './suggestions';
 export * from './transcription';
 export * from './insights';
+export * from './ai-meal';

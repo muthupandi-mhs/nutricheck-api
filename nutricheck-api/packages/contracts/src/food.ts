@@ -2,7 +2,22 @@ import { z } from 'zod';
 import { CursorPage, paginated } from './common';
 import { NutrientState } from './nutrition';
 
-export const FoodSource = z.enum(['usda_foundation', 'usda_sr', 'usda_fndds', 'off', 'curated', 'user']);
+/**
+ * `ai` is a row a model estimated the numbers for, distinct from `user`, which
+ * is one a person typed them into. The client needs the difference: an AI row
+ * is shown as an estimate, and every value on it is imputed rather than
+ * measured. Keeping them apart also makes "how much of this came from a model"
+ * answerable without joining anything.
+ */
+export const FoodSource = z.enum([
+  'usda_foundation',
+  'usda_sr',
+  'usda_fndds',
+  'off',
+  'curated',
+  'user',
+  'ai',
+]);
 export type FoodSource = z.infer<typeof FoodSource>;
 
 /** Per 100 g, as stored. All display arithmetic derives from these three numbers. */

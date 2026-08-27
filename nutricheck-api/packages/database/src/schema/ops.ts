@@ -7,9 +7,11 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { aiStepEnum } from './enums';
+import { aiMatchStatusEnum, aiStepEnum } from './enums';
+import { foods } from './corpus';
 import { users } from './identity';
 
 /**
@@ -68,5 +70,58 @@ export const matchMisses = pgTable(
   (t) => [
     index('match_misses_item_text_idx').on(t.itemText),
     index('match_misses_created_idx').on(t.createdAt.desc()),
+  ],
+);
+
+/**
+ * What the model thinks an unmatched name means, and whether users agreed.
+ *
+ * Deliberately NOT food_aliases. That table is human-authored and is what
+ * search scores against; mixing model output into it makes "who wrote this"
+ * unanswerable a month later, and a bad alias indistinguishable from a curated
+ * one. This is a quarantine with an audit trail — the model writes here, users
+ * vote, and only a promotion moves a mapping somewhere search can see it.
+ *
+ * The model proposes NAMES, never ids and never nutrients. Those names are run
+ * back through the ordinary corpus search, so a hallucinated food simply
+ * matches nothing and this row lands with a null foodId. That is the whole
+ * safety property: the model cannot conjure a food into the corpus, it can only
+ * fail to find one.
+ */
+export const aiFoodMatches = pgTable(
+  'ai_food_matches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /**
+     * normalizeSearchText(itemText) — the same normalization search uses, so
+     * "Pavakkai", "pavakkai " and "PAVAKKAI" are one row. Unique, which is what
+     * makes a name cost one model call once, ever: the second user asking hits
+     * this row rather than the provider.
+     */
+    phrase: text('phrase').notNull(),
+    /** Every name the model offered, verbatim. Kept even when none matched. */
+    suggestions: jsonb('suggestions').notNull(),
+    /**
+     * The corpus row those suggestions actually found.
+     *
+     * NULL is the valuable state, not the failure one: the model understood the
+     * word and we genuinely do not stock the food. That is the dish backlog
+     * arriving as data, and it is a different problem from a food we hold under
+     * a spelling nobody had written down yet.
+     */
+    foodId: uuid('food_id').references(() => foods.id, { onDelete: 'cascade' }),
+    model: text('model').notNull(),
+    promptVersion: text('prompt_version').notNull(),
+    /** Evidence. The counts accumulate; status is the decision taken about them. */
+    confirmations: integer('confirmations').default(0).notNull(),
+    rejections: integer('rejections').default(0).notNull(),
+    status: aiMatchStatusEnum('status').default('proposed').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('ai_food_matches_phrase_uq').on(t.phrase),
+    index('ai_food_matches_status_idx').on(t.status),
+    index('ai_food_matches_food_idx').on(t.foodId),
   ],
 );

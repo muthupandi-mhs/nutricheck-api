@@ -4,9 +4,18 @@ import { DATABASE } from '../../infrastructure/database/database.tokens';
 import type { AiCallResult } from './ai.service';
 import { cacheHitRatio, costUsd, type TokenUsage } from './cost';
 
+/**
+ * Mirrors the ai_step enum. Widened past parse and rerank when the meal path
+ * arrived. `insight` is listed because the insight endpoint calls the model
+ * TODAY and records nothing -- so its spend is invisible to cost attribution
+ * and never reaches RESOLVE_USER_DAILY_SPEND_USD. Wiring insights.service.ts
+ * to recordCall closes that hole; the type is ready for it.
+ */
+export type AiStep = 'parse' | 'rerank' | 'insight' | 'identify' | 'meal';
+
 export interface RecordRunInput {
   userId: string;
-  step: 'parse' | 'rerank';
+  step: AiStep;
   inputHash: string;
   cached: boolean;
   model: string;
@@ -71,7 +80,7 @@ export class AiRunsService {
   /** Convenience for the common case of persisting a completed call. */
   async recordCall(
     userId: string,
-    step: 'parse' | 'rerank',
+    step: AiStep,
     inputHash: string,
     result: AiCallResult<unknown>,
   ): Promise<string> {

@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
+import { IDENTIFY_SYSTEM } from './identify';
 import { INSIGHT_SYSTEM } from './insight';
+import { MEAL_SYSTEM } from './meal';
 import { PARSE_SYSTEM } from './parse';
 import { RERANK_SYSTEM } from './rerank';
 
-export { INSIGHT_SYSTEM, PARSE_SYSTEM, RERANK_SYSTEM };
+export { IDENTIFY_SYSTEM, INSIGHT_SYSTEM, MEAL_SYSTEM, PARSE_SYSTEM, RERANK_SYSTEM };
 
 /**
  * Prompt version, derived from the prompt's own bytes.
@@ -30,6 +32,14 @@ export const PROMPTS = {
   insight: {
     system: INSIGHT_SYSTEM,
     version: versionOf(INSIGHT_SYSTEM),
+  },
+  identify: {
+    system: IDENTIFY_SYSTEM,
+    version: versionOf(IDENTIFY_SYSTEM),
+  },
+  meal: {
+    system: MEAL_SYSTEM,
+    version: versionOf(MEAL_SYSTEM),
   },
 } as const;
 

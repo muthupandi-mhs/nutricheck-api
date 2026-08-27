@@ -14,7 +14,14 @@ import {
   type AiCallResult,
   type RerankItem,
 } from './ai.service';
-import { InsightResult, ParseResult, rerankSchemaFor, type RerankResult } from './ai.schemas';
+import {
+  AiMealResult,
+  IdentifyResult,
+  InsightResult,
+  ParseResult,
+  rerankSchemaFor,
+  type RerankResult,
+} from './ai.schemas';
 import { factsToUserTurn } from './insight-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
 import type { TokenUsage } from './cost';
@@ -132,6 +139,32 @@ export class OpenAiCompatibleService extends AiService {
       factsToUserTurn(facts),
       InsightResult,
       'meal_insight',
+    );
+  }
+
+  async interpretMeal(phrase: string): Promise<AiCallResult<AiMealResult>> {
+    return this.call(
+      'meal',
+      PROMPTS.meal.system,
+      PROMPTS.meal.version,
+      phrase,
+      AiMealResult,
+      'meal_result',
+    );
+  }
+
+  async identify(phrase: string): Promise<AiCallResult<IdentifyResult>> {
+    // The bare phrase, with no candidate list and no surrounding items. This
+    // step runs precisely because search found nothing, so there is nothing
+    // useful to show the model — and offering it context it cannot act on
+    // invites it to pick from that context instead of translating.
+    return this.call(
+      'identify',
+      PROMPTS.identify.system,
+      PROMPTS.identify.version,
+      phrase,
+      IdentifyResult,
+      'identify_result',
     );
   }
 

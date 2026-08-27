@@ -13,7 +13,13 @@ import {
   type AiCallResult,
   type RerankItem,
 } from '../src/modules/ai/ai.service';
-import type { InsightResult, ParseResult, RerankResult } from '../src/modules/ai/ai.schemas';
+import type {
+  AiMealResult,
+  IdentifyResult,
+  InsightResult,
+  ParseResult,
+  RerankResult,
+} from '../src/modules/ai/ai.schemas';
 import { FoodsService } from '../src/modules/foods/foods.service';
 import { GoalsService } from '../src/modules/goals/goals.service';
 import { LogsService } from '../src/modules/logs/logs.service';
@@ -72,6 +78,39 @@ class FakeAi extends AiService {
    */
   async insight(_facts: MealFacts): Promise<AiCallResult<InsightResult>> {
     return wrap({ text: 'a fake insight' }, 'insight-v1');
+  }
+
+  identifyCalls = 0;
+  identifyResult: IdentifyResult = {
+    isFood: true,
+    names: [],
+    script: '',
+    confidence: 'low',
+  };
+
+  /**
+   * Defaults to naming nothing, so the miss path stays the default in every
+   * test that has not opted into translation. A fixture that quietly rescues
+   * unmatched phrases would hide the behaviour those tests exist to pin.
+   */
+  async identify(_phrase: string): Promise<AiCallResult<IdentifyResult>> {
+    this.identifyCalls += 1;
+    if (this.failWith) throw this.failWith;
+    return wrap(this.identifyResult, 'identify-v1');
+  }
+
+  interpretCalls = 0;
+  mealResult: AiMealResult = { summary: '', items: [], unresolved: [] };
+
+  /**
+   * The corpus-free path, which this suite does not exercise: every test here
+   * pins the behaviour of resolving AGAINST the corpus, and a fake that
+   * returned items would quietly make those assertions meaningless.
+   */
+  async interpretMeal(_phrase: string): Promise<AiCallResult<AiMealResult>> {
+    this.interpretCalls += 1;
+    if (this.failWith) throw this.failWith;
+    return wrap(this.mealResult, 'meal-v1');
   }
 
   async rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>> {

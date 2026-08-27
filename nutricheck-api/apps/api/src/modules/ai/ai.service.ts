@@ -1,5 +1,11 @@
 import type { MealFacts } from '@nutricheck/contracts';
-import type { InsightResult, ParseResult, RerankResult } from './ai.schemas';
+import type {
+  AiMealResult,
+  IdentifyResult,
+  InsightResult,
+  ParseResult,
+  RerankResult,
+} from './ai.schemas';
 import type { TokenUsage } from './cost';
 
 /**
@@ -60,6 +66,41 @@ export abstract class AiService {
 
   /** Pick one candidate per item, constrained to an enum of the ids supplied. */
   abstract rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>>;
+
+  /**
+   * Say what an unmatched name might be, in English search terms.
+   *
+   * Runs only after the corpus has already failed to find the words, and it is
+   * the one step whose job is translation rather than judgement. The corpus is
+   * written in English — USDA files bitter gourd under "Balsam-pear" — so a
+   * Tamil or Tanglish word misses however good the search is, and only 25 of
+   * nearly 8,000 USDA rows carry a Tamil alias.
+   *
+   * `IdentifyResult` holds no food id and no nutrient field, so what comes back
+   * is fed to the ordinary search like any other query. A name for a food we do
+   * not stock matches nothing and the attempt is recorded as a miss. The model
+   * can fail to find a food; it cannot invent one, and it is never the thing
+   * that decides which row was meant.
+   */
+  abstract identify(phrase: string): Promise<AiCallResult<IdentifyResult>>;
+
+  /**
+   * Read a whole meal out of one sentence, without consulting the corpus.
+   *
+   * The deliberate exception to everything above: this is the only step allowed
+   * to produce nutrition, and it exists because "rendu muttai and 5 dosai and
+   * chutney" ends in a dead end the moment any one of those words is missing
+   * from the corpus — which, for Tamil, is most of them.
+   *
+   * What it returns is per-100g RATES and a gram weight, never totals. The
+   * multiplication stays in our code, so the model is trusted for the thing it
+   * can only estimate and not for the thing we can compute exactly. Rows built
+   * from this are written as source 'ai', owned by the user who said the
+   * sentence, with every nutrient state 'imputed' so the app shows them with a
+   * `~`. None of that makes an estimate correct; it makes it visible, and keeps
+   * it out of everybody else's search.
+   */
+  abstract interpretMeal(phrase: string): Promise<AiCallResult<AiMealResult>>;
 
   /** False when no API key is configured — the resolver route stays disabled. */
   abstract get isConfigured(): boolean;

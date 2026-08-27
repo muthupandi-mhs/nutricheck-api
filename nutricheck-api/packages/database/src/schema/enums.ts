@@ -1,5 +1,12 @@
 import { pgEnum } from 'drizzle-orm/pg-core';
 
+/**
+ * `ai` is distinct from `user` on purpose. Both are rows one person owns, but
+ * `user` is a food somebody typed the numbers for and `ai` is one a model
+ * estimated them for, and telling those apart later is the difference between
+ * auditing model output and guessing which rows to audit. It also keeps
+ * "how much of this database did a model write" a one-line query.
+ */
 export const foodSourceEnum = pgEnum('food_source', [
   'usda_foundation',
   'usda_sr',
@@ -7,6 +14,7 @@ export const foodSourceEnum = pgEnum('food_source', [
   'off',
   'curated',
   'user',
+  'ai',
 ]);
 
 /**
@@ -58,4 +66,35 @@ export const objectiveEnum = pgEnum('objective', ['lose', 'maintain', 'gain']);
 
 export const authProviderEnum = pgEnum('auth_provider', ['apple', 'google', 'email']);
 
-export const aiStepEnum = pgEnum('ai_step', ['parse', 'rerank']);
+/**
+ * `insight` and `identify` are added ahead of their writers, on the same
+ * reasoning as `photo` above: an unused value costs nothing, ALTER TYPE on a
+ * hot enum does not.
+ *
+ * `insight` is not merely unused — the insight endpoint calls the model TODAY
+ * and records nothing, so those calls are invisible to cost attribution and,
+ * worse, do not count toward RESOLVE_USER_DAILY_SPEND_USD. The ceiling has a
+ * hole in it until insights.service.ts records like the resolver does. The
+ * enum value is here so that fix is a one-line change rather than a migration.
+ */
+export const aiStepEnum = pgEnum('ai_step', [
+  'parse',
+  'rerank',
+  'insight',
+  'identify',
+  'meal',
+]);
+
+/**
+ * The lifecycle of a model-proposed name → food mapping.
+ *
+ * `proposed` is what the model wrote. `confirmed` and `rejected` are what users
+ * did with it. `promoted` means it earned a row in food_aliases and search can
+ * finally see it — which is the only state that changes anyone else's results.
+ */
+export const aiMatchStatusEnum = pgEnum('ai_match_status', [
+  'proposed',
+  'confirmed',
+  'rejected',
+  'promoted',
+]);
