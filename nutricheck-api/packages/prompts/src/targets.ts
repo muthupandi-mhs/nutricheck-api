@@ -35,7 +35,9 @@ Change a figure only when something in this person's details makes the formula a
 - A calorie figure that would be unusually hard to eat to for their size
 - A fibre figure far above what the rest of the diet realistically supports
 
-Never change a figure because a rounder number looks nicer.
+**If you are not making a deliberate change for a reason you can state, return the given figures EXACTLY.** Not rounded, not nudged, not adjusted to look tidier. Returning 2,280 where you were given 2,294 is a change, and "to stay within a reasonable range" is not a reason — it is the sentence a model writes when it moved a number it had no reason to move.
+
+The person reading this is shown your figures next to the calculated ones and offered a button to accept yours. Fourteen calories of difference wastes that on nothing.
 
 ## Hard limits
 

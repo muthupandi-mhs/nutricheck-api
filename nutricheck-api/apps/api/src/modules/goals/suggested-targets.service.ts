@@ -53,7 +53,7 @@ export class SuggestedTargetsService {
         );
       });
 
-    const clamped = clampTargets(result.value, profile, derived);
+    const clamped = agreesWithFormula(clampTargets(result.value, profile, derived), derived);
 
     if (clamped.corrections.length > 0) {
       // Worth a log line of its own. A model that regularly proposes figures
@@ -73,6 +73,56 @@ export class SuggestedTargetsService {
       corrections: clamped.corrections,
     };
   }
+}
+
+/**
+ * Below this, a difference is noise rather than advice.
+ *
+ * A model that returns 2,280 against a calculated 2,294 has not made a
+ * judgement, it has jittered — and the screen would offer that as a suggestion
+ * to accept, with a button.
+ *
+ * Deliberately tight on the two small numbers. Calories arrive in the
+ * thousands, so a difference of twenty-five is inside the rounding of the
+ * formula itself; protein and fibre arrive in the tens, where a change of two
+ * or three grams is a decision somebody made. One run of this moved fibre from
+ * 32 to 30 and said why, and a wider width would have quietly put it back —
+ * overriding the judgement the model was asked for, while its own sentence
+ * still described it.
+ */
+const SAME_KCAL = 25;
+const SAME_PROTEIN_G = 1;
+const SAME_FIBER_G = 1;
+
+/**
+ * Snaps a suggestion back onto the formula when it never really left.
+ *
+ * The prompt asks for the given figures exactly when the model is not changing
+ * anything, and mostly it obliges. This is what happens when it does not: a
+ * near-miss becomes an exact match, so the screen shows agreement rather than
+ * offering a fourteen-calorie difference as a decision to make.
+ *
+ * Only when ALL THREE are within their width. One real change plus two
+ * near-misses is a real change, and rounding the other two would quietly
+ * rewrite the parts of the answer the model did mean.
+ */
+function agreesWithFormula<T extends { kcal: number; proteinG: number; fiberG: number }>(
+  suggested: T,
+  derived: { kcal: number; proteinG: number; fiberG: number },
+): T {
+  const same =
+    Math.abs(suggested.kcal - derived.kcal) <= SAME_KCAL &&
+    Math.abs(suggested.proteinG - derived.proteinG) <= SAME_PROTEIN_G &&
+    Math.abs(suggested.fiberG - derived.fiberG) <= SAME_FIBER_G;
+
+  if (!same) return suggested;
+
+  return {
+    ...suggested,
+    kcal: derived.kcal,
+    proteinG: derived.proteinG,
+    fiberG: derived.fiberG,
+  };
 }
 
 /**
