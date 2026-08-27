@@ -298,6 +298,24 @@ function tighten(node: Record<string, unknown>): Record<string, unknown> {
     node.required = Object.keys(properties);
     for (const child of Object.values(properties)) tighten(child);
   }
+  // zod-to-json-schema renders .positive() the draft-4 way, as
+  // { minimum: 0, exclusiveMinimum: true }. Structured outputs wants draft
+  // 2020-12, where exclusiveMinimum is the BOUND rather than a flag -- and it
+  // rejects the whole schema with "True is not of type 'number'" rather than
+  // ignoring the keyword. One .positive() anywhere in a schema is a 400 for
+  // every call that uses it.
+  for (const [flag, bound] of [
+    ['exclusiveMinimum', 'minimum'],
+    ['exclusiveMaximum', 'maximum'],
+  ] as const) {
+    if (node[flag] === true) {
+      node[flag] = node[bound];
+      delete node[bound];
+    } else if (node[flag] === false) {
+      delete node[flag];
+    }
+  }
+
   if (node.type === 'array' && node.items) {
     tighten(node.items as Record<string, unknown>);
   }
