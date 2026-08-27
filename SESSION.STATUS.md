@@ -9,13 +9,13 @@ them were reconciled with the code this session. This file is only what is
 
 ---
 
-## 1. Read this first: 17 commits are unpushed
+## 1. Read this first: 22 commits are unpushed
 
 Both repositories are committed and clean, and **neither has been pushed**.
 
 ```
-nutricheck-api    (c:\Projects\New folder)          6 commits ahead of origin/staging
-nutricheck-mobile (c:\Projects\New folder\nutricheck) 11 commits ahead of origin/staging
+nutricheck-api    (c:\Projects\New folder)          10 commits ahead of origin/staging
+nutricheck-mobile (c:\Projects\New folder\nutricheck) 12 commits ahead of origin/staging
 ```
 
 **Pushing the API runs a database migration against live staging.** The deploy
@@ -52,6 +52,19 @@ Also landed: FNDDS ingestion fixed (corpus **8,009 → 13,440 foods**), staging
 deployed to Lightsail with HTTPS and a deploy-on-push pipeline, and a pass over
 the app's onboarding copy and keyboard handling.
 
+**Since that handoff was written**, four more commits, none of them touching the
+migration or the deploy:
+
+- **The client password minimum was still 10** while the server had moved to 6,
+  left uncommitted mid-edit. The form refused passwords the API would have
+  taken. Both numbers now read `PASSWORD_MIN`, in the message and the
+  placeholder, and the test builds its expectation from the constant.
+- **Insight calls now record to `ai_runs`** — §6.3 as was. Recorded off the
+  note's own success path, so a failed write costs the dashboard a row and not
+  the user a sentence. Four integration tests cover it.
+- **An upstream API error logs the provider's message**, per §5.
+- **`test/` is typechecked**, per §5.
+
 ---
 
 ## 3. Current environment state
@@ -61,7 +74,7 @@ the app's onboarding copy and keyboard handling.
 | **App points at** | `local` — `BACKEND` in `nutricheck/src/config.ts`. Flip to `'staging'` when staging has the code |
 | **Local stack** | Rebuilt and migrated. 13,440 foods. `/v1/ai-meal` works, real `AI_API_KEY` in `.env.local` |
 | **Staging** | `https://3-6-120-121.sslip.io` — running an OLD commit. `AI_API_KEY` is **blank**, so `/v1/ai-meal` will 503 there until a key is set in `.env.staging` on the box |
-| **Tests** | API 81 unit + 124 integration. Mobile 109. All green |
+| **Tests** | API 81 unit + 128 integration. Mobile 109. All green, all re-run since the last commit |
 
 Staging box: `ssh -i "C:\Users\Admin\Documents\LightsailDefaultKey-ap-south-1.pem" ubuntu@3.6.120.121`
 
@@ -88,17 +101,20 @@ Do not re-verify these; do re-verify anything you change.
   renders it draft-4 style as `{ minimum: 0, exclusiveMinimum: true }`;
   structured outputs wants draft 2020-12 where that key is a number, and it
   rejects the whole schema rather than ignoring the keyword. `tighten()` in
-  `openai-compatible.service.ts` normalises it now. Symptom is
-  `upstream error 400` with no provider message, because the service does not
-  log `error.message` — worth fixing.
+  `openai-compatible.service.ts` normalises it now. The symptom was
+  `upstream error 400` with no provider message — **fixed**: the message, code,
+  param and type are logged, so the next one of these is readable.
 - **`migrations/meta/0004_snapshot.json` is missing**, so drizzle-kit diffed
   from `0003` and re-emitted every carbs/fat column `0004_macros.sql` already
   added. `0005` is hand-written for that reason. Self-healing from here
   (`0005_snapshot.json` exists), but check generated SQL before trusting it.
-- **`apps/api/tsconfig.json` includes only `src/**`**, so `test/` is never
+- **`apps/api/tsconfig.json` includes only `src/**`**, so `test/` was never
   typechecked. That is how a broken `FakeAi` stub reached CI. The mobile
   tsconfig *does* cover `__tests__`, which is why the same class of break
-  surfaced instantly there.
+  surfaced instantly there. **Fixed**: `apps/api/tsconfig.test.json` covers
+  `test/` and runs as the second half of `npm run typecheck`; the build config
+  is untouched. Confirmed by planting a type error in a test and watching it
+  fail.
 - **Two tests expired.** They asserted a goal on a hardcoded `2026-08-26` while
   `upsertProfile` derives one effective *today* — passing the day they were
   written and failing every day after. Fixed by backdating the goal.
@@ -116,20 +132,17 @@ Do not re-verify these; do re-verify anything you change.
    (`dosai`, not `Dosai, plain`), the summary is a translation rather than the
    energy figure the prompt asks for, and coconut chutney came back at
    100 kcal/100 g against a real ~190. Prompt tuning, not code.
-3. **Insight calls record nothing** to `ai_runs`, so their spend never reaches
-   `RESOLVE_USER_DAILY_SPEND_USD`. The `ai_step` enum already has the value;
-   wiring `recordCall` is a one-liner.
-4. **`identify()` + `ai_food_matches` are built and unreachable.** The safe half
+3. **`identify()` + `ai_food_matches` are built and unreachable.** The safe half
    of the corpus problem: the model proposes English names, the corpus decides,
    and a confirmed mapping becomes an alias so a name costs one call once, ever.
-5. **~100 Tamil produce aliases.** 25 of 7,928 USDA rows carry one. Zero risk —
+4. **~100 Tamil produce aliases.** 25 of 7,928 USDA rows carry one. Zero risk —
    no invented numbers, USDA's measured values — and it is what would let the
    corpus path work at all for Tamil.
-6. **`I forgot my password` is a dead link** in a newly prominent position.
+5. **`I forgot my password` is a dead link** in a newly prominent position.
    There is no reset endpoint; a forgotten password is an unrecoverable account.
-7. **eslint has never run.** The script exists in `apps/api`; the tool is in no
+6. **eslint has never run.** The script exists in `apps/api`; the tool is in no
    `devDependencies` anywhere.
-8. **Tests are not in CI**, deliberately — see docs/CI-CD.md. Nothing stops a
+7. **Tests are not in CI**, deliberately — see docs/CI-CD.md. Nothing stops a
    failing commit reaching staging, so run them locally before pushing:
    `npm run typecheck && npm test && npm run test:int`.
 
@@ -144,4 +157,5 @@ Both are decisions for a person, not something to be quietly settled:
   has never been decided.
 - **The password minimum is 6**, below the 8 that NIST SP 800-63B sets and that
   the comment beside the rule still cites. The deviation is written down next to
-  it rather than hidden.
+  it rather than hidden. Server and client now agree on the number — what has
+  not been decided is whether 6 is the right number.
