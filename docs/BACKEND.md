@@ -54,6 +54,9 @@ came from something that did not survive contact with a real system.
 | Corpus ingestion, trigram search, custom foods | Built |
 | Goals, log commit, entry edit, saved meals, repeat strip | Built |
 | **The resolver** — parse, candidate search, re-rank, arithmetic, SSE | **Built and exercised against a live model** |
+| **The corpus-free path** — `/v1/ai-meal` (§7.7) | **Built.** Reads a whole sentence with no corpus search. The one place a model supplies nutrition |
+| Post-meal insight — `/v1/insights/meal` | Built. Facts computed in Postgres; the model only writes prose about them |
+| `identify()` + `ai_food_matches` — model-proposed name mappings | Built, not routed (§7.7) |
 | Embeddings + RRF fusion | Not built. Search is trigram-only; `food_embeddings` is empty |
 | Eval harness | Not built — the largest remaining gap (§15.4) |
 | CI pipeline | Not built |
@@ -346,7 +349,7 @@ apps/api/src/
     ├── suggestions/            Recents / frequents ranking
     ├── quota/                  Token buckets, spend ceilings
     ├── insights/               Day/week aggregates, weight
-    └── ops/                    ai_runs, match_misses, admin-only surface
+    └── ops/                    ai_runs, match_misses, ai_food_matches
 ```
 
 **Dependency rule, enforced by ESLint boundaries:** `modules/*` may import `common` and `infrastructure`; `infrastructure` may import `common`; nothing imports `modules/*` across feature boundaries except through an exported service. `resolver` composes `ai`, `foods`, and `quota` — it is the only module permitted to depend on three others, and that is the reason it exists as a module rather than a service inside `logs`.
@@ -430,6 +433,7 @@ One filter produces this for every thrown error. Nest `HttpException`s map by st
 | `GET` | `/v1/foods/barcode/:gtin` | read | Conditional on the barcode decision |
 | `POST` | `/v1/foods/custom` | write | |
 | `POST` | **`/v1/resolve`** | **AI** | Returns a draft. Writes nothing to the log |
+| `POST` | **`/v1/ai-meal`** | **AI** | Reads a whole sentence, no corpus search. Estimates, marked as such (§7.7) |
 | `POST` | `/v1/resolve/:draftId/items/:itemId` | AI | Re-resolve one item |
 | `POST` | `/v1/logs` | write | Idempotent on `client_id` |
 | `POST` | `/v1/logs/batch` | write | Offline drain, per-element results |
@@ -614,6 +618,17 @@ const res = await this.client.messages.parse({
 if (!res.parsed_output) throw new ParseFailedError(res.stop_reason);
 ```
 
+**One gotcha, on the OpenAI-compatible side.** `json_schema` with
+`strict: true` is what makes the candidate-id enum a guarantee rather than a
+request, but strict mode also rejects schemas it cannot read — it does not
+degrade. `zod-to-json-schema` targeting `openApi3` renders `.positive()` the
+draft-4 way, `{ minimum: 0, exclusiveMinimum: true }`, and structured outputs
+wants draft 2020-12, where `exclusiveMinimum` is the bound rather than a flag.
+The result is `400 Invalid schema: True is not of type number` for every call
+using that schema. `tighten()` normalises it alongside `additionalProperties`
+and `required`; a single `.positive()` anywhere in a new schema is otherwise a
+dead route.
+
 The re-rank enum is constructed per request from the eight ids Postgres returned, so an off-list answer is not expressible:
 
 ```ts
@@ -731,6 +746,70 @@ What that bought, and what it cost:
 
 Redis, keyed `resolve:v1:{sha256(normalizedPhrase + promptVersion + model)}`, TTL 24 h. Re-typed phrases — which correlate strongly with re-eaten meals — cost nothing. Cache hits still write an `ai_runs` row with `cached: true` so eval sampling and cost dashboards stay honest.
 
+
+### 7.7 The corpus-free path  **[built 2026-08-27]**
+
+`POST /v1/ai-meal` hands a whole sentence to the model and takes back foods with
+nutrition, without searching the corpus at all. It is the deliberate exception
+to the rule the rest of this section enforces, and it should be read as one.
+
+**Why it exists.** The corpus holds 13,440 foods and 25 Tamil aliases. A
+sentence like *"naa innaike rendu muttai and 5 dosai and chutney saapten"* has
+almost no chance of matching: `pavakkai` finds nothing however good the trigram
+scoring is, because USDA files bitter gourd under "Balsam-pear". Search-first
+therefore dead-ends on the words this app's users actually say, and a dead end
+is worse for them than an estimate they can see is an estimate.
+
+**What keeps the exception bounded.** Three properties, none of which make an
+estimate correct — they make it visible, and keep it out of everybody else's
+data:
+
+1. **Rates, not totals.** The model returns per-100 g values and a gram weight;
+   the multiplication happens in `scaleToPortion`, extracted from the write path
+   so it can be tested rather than reviewed. A model that multiplies 5 × 168
+   wrong fails in a way unrelated to how well it knows dosai, and arithmetic is
+   the one part of this we can do perfectly.
+2. **Rows are marked and owned.** Written `source: 'ai'` — distinct from
+   `'user'`, which is a food somebody typed the numbers into — with
+   `created_by_user_id` set and every nutrient state `imputed`, never `known`.
+   `known` is the word this schema uses for a value that came off a laboratory
+   bench. The client renders `imputed` with a `~`.
+3. **It does not replace `/v1/resolve`.** Both routes exist. Folding them
+   together would make "did this number come from a measurement" depend on a
+   branch rather than on which endpoint was called.
+
+**Rows are created at interpret time, not on confirm**, because
+`log_items.food_id` is `NOT NULL` and the client commits through the ordinary
+`POST /v1/logs` path. A draft with nothing behind it would need a second commit
+path that froze nutrients its own way, and two ways to write a log entry is
+what §8.5 exists to prevent. Keyed on `(source, source_id)` with the user inside
+the key, so saying "dosai" every morning reuses one row rather than
+accumulating a hundred.
+
+**Cost.** One call, `gpt-4o-mini`, measured at **$0.000256** per meal — 869
+input and 209 output tokens. Recorded on `ai_runs` with `step: 'meal'` like
+every other call, so it counts against `RESOLVE_USER_DAILY_SPEND_USD`. This is
+now the primary path rather than a fallback, which makes that ceiling
+load-bearing in a way it was not when it only covered `/v1/resolve`.
+
+#### Two things adjacent to it, built but not routed
+
+`identify()` translates an unmatched name into English search terms — the safe
+half of the same problem. It sees no food id and no nutrient field, so what
+comes back is fed to the ordinary search like any other query: a name for a food
+we do not stock matches nothing. The model can fail to find a food; it cannot
+invent one.
+
+`ai_food_matches` is the quarantine for those mappings, deliberately **not**
+`food_aliases`. That table is human-authored and is what search scores against;
+mixing model output into it makes "who wrote this" unanswerable a month later
+and a bad alias indistinguishable from a curated one. Unique on the normalized
+phrase, so a name costs one model call once, ever — the second user asking hits
+the row, not the provider. A null `food_id` is the valuable state, not the
+failure one: the model understood the word and we genuinely do not stock the
+food, which is the dish backlog arriving as data.
+
+
 ---
 
 ## 8. Persistence
@@ -784,6 +863,11 @@ ai_runs          (id, user_id, prompt_version, model, step, input_hash, cached,
                   input_tokens, cache_read_tokens, output_tokens,
                   cost_usd, latency_ms, stop_reason, response jsonb, created_at)
 match_misses     (id, user_id, phrase, item_text, resolved_to NULL, created_at)
+ai_food_matches  (id, phrase UNIQUE, suggestions jsonb, food_id NULL, model,
+                  prompt_version, confirmations, rejections, status, timestamps)
+                  -- quarantine for model-proposed name mappings. NOT
+                  -- food_aliases: that table is human-authored and is what
+                  -- search scores against. See 7.7.
 ```
 
 ### 8.2 Indexes

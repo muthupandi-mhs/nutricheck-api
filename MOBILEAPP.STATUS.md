@@ -16,7 +16,41 @@ the mock backend has been deleted. It has been through **two visual passes**:
 | Pass | Result |
 |---|---|
 | v1 — editorial/Swiss, built from `design/*.dc.html` | Rejected. Read as a design exercise, not a product |
-| v2 — warm & rounded, "Airbnb-level" (current) | Built, typechecks, lints, **107 tests pass**. Running on the device against the live API |
+| v2 — warm & rounded, "Airbnb-level" (current) | Built, typechecks, **109 tests pass**. Running on the device against the live API |
+
+### The logging flow is AI-first as of 2026-08-27
+
+The composer no longer goes to `/v1/resolve`. It calls **`POST /v1/ai-meal`**,
+which reads the whole sentence with one model call and searches no corpus at
+all. The corpus holds 25 Tamil aliases across 13,440 foods, so a sentence like
+*"rendu muttai and 5 dosai and chutney"* matched almost nothing — and a dead end
+is worse for the user than an estimate they can see is an estimate.
+
+What that changed on screen:
+
+- **Every number is an estimate.** A summary sentence and a one-time banner sit
+  above the rows; the `~` the formatter already puts on `imputed` values is the
+  per-row reminder. The draft type carries `estimated: true` as a literal, so a
+  screen cannot render one without having been handed that fact.
+- **The skeletons no longer fill in.** The resolver streamed because its parse
+  landed before its database match; one POST has no half-answer. The sheet still
+  opens immediately and echoes the phrase back.
+- **The item counter is gone.** It split on commas and *and*, so it read
+  "Rendu dosai chutney appuram sambar oothi sapten. So, how much..." as **2**
+  items — from the comma in *"So,"* — with three foods in the sentence and none
+  of them found. English punctuation cannot count Tamil items.
+- **Dictation has a Done button.** Listening used to end only when an amplitude
+  detector guessed; when it guessed wrong the only control was Cancel, which
+  discards. A pause while reaching for the English word for a dish reads as an
+  ending. The detector still runs — it is the shortcut, not the only exit.
+- **"AI unavailable" is its own message.** No key, or a provider outage, used to
+  render as "we couldn't read that — nothing in the phrase matched a food":
+  wrong twice over, and the first thing any fresh environment showed.
+
+`src/config.ts` switches backend with one constant, `BACKEND: 'staging' | 'local'`.
+The `as Backend` cast on it is load-bearing — without it TypeScript narrows the
+const to its literal and the other branch fails to compile as "types with no
+overlap", so the switch the file exists to provide would not build.
 
 ### Device status
 

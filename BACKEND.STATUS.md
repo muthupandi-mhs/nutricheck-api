@@ -28,8 +28,11 @@ of that rather than instead of it.
 - Config validated at boot, pino logging with redaction, RFC 9457 errors, 3 health probes
 - **Auth** — email + password only. Argon2id, 15-min access JWT, rotating refresh with
   family reuse detection, throttled
-- **Corpus** — full USDA Foundation + SR Legacy ingested (~7,900 ingredient rows),
-  curated Indian dishes, Tamil aliases attached to USDA rows, trigram search, custom foods
+- **Corpus** — **13,440 foods**: 7,793 USDA SR Legacy, 5,431 FNDDS, 135
+  Foundation, 81 curated Indian dishes. 36,768 portions, 540 aliases, 26 MB.
+  FNDDS was silently ingesting zero of 5,432 until 2026-08-26 — FDC references
+  nutrients by surrogate id in SR Legacy and by legacy nutrient_nbr in FNDDS,
+  and the mismatch reported as "no macros" rather than as an error
 - **Goals** — Mifflin–St Jeor, append-only with `effective_from`. Targets for all
   five: calories, protein, carbs, fat, fibre. Fat is 25% of calories and carbs
   take the remainder — that split is POLICY, not derivation, so the share used is
@@ -49,7 +52,18 @@ of that rather than instead of it.
 - **The resolver** — portion prefill → parse → one batched candidate search →
   constrained re-rank → arithmetic → SSE draft. Phrase cache, `ai_runs` cost
   accounting, miss log, circuit breaker, quota + spend ceiling
-- **Pluggable AI provider** — Anthropic or any OpenAI-compatible host
+- **Pluggable AI provider** — Anthropic or any OpenAI-compatible host. What
+  actually runs is `openai-compatible` on `gpt-4o-mini`; `.env.example` and
+  PLAN.md §3 still record `anthropic`, and that contradiction is unresolved
+- **The corpus-free path** — `POST /v1/ai-meal`. Reads a whole spoken sentence
+  and returns foods with nutrition, searching nothing. The one place a model
+  supplies numbers, and the deliberate exception to the rule everywhere else:
+  rates not totals, rows written `source: 'ai'` and owned by the speaker, every
+  nutrient state `imputed`. $0.000256 a meal. docs/BACKEND.md §7.7
+- **Post-meal insight** — `GET /v1/insights/meal`. Facts from Postgres, prose
+  from the model, no numeric field for it to invent one in
+- **Staging** — 4 GB Lightsail, HTTPS via Caddy, deploys on push to `staging`.
+  docs/DEPLOY.md and docs/CI-CD.md
 - **Tamil / Tanglish / Hindi / Bengali / Gujarati** search
 
 ### Not built
@@ -57,7 +71,11 @@ of that rather than instead of it.
 | Gap | Why it matters |
 |---|---|
 | **Eval harness** | The highest-value missing thing. Without it "the model picked the wrong chicken" is an anecdote, not a number |
-| **CI pipeline** | 202 tests that only run when someone remembers. A remote exists (`muthupandi-mhs/nutricheck-api`); nothing has ever gone through a pipeline |
+| **Tests in CI** | The pipeline deploys but runs no tests — a deliberate call, recorded in docs/CI-CD.md. Nothing stops a commit that fails `npm test` from reaching staging; the readiness probe catches a stack that will not boot, not one that boots and is wrong |
+| **`identify()` + `ai_food_matches`** | Built and unreachable. Translating an unmatched Tamil name into English search terms is the safe half of the corpus problem — the model proposes names, the corpus decides, and a confirmed mapping becomes an alias so the name costs one call once, ever |
+| **Insight cost accounting** | `/v1/insights/meal` calls the model and records nothing, so its spend is invisible and never reaches `RESOLVE_USER_DAILY_SPEND_USD`. The `ai_step` enum already has the value; wiring `recordCall` is a one-liner |
+| **eslint** | `npm run lint` exists in apps/api and eslint is in no devDependencies anywhere, so it has never once run |
+| **Tamil aliases** | 25 of 7,928 USDA rows carry one. That number is the entire reason `/v1/ai-meal` exists, and ~100 hand-written aliases would fix the common cases with no model involved and no invented numbers |
 | Embeddings + RRF | Search is trigram-only. `food_embeddings` exists and is empty |
 | Weight tracking (M3) | Not started. The **week summary** now exists — the insights tab has a backend — but weight logging and trend do not |
 | Password reset | Email+password with no recovery = a forgotten password is a lost account |

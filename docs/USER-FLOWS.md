@@ -124,13 +124,15 @@ The only AI route in v1, and the one the product is now judged on. Voice is not 
 
 1. **One field, natural phrasing** — "two rotis, dal and a bowl of curd". No structure, no per-item rows, no quantity pickers.
 2. **Hold to dictate** — on-device speech into the same field, editable before sending. Falls back to server-side transcription where platform dictation is weak for the user's language.
-3. **Parse into items** — produces `items[]`: food, quantity, and **quantity type** — a count, a standard measure, a personal unit, or none given. That last field drives everything the sheet does next.
-4. **Resolve and confirm** — same resolver, same sheet, same commit as every other route. About two seconds end to end.
+3. **Read the sentence** — one model call returns the foods, the amounts and the nutrition. **[changed 2026-08-27]** This used to parse into items and then match each against the corpus. It no longer searches the corpus at all: it holds 25 Tamil aliases across 13,440 foods, so "rendu muttai and 5 dosai and chutney" matched almost nothing, and a dead end is worse for the user than an estimate they can see is an estimate. The cost is that the numbers are estimates — see docs/BACKEND.md §7.7 for what bounds that.
+4. **Confirm** — same sheet, same commit as every other route, with a summary sentence and an estimate banner above the rows. About three seconds end to end.
 5. **Save the phrase** — a sentence that worked is offered as a saved meal on its second use. "Usual breakfast" should be one tap by week two, which moves the user onto the two-second route permanently.
 
 ### What the composer has to get right
 
-- **No spinner on a two-second wait.** The sheet opens immediately on skeleton rows and fills in. Two seconds of blank screen feels longer than two seconds of visible progress.
+- **The wait is honest now.** **[changed 2026-08-27]** The sheet still opens immediately and echoes the phrase back, but the rows arrive together rather than filling in. The resolver streamed because its parse landed well before its database match, so partial rows were real information; one model call has no half-answer, and animating skeletons against nothing would be a progress bar for a process with no progress.
+- **Never claim to have understood before you have.** The composer counted items by splitting on commas and *and* — which read "Rendu dosai chutney appuram sambar oothi sapten. So, how much..." as two, from the comma in *"So,"*. Three foods, none of them found. It sat above a button marked **Log it**. English punctuation cannot count Tamil items, and nothing splits the sentence until the model answers.
+- **The speaker ends the turn.** Listening used to end only when an amplitude detector guessed the sentence had stopped; when it guessed wrong the only control was Cancel, which discards. A pause while reaching for the English word for a dish reads as an ending, and a kitchen with a television on never does. **Done** ends the turn and keeps what was said; the detector is the shortcut, not the only exit.
 - **Keep the phrase on the entry.** It is the reproducible input for any later correction, the row in the miss log when nothing matched, and — unlike a photo — it is searchable and groupable when deciding which dishes to curate next.
 - **Recent phrases, not just recent foods.** People re-say whole meals. Surfacing the sentence is a shortcut the food-level recents strip cannot offer.
 - **Never invent an amount.** If the phrase said "some nuts", the quantity type is *none given* and the sheet asks. A silent 100 g is where a wrong week starts.
@@ -183,7 +185,8 @@ Every one ends in a logged meal or an explicit, recoverable stop. None ends in a
 | **Offline at send** | Phrase queued locally with the entry, parsed on reconnect | Log appears as pending; notified when its numbers arrive |
 | **Model times out** | One silent retry, then stop | Search, with the phrase pre-filled into the query |
 | **Nothing parsed** | Plain message — "we couldn't read that" | Search, phrase kept and pre-filled, miss logged |
-| **Some items unresolved** | Resolved items stay; unresolved words become scoped search rows | Confirm sheet, partially filled |
+| **Some items unresolved** | Read items stay; unaccounted words are listed, with a scoped search field | Confirm sheet, partially filled |
+| **AI unavailable — no key, or the provider is down** | Distinct message from an unreadable sentence. Search still works, one food at a time | Search, with the phrase kept |
 | **No amount in the phrase** | Quantity type recorded as *none given* | Confirm sheet with an empty, focused portion chip |
 | **Dictation garbled** | Transcript shown before sending, always editable | The composer — a bad transcript is fixed by typing, never by re-recording |
 | **Quota exhausted** | Stated plainly, with when it resets | Search and repeat still work — the app never fully stops |

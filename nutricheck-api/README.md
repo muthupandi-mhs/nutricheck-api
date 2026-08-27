@@ -243,13 +243,32 @@ M0 in progress. Verified working end to end (`docker compose up` -> healthy):
       one batched candidate search, constrained re-rank, arithmetic, SSE draft.
       Writes nothing to the log. Phrase cache, ai_runs cost accounting, miss log,
       circuit breaker, quota + spend ceiling
-- [x] Tests — 60 unit + 83 Testcontainers integration, all green
+- [x] `GET /v1/insights/meal` — the post-meal note. Facts computed in Postgres;
+      the model writes prose about them and has no numeric field to put an
+      invented figure in
+- [x] **`POST /v1/ai-meal`** — the corpus-free path. Reads a whole spoken
+      sentence and returns foods with nutrition, searching nothing. The one
+      place a model supplies numbers; rows land `source: 'ai'`, owned by the
+      speaker, every nutrient state `imputed`. See docs/BACKEND.md §7.7
+- [x] Tests — 81 unit + 124 Testcontainers integration, all green
+
 **M1 core is complete — the API is fully usable with zero AI.** Remaining:
 
 - [ ] Embeddings + RRF fusion (the second half of hybrid search)
-- [ ] CI pipeline
+- [ ] Wire `identify()` and `ai_food_matches` to a route — built, not reachable
+- [ ] Record insight calls to `ai_runs`. They cost money today and are invisible
+      to cost attribution, so they never reach `RESOLVE_USER_DAILY_SPEND_USD`
+- [ ] eslint. `npm run lint` exists in apps/api and the tool is in no
+      devDependencies, so it has never once run
+
+Corpus: **13,440 foods** — 7,793 USDA SR Legacy, 5,431 FNDDS, 135 Foundation,
+81 curated Indian dishes. 36,768 portions, 540 aliases, 26 MB.
 
 Known gaps worth naming: the image is 488MB against a 400MB target (the OTel
 packages and the Debian base dominate); search is trigram-only, so `food_embeddings`
-and its HNSW index exist but hold no rows yet; and there is no password reset, which
-makes a forgotten password an unrecoverable account.
+and its HNSW index exist but hold no rows yet; only 25 of 7,928 USDA rows carry a
+Tamil alias, which is the whole reason `/v1/ai-meal` exists; and there is no
+password reset, which makes a forgotten password an unrecoverable account.
+
+Deployment: staging runs on a 4 GB Lightsail box and deploys on push — see
+[docs/DEPLOY.md](../docs/DEPLOY.md) and [docs/CI-CD.md](../docs/CI-CD.md).
