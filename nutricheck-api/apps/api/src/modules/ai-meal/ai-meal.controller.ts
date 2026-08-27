@@ -1,10 +1,8 @@
 import {
   Body,
   Controller,
-  HttpException,
   HttpStatus,
   Post,
-  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -12,6 +10,8 @@ import { createZodDto } from '../../common/zod/zod-dto';
 import { AiMealDraft, AiMealRequest } from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ProblemThrottlerGuard } from '../../common/guards/problem-throttler.guard';
+import { PROBLEM_TYPES } from '@nutricheck/contracts';
+import { ProblemException } from '../../common/problems';
 import { QuotaGuard } from '../quota/quota.guard';
 import { AiMealService } from './ai-meal.service';
 
@@ -43,7 +43,18 @@ export class AiMealController {
     // state, and 503 tells the client to fall back rather than pretending the
     // request was malformed.
     if (!this.aiMeal.isConfigured) {
-      throw new ServiceUnavailableException('AI is not configured');
+      // A typed problem, not a bare ServiceUnavailableException. The client
+      // switches on problem.type and never on status, so an untyped 503 falls
+      // through its branches and lands on the generic "we could not read that"
+      // -- which tells the user their sentence was bad when the truth is the
+      // server has no key. Same type the transcription route uses for the same
+      // situation.
+      throw new ProblemException({
+        type: PROBLEM_TYPES.resolverUnavailable,
+        title: 'AI is unavailable',
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        detail: 'Search for foods one at a time, or try again shortly.',
+      });
     }
 
     // QuotaGuard has already turned an exhausted allowance into a 429 with a
