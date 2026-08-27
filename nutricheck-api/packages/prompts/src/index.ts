@@ -4,8 +4,9 @@ import { INSIGHT_SYSTEM } from './insight';
 import { MEAL_SYSTEM } from './meal';
 import { PARSE_SYSTEM } from './parse';
 import { RERANK_SYSTEM } from './rerank';
+import { TARGETS_SYSTEM } from './targets';
 
-export { IDENTIFY_SYSTEM, INSIGHT_SYSTEM, MEAL_SYSTEM, PARSE_SYSTEM, RERANK_SYSTEM };
+export { IDENTIFY_SYSTEM, INSIGHT_SYSTEM, MEAL_SYSTEM, PARSE_SYSTEM, RERANK_SYSTEM, TARGETS_SYSTEM };
 
 /**
  * Prompt version, derived from the prompt's own bytes.
@@ -40,6 +41,10 @@ export const PROMPTS = {
   meal: {
     system: MEAL_SYSTEM,
     version: versionOf(MEAL_SYSTEM),
+  },
+  targets: {
+    system: TARGETS_SYSTEM,
+    version: versionOf(TARGETS_SYSTEM),
   },
 } as const;
 

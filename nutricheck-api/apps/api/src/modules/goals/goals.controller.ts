@@ -1,14 +1,18 @@
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Goal, GoalPreview, UserProfile } from '@nutricheck/contracts';
+import type { Goal, GoalPreview, SuggestedTargets, UserProfile } from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PreviewGoalDto, SetGoalDto, UpdateProfileDto } from './goals.dto';
 import { GoalsService } from './goals.service';
+import { SuggestedTargetsService } from './suggested-targets.service';
 
 @ApiTags('me')
 @Controller({ path: 'me', version: '1' })
 export class GoalsController {
-  constructor(private readonly goals: GoalsService) {}
+  constructor(
+    private readonly goals: GoalsService,
+    private readonly suggested: SuggestedTargetsService,
+  ) {}
 
   @Get('profile')
   @ApiOperation({ summary: 'The onboarding profile' })
@@ -48,6 +52,28 @@ export class GoalsController {
   @ApiOperation({ summary: 'Derive targets from a profile without saving' })
   preview(@Body() body: PreviewGoalDto): GoalPreview {
     return this.goals.previewGoal(body);
+  }
+
+  /**
+   * Targets a model proposed for this profile, next to nothing it was not given.
+   *
+   * Sits beside `goals/preview` because it takes the same unsaved profile: at
+   * the point this is called the user is still in onboarding and has not
+   * committed anything. It persists nothing either — the suggestion is a thing
+   * to look at, and accepting it is a separate, explicit call.
+   *
+   * 503 when no model is configured, which the client treats as "no suggestion
+   * available" rather than an error. Onboarding has always worked with the AI
+   * switched off and still does; this is the one screen where it adds a card.
+   */
+  @Post('goals/suggest')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Ask the model for targets, bounded by the server' })
+  suggest(
+    @CurrentUser('sub') userId: string,
+    @Body() body: PreviewGoalDto,
+  ): Promise<SuggestedTargets> {
+    return this.suggested.suggest(userId, body);
   }
 
   @Get('goals/history')

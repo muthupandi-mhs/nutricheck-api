@@ -69,6 +69,29 @@ export const InsightResult = z.object({
 export type InsightResult = z.infer<typeof InsightResult>;
 
 /**
+ * Suggested daily targets.
+ *
+ * The second schema in the system with numbers in it, and the only one whose
+ * numbers are about the next few months rather than one plate. What keeps that
+ * honest is not this schema — a bound in Zod only rejects the absurd — it is
+ * `clampTargets` on the way out, which holds the figures inside the same limits
+ * the derived goal obeys and never lets calories fall under resting burn.
+ *
+ * These bounds are the outer physiological edges, deliberately wider than the
+ * clamp. A value between the two is a model that misjudged and gets corrected;
+ * a value outside these is a model that malfunctioned, and that should fail
+ * loudly as a malformed response rather than being quietly pulled into range.
+ */
+export const TargetsResult = z.object({
+  kcal: z.number().int().min(800).max(8000),
+  proteinG: z.number().int().min(10).max(500),
+  fiberG: z.number().int().min(5).max(120),
+  /** Addressed to the user, and the only place a figure may be repeated. */
+  reasoning: z.string().max(400),
+});
+export type TargetsResult = z.infer<typeof TargetsResult>;
+
+/**
  * What an unmatched name might be, in words the corpus could plausibly hold.
  *
  * This is the one AI step whose whole job is translation, and the schema is

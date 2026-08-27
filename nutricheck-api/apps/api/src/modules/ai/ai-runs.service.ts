@@ -9,7 +9,7 @@ import { cacheHitRatio, costUsd, type TokenUsage } from './cost';
  * arrived. Every step here now records: `identify` is the one that does not,
  * because nothing calls it yet — see the unreachable `identify()` path.
  */
-export type AiStep = 'parse' | 'rerank' | 'insight' | 'identify' | 'meal';
+export type AiStep = 'parse' | 'rerank' | 'insight' | 'identify' | 'meal' | 'targets';
 
 export interface RecordRunInput {
   userId: string;

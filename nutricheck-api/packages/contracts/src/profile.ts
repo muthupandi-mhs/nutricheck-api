@@ -106,3 +106,27 @@ export type SetGoal = z.infer<typeof SetGoal>;
  */
 export const GoalPreview = Goal.omit({ id: true, effectiveFrom: true });
 export type GoalPreview = z.infer<typeof GoalPreview>;
+
+/**
+ * Targets a model proposed, next to the ones the formula derived.
+ *
+ * Both are returned, always, and that is the shape doing the safety work. The
+ * derived figures are what the app falls back to — if the model is unreachable,
+ * unconfigured, or says something that has to be corrected, there is still a
+ * complete answer on the screen that came from arithmetic anyone can check.
+ *
+ * `corrections` is not decoration either. A suggestion that had to be pulled
+ * into range is a fact about the suggestion, and a screen that shows the number
+ * without saying it was moved is showing the model's answer as if it were the
+ * model's answer.
+ */
+export const SuggestedTargets = z.object({
+  kcal: z.number().int(),
+  proteinG: z.number().int(),
+  fiberG: z.number().int(),
+  /** The model's own words, addressed to the user. */
+  reasoning: z.string(),
+  /** One line per figure the server had to move, in plain language. Usually empty. */
+  corrections: z.array(z.string()),
+});
+export type SuggestedTargets = z.infer<typeof SuggestedTargets>;

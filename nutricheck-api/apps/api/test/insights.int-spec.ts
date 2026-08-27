@@ -12,6 +12,7 @@ import type {
   InsightResult,
   ParseResult,
   RerankResult,
+  TargetsResult,
 } from '../src/modules/ai/ai.schemas';
 import { GoalsService } from '../src/modules/goals/goals.service';
 import { InsightsService } from '../src/modules/insights/insights.service';
@@ -48,6 +49,23 @@ class FakeAi extends AiService {
       stopReason: 'end_turn',
       model: 'claude-opus-5',
       promptVersion: 'insight-v1',
+      raw: { fake: true },
+    };
+  }
+
+  /**
+   * Neither suite reaches this. It is here because AiService is abstract and
+   * grew the member, and stubbing it rather than softening the base class keeps
+   * the compiler as the thing that notices the contract changed.
+   */
+  async suggestTargets(): Promise<AiCallResult<TargetsResult>> {
+    return {
+      value: { kcal: 2000, proteinG: 120, fiberG: 28, reasoning: 'a fake suggestion' },
+      usage: { inputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 0 },
+      latencyMs: 0,
+      stopReason: 'end_turn',
+      model: 'claude-opus-5',
+      promptVersion: 'targets-v1',
       raw: { fake: true },
     };
   }

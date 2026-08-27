@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { PROMPTS } from '@nutricheck/prompts';
-import type { MealFacts } from '@nutricheck/contracts';
+import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts';
 import type { AppConfig } from '../../config/config.schema';
 import {
   AiMalformedError,
@@ -17,11 +17,13 @@ import {
   AiMealResult,
   IdentifyResult,
   InsightResult,
+  TargetsResult,
   ParseResult,
   rerankSchemaFor,
   type RerankResult,
 } from './ai.schemas';
 import { factsToUserTurn } from './insight-input';
+import { profileToUserTurn } from './targets-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
 import type { TokenUsage } from './cost';
 
@@ -128,6 +130,19 @@ export class AnthropicService extends AiService {
       PROMPTS.insight.version,
       factsToUserTurn(facts),
       betaZodOutputFormat(InsightResult),
+    );
+  }
+
+  async suggestTargets(
+    profile: UserProfile,
+    derived: GoalPreview,
+  ): Promise<AiCallResult<TargetsResult>> {
+    return this.call(
+      'targets',
+      PROMPTS.targets.system,
+      PROMPTS.targets.version,
+      profileToUserTurn(profile, derived),
+      betaZodOutputFormat(TargetsResult),
     );
   }
 

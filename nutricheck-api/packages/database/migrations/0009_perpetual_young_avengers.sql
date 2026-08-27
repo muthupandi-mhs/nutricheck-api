@@ -1,0 +1,1 @@
+ALTER TYPE "public"."ai_step" ADD VALUE 'targets';

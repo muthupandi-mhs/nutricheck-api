@@ -92,6 +92,7 @@ export const aiStepEnum = pgEnum('ai_step', [
   'insight',
   'identify',
   'meal',
+  'targets',
 ]);
 
 /**

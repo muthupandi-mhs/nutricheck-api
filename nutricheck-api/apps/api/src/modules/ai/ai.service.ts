@@ -1,8 +1,9 @@
-import type { MealFacts } from '@nutricheck/contracts';
+import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts';
 import type {
   AiMealResult,
   IdentifyResult,
   InsightResult,
+  TargetsResult,
   ParseResult,
   RerankResult,
 } from './ai.schemas';
@@ -63,6 +64,27 @@ export abstract class AiService {
    * states a wrong number as confidently as a right one.
    */
   abstract insight(facts: MealFacts): Promise<AiCallResult<InsightResult>>;
+
+  /**
+   * Suggest daily targets for one person.
+   *
+   * The one step besides `interpretMeal` whose output is numbers, and the only
+   * one whose numbers are about months rather than a plate. Two things carry
+   * that weight, and neither is the model:
+   *
+   * - it is handed the formula's answer and asked whether it should move, so it
+   *   is adjusting an anchored figure rather than authoring one from nothing;
+   * - whatever it returns goes through `clampTargets`, which holds it inside
+   *   the same limits the derived goal obeys and never lets calories fall below
+   *   resting burn.
+   *
+   * The reasoning is returned with the numbers on purpose. A target with no
+   * argument attached is one nobody can disagree with.
+   */
+  abstract suggestTargets(
+    profile: UserProfile,
+    derived: GoalPreview,
+  ): Promise<AiCallResult<TargetsResult>>;
 
   /** Pick one candidate per item, constrained to an enum of the ids supplied. */
   abstract rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>>;

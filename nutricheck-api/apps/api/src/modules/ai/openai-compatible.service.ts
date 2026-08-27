@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { ZodTypeAny } from 'zod';
 import { PROMPTS } from '@nutricheck/prompts';
-import type { MealFacts } from '@nutricheck/contracts';
+import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts';
 import type { AppConfig } from '../../config/config.schema';
 import {
   AiMalformedError,
@@ -18,11 +18,13 @@ import {
   AiMealResult,
   IdentifyResult,
   InsightResult,
+  TargetsResult,
   ParseResult,
   rerankSchemaFor,
   type RerankResult,
 } from './ai.schemas';
 import { factsToUserTurn } from './insight-input';
+import { profileToUserTurn } from './targets-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
 import type { TokenUsage } from './cost';
 
@@ -139,6 +141,20 @@ export class OpenAiCompatibleService extends AiService {
       factsToUserTurn(facts),
       InsightResult,
       'meal_insight',
+    );
+  }
+
+  async suggestTargets(
+    profile: UserProfile,
+    derived: GoalPreview,
+  ): Promise<AiCallResult<TargetsResult>> {
+    return this.call(
+      'targets',
+      PROMPTS.targets.system,
+      PROMPTS.targets.version,
+      profileToUserTurn(profile, derived),
+      TargetsResult,
+      'suggested_targets',
     );
   }
 
