@@ -9,24 +9,19 @@ them were reconciled with the code this session. This file is only what is
 
 ---
 
-## 1. Read this first: 22 commits are unpushed
+## 1. Both repositories are pushed, and staging is running the new code
 
-Both repositories are committed and clean, and **neither has been pushed**.
+Done, on the owner's say-so, after all tests were re-run green:
 
 ```
-nutricheck-api    (c:\Projects\New folder)          10 commits ahead of origin/staging
-nutricheck-mobile (c:\Projects\New folder\nutricheck) 12 commits ahead of origin/staging
+nutricheck-api    9b02d46  staging   (10 commits — deployed, migrations 0005/0006 ran)
+nutricheck-mobile 25fa776  staging   (12 commits)
 ```
 
-**Pushing the API runs a database migration against live staging.** The deploy
-pipeline runs `migrate` on every push to `staging`, and `0005`/`0006` are in
-this batch. They are verified — see §4 — but that is why nothing was pushed
-without asking.
+The API deploy completed and was smoke-tested against the live box — see §4.
 
-```bash
-cd "c:\Projects\New folder"            && git push origin staging   # runs the migration
-cd "c:\Projects\New folder\nutricheck" && git push origin staging
-```
+**The next push deploys again and migrates again.** That has not changed: the
+pipeline runs `migrate` on every push to `staging`. Run the tests first.
 
 ---
 
@@ -71,9 +66,9 @@ migration or the deploy:
 
 | | |
 |---|---|
-| **App points at** | `local` — `BACKEND` in `nutricheck/src/config.ts`. Flip to `'staging'` when staging has the code |
+| **App points at** | `local` — `BACKEND` in `nutricheck/src/config.ts`. **Staging now has the code**, so this is ready to flip to `'staging'` whenever you want the app on it |
 | **Local stack** | Rebuilt and migrated. 13,440 foods. `/v1/ai-meal` works, real `AI_API_KEY` in `.env.local` |
-| **Staging** | `https://3-6-120-121.sslip.io` — running an OLD commit. `AI_API_KEY` is **blank**, so `/v1/ai-meal` will 503 there until a key is set in `.env.staging` on the box |
+| **Staging** | `https://3-6-120-121.sslip.io` — running `9b02d46`, current. `AI_API_KEY` is **set** on the box, contrary to what the last handoff said: `/v1/ai-meal` answered a real meal there. No SSH was needed this session |
 | **Tests** | API 81 unit + 128 integration. Mobile 109. All green, all re-run since the last commit |
 
 Staging box: `ssh -i "C:\Users\Admin\Documents\LightsailDefaultKey-ap-south-1.pem" ubuntu@3.6.120.121`
@@ -92,6 +87,17 @@ Do not re-verify these; do re-verify anything you change.
   `source: 'ai'`, every nutrient state `imputed`, and the cost recorded.
 - **The password rule**, against the running API: 6 characters returns 201,
   5 returns 422.
+
+Verified on **staging**, after the deploy, over HTTPS and with no SSH:
+
+- **The migration applied.** `/v1/ai-meal` returned a real meal, and that path
+  records an `ai_runs` row with `step: 'meal'` before it answers — an enum value
+  `0006` adds. It could not have returned 200 against a database at `0004`.
+- **`/health/ready` is 200**, database and Redis up.
+- **The password rule again**, on staging this time: 6 → 201, 5 → 422.
+- **`AI_API_KEY` is set on the box.** `/v1/ai-meal` answered
+  `"two eggs and one dosai"` with Egg 136 g / 210.8 kcal and Dosai 60 g /
+  78 kcal, both `high`. §6.1's second half was already done.
 
 ---
 
@@ -126,23 +132,23 @@ Do not re-verify these; do re-verify anything you change.
 
 ## 6. Open, in rough priority order
 
-1. **Push, then set `AI_API_KEY` on staging.** Until both happen, the app on
-   staging bounces every meal to Search.
-2. **`/v1/ai-meal` prompt quality.** Real output: names come back lowercase
-   (`dosai`, not `Dosai, plain`), the summary is a translation rather than the
-   energy figure the prompt asks for, and coconut chutney came back at
-   100 kcal/100 g against a real ~190. Prompt tuning, not code.
-3. **`identify()` + `ai_food_matches` are built and unreachable.** The safe half
+1. **`/v1/ai-meal` prompt quality.** The summary is still a restatement of the
+   sentence rather than the energy figure the prompt asks for — staging
+   answered `"two eggs and one dosai"` with *"I ate two eggs and one dosai."*
+   Coconut chutney came back at 100 kcal/100 g against a real ~190. Prompt
+   tuning, not code. (The lowercase-names complaint may be stale: staging
+   returned `Egg` and `Dosai`.)
+2. **`identify()` + `ai_food_matches` are built and unreachable.** The safe half
    of the corpus problem: the model proposes English names, the corpus decides,
    and a confirmed mapping becomes an alias so a name costs one call once, ever.
-4. **~100 Tamil produce aliases.** 25 of 7,928 USDA rows carry one. Zero risk —
+3. **~100 Tamil produce aliases.** 25 of 7,928 USDA rows carry one. Zero risk —
    no invented numbers, USDA's measured values — and it is what would let the
    corpus path work at all for Tamil.
-5. **`I forgot my password` is a dead link** in a newly prominent position.
+4. **`I forgot my password` is a dead link** in a newly prominent position.
    There is no reset endpoint; a forgotten password is an unrecoverable account.
-6. **eslint has never run.** The script exists in `apps/api`; the tool is in no
+5. **eslint has never run.** The script exists in `apps/api`; the tool is in no
    `devDependencies` anywhere.
-7. **Tests are not in CI**, deliberately — see docs/CI-CD.md. Nothing stops a
+6. **Tests are not in CI**, deliberately — see docs/CI-CD.md. Nothing stops a
    failing commit reaching staging, so run them locally before pushing:
    `npm run typecheck && npm test && npm run test:int`.
 
