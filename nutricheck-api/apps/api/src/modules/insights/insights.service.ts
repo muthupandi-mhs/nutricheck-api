@@ -10,6 +10,7 @@ import { PROMPTS } from '@nutricheck/prompts';
 import { createHash } from 'node:crypto';
 import type Redis from 'ioredis';
 import { REDIS_CACHE } from '../../infrastructure/redis/redis.tokens';
+import { AiRunsService } from '../ai/ai-runs.service';
 import { AiService } from '../ai/ai.service';
 import { LogsService } from '../logs/logs.service';
 import { sumDay } from '../logs/nutrition-calculator';
@@ -40,6 +41,7 @@ export class InsightsService {
   constructor(
     private readonly logs: LogsService,
     private readonly ai: AiService,
+    private readonly aiRuns: AiRunsService,
     @Inject(REDIS_CACHE) private readonly redis: Redis,
   ) {}
 
@@ -72,6 +74,23 @@ export class InsightsService {
 
     try {
       const result = await this.ai.insight(facts);
+
+      // This call costs money, and until now it was the one model call that
+      // left no row — so a heavy insight user looked free, and their spend
+      // never counted toward RESOLVE_USER_DAILY_SPEND_USD.
+      //
+      // Recorded outside the note's own success path: losing the row is an
+      // accounting problem, and it must not cost the user a sentence we have
+      // already paid for.
+      await this.aiRuns
+        .recordCall(userId, 'insight', this.factsHash(facts), result)
+        .catch((error: unknown) => {
+          this.log.error(
+            { meal, reason: error instanceof Error ? error.message : 'unknown' },
+            'insight call was not recorded — its cost is missing from attribution',
+          );
+        });
+
       const text = result.value.text.trim();
       if (text) await this.writeCache(key, text);
       return { facts, text, cached: false, model: result.model };
@@ -151,6 +170,15 @@ export class InsightsService {
    * have worked.
    */
   private cacheKey(userId: string, facts: MealFacts): string {
+    return `insight:${PROMPTS.insight.version}:${userId}:${this.factsHash(facts).slice(0, 16)}`;
+  }
+
+  /**
+   * The facts that were sent, as one hash — the cache key's basis, and the
+   * `input_hash` on the ai_runs row, so a note in the dashboard can be traced
+   * back to the numbers that produced it.
+   */
+  private factsHash(facts: MealFacts): string {
     const shape = JSON.stringify([
       facts.meal,
       facts.date,
@@ -161,8 +189,7 @@ export class InsightsService {
       facts.fiberG.amount,
       facts.remaining,
     ]);
-    const digest = createHash('sha256').update(shape).digest('hex').slice(0, 16);
-    return `insight:${PROMPTS.insight.version}:${userId}:${digest}`;
+    return createHash('sha256').update(shape).digest('hex');
   }
 
   /** Cache failures are never fatal: a miss costs a call, an exception costs the note. */

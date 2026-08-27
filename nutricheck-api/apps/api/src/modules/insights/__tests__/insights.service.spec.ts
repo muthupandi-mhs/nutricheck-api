@@ -66,6 +66,7 @@ function factsFor(summary: DaySummary, meal = 'breakfast'): MealFacts {
   const service = new InsightsService(
     { day: async () => summary } as never,
     { isConfigured: false } as never,
+    { recordCall: async () => 'run-id' } as never,
     { get: async () => null, set: async () => 'OK' } as never,
   );
   return (service as unknown as {

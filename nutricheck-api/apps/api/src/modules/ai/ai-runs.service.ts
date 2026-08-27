@@ -6,10 +6,8 @@ import { cacheHitRatio, costUsd, type TokenUsage } from './cost';
 
 /**
  * Mirrors the ai_step enum. Widened past parse and rerank when the meal path
- * arrived. `insight` is listed because the insight endpoint calls the model
- * TODAY and records nothing -- so its spend is invisible to cost attribution
- * and never reaches RESOLVE_USER_DAILY_SPEND_USD. Wiring insights.service.ts
- * to recordCall closes that hole; the type is ready for it.
+ * arrived. Every step here now records: `identify` is the one that does not,
+ * because nothing calls it yet — see the unreachable `identify()` path.
  */
 export type AiStep = 'parse' | 'rerank' | 'insight' | 'identify' | 'meal';
 
