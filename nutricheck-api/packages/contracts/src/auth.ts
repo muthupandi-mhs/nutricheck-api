@@ -18,8 +18,19 @@ export const Email = z
  * measurably reduce entropy by pushing people to `Password1!` and are advised
  * against by NIST SP 800-63B. The upper bound is a denial-of-service guard:
  * Argon2id will happily spend seconds hashing a megabyte.
+ *
+ * The minimum is 6, and that is BELOW the 8 the same NIST guidance sets for a
+ * user-chosen password. A deliberate product decision, recorded rather than
+ * quietly made: this is a nutrition tracker for a market where a long password
+ * on a phone keyboard is a real reason not to finish signing up, and the
+ * account holds a food log rather than money. What carries the weight instead
+ * is Argon2id, rate limiting on the login route, and refresh-token reuse
+ * detection -- none of which a longer minimum would improve.
+ *
+ * Lowering it does not affect existing accounts: sign-in deliberately validates
+ * no length, so a password created under the old rule keeps working.
  */
-export const Password = z.string().min(10, 'must be at least 10 characters').max(200);
+export const Password = z.string().min(6, 'must be at least 6 characters').max(200);
 
 export const RegisterRequest = z.object({
   email: Email,
