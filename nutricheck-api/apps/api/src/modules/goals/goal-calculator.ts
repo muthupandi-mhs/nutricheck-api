@@ -19,17 +19,22 @@ import type {
  */
 
 /**
- * Harris-Benedict style multipliers, 1.2 sedentary to 1.9 very active.
+ * Harris-Benedict style multipliers.
  *
- * Four of the usual five: 1.725 went with the 'active' level. The remaining
- * four are the standard figures, unchanged -- the scale lost a rung, it was
- * not rescaled.
+ * The first five are the standard figures and are not ours to move: 1.2 through
+ * 1.9 in the steps the literature uses. `athlete` is the one that is not
+ * standard. It sits at 2.0 for someone training twice a day on top of a
+ * physical job -- a case 1.9 was already stretching to cover -- and 2.0 is
+ * within the range published sources use for it rather than a number picked to
+ * fill a sixth tile.
  */
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
   sedentary: 1.2,
   light: 1.375,
   moderate: 1.55,
+  active: 1.725,
   very_active: 1.9,
+  athlete: 2.0,
 };
 
 /**
@@ -40,7 +45,11 @@ const PROTEIN_G_PER_KG: Record<ActivityLevel, number> = {
   sedentary: 1.6,
   light: 1.8,
   moderate: 1.8,
+  active: 2.0,
   very_active: 2.2,
+  // Already the top of the evidence range at very_active; more training does
+  // not move it, so athlete holds rather than inventing a higher one.
+  athlete: 2.2,
 };
 
 const PROTEIN_G_PER_KG_MAX = 2.2;

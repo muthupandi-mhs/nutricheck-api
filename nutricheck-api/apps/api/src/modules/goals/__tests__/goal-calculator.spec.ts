@@ -134,9 +134,11 @@ describe('computeGoal', () => {
     ['sedentary', 1.2],
     ['light', 1.375],
     ['moderate', 1.55],
-    // No 1.725. 'active' was dropped in 0007 and the remaining four keep the
-    // standard figures -- the scale lost a rung, it was not rescaled.
+    ['active', 1.725],
     ['very_active', 1.9],
+    // The one figure here that is not standard. Pinned so a change to it has
+    // to be deliberate rather than a number someone nudged.
+    ['athlete', 2.0],
   ] as const)('uses the %s activity factor %p', (activityLevel, factor) => {
     const goal = computeGoal(profile({ activityLevel }), ON);
     expect(goal.basis.activityFactor).toBe(factor);

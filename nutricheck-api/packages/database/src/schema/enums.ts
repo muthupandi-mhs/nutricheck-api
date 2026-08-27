@@ -55,15 +55,20 @@ export const quantitySourceEnum = pgEnum('quantity_source', [
 export const sexEnum = pgEnum('sex', ['male', 'female']);
 
 /**
- * Four levels. 'active' was the fifth, between moderate and very_active, and
- * was dropped -- see migration 0007, which rewrites the type because Postgres
- * cannot remove a value from one.
+ * Six levels.
+ *
+ * This has moved twice: 0007 dropped 'active' to make four, 0008 put it back
+ * and added 'athlete' on top to make six. Adding is the cheap direction --
+ * ALTER TYPE ADD VALUE -- and dropping is the expensive one, which is why the
+ * middle of that sequence cost a type rebuild and a data migration.
  */
 export const activityLevelEnum = pgEnum('activity_level', [
   'sedentary',
   'light',
   'moderate',
+  'active',
   'very_active',
+  'athlete',
 ]);
 
 export const objectiveEnum = pgEnum('objective', ['lose', 'maintain', 'gain']);

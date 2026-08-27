@@ -12,7 +12,9 @@ export const ActivityLevel = z.enum([
   'sedentary',
   'light',
   'moderate',
+  'active',
   'very_active',
+  'athlete',
 ]);
 export type ActivityLevel = z.infer<typeof ActivityLevel>;
 
