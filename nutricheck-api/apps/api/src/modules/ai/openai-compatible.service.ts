@@ -265,7 +265,21 @@ export class OpenAiCompatibleService extends AiService {
         throw new AiUnavailableError('upstream timed out');
       }
       if (error instanceof OpenAI.APIError) {
-        this.logger.error({ step, status: error.status }, 'upstream API error');
+        // The provider's own message is the only thing that says *why*. A 400
+        // on a malformed request schema names the offending keyword there and
+        // nowhere else, and logging status alone cost an afternoon once. It
+        // stays out of the thrown error, which the client sees.
+        this.logger.error(
+          {
+            step,
+            status: error.status,
+            code: error.code,
+            param: error.param,
+            type: error.type,
+            message: error.message,
+          },
+          'upstream API error',
+        );
         throw new AiUnavailableError(`upstream error ${error.status}`);
       }
       throw error;
