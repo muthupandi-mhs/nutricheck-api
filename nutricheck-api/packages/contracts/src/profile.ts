@@ -123,6 +123,16 @@ export type GoalPreview = z.infer<typeof GoalPreview>;
 export const SuggestedTargets = z.object({
   kcal: z.number().int(),
   proteinG: z.number().int(),
+  /**
+   * Derived from the calories above, not asked of the model.
+   *
+   * Fat is a fixed share of the calorie target and carbohydrate is the
+   * remainder, so both follow from a figure that has already been decided.
+   * Asking a model for them would be asking it to do arithmetic it was told not
+   * to do, and to get an answer that has to agree with two other answers.
+   */
+  carbsG: z.number().int(),
+  fatG: z.number().int(),
   fiberG: z.number().int(),
   /** The model's own words, addressed to the user. */
   reasoning: z.string(),

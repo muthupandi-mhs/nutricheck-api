@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { AiRunsService } from '../ai/ai-runs.service';
 import { AiService } from '../ai/ai.service';
 import { clampTargets } from './clamp-targets';
-import { computeGoal } from './goal-calculator';
+import { computeGoal, macrosFor } from './goal-calculator';
 
 /**
  * Targets proposed by the model, corrected by the server.
@@ -65,9 +65,16 @@ export class SuggestedTargetsService {
       );
     }
 
+    // Recomputed from the figures that survived clamping, never carried over
+    // from the derived goal: if the calorie target moved, the macros under it
+    // moved with it.
+    const macros = macrosFor(clamped.kcal, clamped.proteinG);
+
     return {
       kcal: clamped.kcal,
       proteinG: clamped.proteinG,
+      carbsG: macros.carbsG,
+      fatG: macros.fatG,
       fiberG: clamped.fiberG,
       reasoning: result.value.reasoning,
       corrections: clamped.corrections,

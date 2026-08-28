@@ -86,6 +86,30 @@ const FIBER_G_PER_1000_KCAL = 14;
  */
 const FAT_PCT_OF_KCAL = 0.25;
 
+/**
+ * Fat and carbohydrate for a given calorie and protein target.
+ *
+ * Split out because the calorie figure has two sources now. It is normally the
+ * formula's, and it is sometimes a model's suggestion that moved it — and a
+ * moved calorie target with the original macros beside it is three numbers that
+ * do not add up, on the screen where somebody is deciding whether to trust
+ * them.
+ *
+ * Carbohydrate takes the remainder, by difference — the same definition USDA
+ * uses for nutrient 1005 and the same one the curated dishes are built with.
+ * Clamped at zero: a very high protein target on a small calorie budget can
+ * consume the whole allowance, and a negative carbohydrate target is worse than
+ * an honest zero.
+ */
+export function macrosFor(kcal: number, proteinG: number): { carbsG: number; fatG: number } {
+  const fatG = Math.round((kcal * FAT_PCT_OF_KCAL) / KCAL_PER_G.fat);
+  const carbsG = Math.max(
+    0,
+    Math.round((kcal - proteinG * KCAL_PER_G.protein - fatG * KCAL_PER_G.fat) / KCAL_PER_G.carbs),
+  );
+  return { carbsG, fatG };
+}
+
 export interface GoalBasis {
   bmr: number;
   tdee: number;
@@ -159,19 +183,7 @@ export function computeGoal(profile: UserProfile, on: Date = new Date()): Comput
   const kcal = Math.round(flooredAtBmr ? bmr : uncapped);
 
   const proteinG = Math.round(proteinTarget(profile));
-  const fatG = Math.round((kcal * FAT_PCT_OF_KCAL) / KCAL_PER_G.fat);
-
-  // Carbohydrate takes the remainder, by difference — the same definition USDA
-  // uses for nutrient 1005 and the same one the curated dishes are built with.
-  // Clamped at zero: a very high protein target on a small calorie budget can
-  // consume the whole allowance, and a negative carbohydrate target is worse
-  // than an honest zero.
-  const carbsG = Math.max(
-    0,
-    Math.round(
-      (kcal - proteinG * KCAL_PER_G.protein - fatG * KCAL_PER_G.fat) / KCAL_PER_G.carbs,
-    ),
-  );
+  const { carbsG, fatG } = macrosFor(kcal, proteinG);
 
   return {
     kcal,
