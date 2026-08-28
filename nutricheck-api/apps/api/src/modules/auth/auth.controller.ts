@@ -39,19 +39,43 @@ import { ChangePasswordDto, CheckEmailDto, LoginDto, RefreshDto, RegisterDto } f
  * the password is Argon2id and refresh-token reuse detection, neither of which
  * a shared IP weakens.
  */
-const REGISTER_PER_HOUR = 30;
-const LOGIN_PER_15_MIN = 30;
+/**
+ * Ten minutes, for all three.
+ *
+ * The window is the part a blocked person actually feels. Whatever the count
+ * is, being refused meant an hour of nothing on register — and the people most
+ * likely to hit it are not abusing anything, they are the sixth person on a
+ * carrier address who has done nothing but open the app.
+ *
+ * A shorter window does raise the sustained rate an attacker can hold from one
+ * address, and that is the trade being made. It is worth it because per-IP
+ * throttling was never what stops a determined attacker — they have as many
+ * addresses as they want — it is what stops casual abuse and a client stuck in
+ * a loop, and a ten-minute window stops both of those just as well.
+ */
+const WINDOW_MS = 600_000;
+
+const REGISTER_PER_WINDOW = 30;
+const LOGIN_PER_WINDOW = 30;
 
 /**
  * Lower than the other two, because this one needs no password and so is the
  * fastest way to ask whether an address exists. Not as low as it was: at eight
- * a quarter-hour it was the FIRST step of signing up, so a shared carrier
- * address ran out of them before anybody got as far as choosing a password.
+ * it was the FIRST step of signing up, so a shared carrier address ran out of
+ * them before anybody got as far as choosing a password.
  *
  * Enumeration is a volume attack. Twenty an address is useless for scanning a
  * list and plenty for a household.
  */
-const CHECK_EMAIL_PER_15_MIN = 20;
+const CHECK_EMAIL_PER_WINDOW = 20;
+
+/**
+ * Authenticated, and still keyed on IP like the rest — which is the whole
+ * reason this moved. Five a quarter-hour is generous for one person changing
+ * their own password and nothing at all for a carrier address where the five
+ * before them were strangers.
+ */
+const CHANGE_PASSWORD_PER_WINDOW = 15;
 
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
@@ -65,7 +89,7 @@ export class AuthController {
   // Tighter than login and register. This one needs no password, so a
   // permissive limit would turn it into a fast enumeration oracle -- the
   // volume is the part worth denying, not the single answer.
-  @Throttle({ default: { ttl: 900_000, limit: CHECK_EMAIL_PER_15_MIN } })
+  @Throttle({ default: { ttl: WINDOW_MS, limit: CHECK_EMAIL_PER_WINDOW } })
   @ApiOperation({ summary: 'Whether an address already has an account' })
   checkEmail(@Body() body: CheckEmailDto): Promise<CheckEmailResponse> {
     return this.auth.checkEmail(body.email);
@@ -73,7 +97,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @Throttle({ default: { ttl: 3_600_000, limit: REGISTER_PER_HOUR } })
+  @Throttle({ default: { ttl: WINDOW_MS, limit: REGISTER_PER_WINDOW } })
   @ApiOperation({ summary: 'Create an account and sign in' })
   register(@Body() body: RegisterDto): Promise<AuthResponse> {
     return this.auth.register(body);
@@ -82,7 +106,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 900_000, limit: LOGIN_PER_15_MIN } })
+  @Throttle({ default: { ttl: WINDOW_MS, limit: LOGIN_PER_WINDOW } })
   @ApiOperation({ summary: 'Sign in with email and password' })
   login(@Body() body: LoginDto): Promise<AuthResponse> {
     return this.auth.login(body);
@@ -111,7 +135,7 @@ export class AuthController {
 
   @Post('change-password')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Throttle({ default: { ttl: 900_000, limit: 5 } })
+  @Throttle({ default: { ttl: WINDOW_MS, limit: CHANGE_PASSWORD_PER_WINDOW } })
   @ApiOperation({ summary: 'Change the password and sign out every device' })
   async changePassword(
     @CurrentUser('sub') userId: string,
