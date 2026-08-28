@@ -347,6 +347,7 @@ apps/api/src/
     ├── logs/                   Commit, idempotency, day queries
     ├── meals/                  Saved meals and phrases
     ├── suggestions/            Recents / frequents ranking
+    ├── ideas/                  Food suggestions against the day's remaining targets
     ├── quota/                  Token buckets, spend ceilings
     ├── insights/               Day/week aggregates, weight
     └── ops/                    ai_runs, match_misses, ai_food_matches
@@ -439,13 +440,48 @@ One filter produces this for every thrown error. Nest `HttpException`s map by st
 | `POST` | `/v1/logs/batch` | write | Offline drain, per-element results |
 | `GET`&nbsp;`PATCH`&nbsp;`DELETE` | `/v1/logs/:id` | read/write | |
 | `GET` | `/v1/logs?date=` | read | Day view, goal-in-effect resolved server-side |
+| `GET` | `/v1/logs/month` | read | `?date=&tz=` — every day of that calendar month, logged or not. Backs the history calendar |
 | `GET` | `/v1/suggestions/recents` | read | frequency × recency × time-of-day |
 | `GET`&nbsp;`POST` | `/v1/meals` | read/write | Saved meals and phrases |
 | `GET` | `/v1/quota` | read | Remaining resolves, reset time |
+| `GET` | **`/v1/ideas`** | **AI** | `?date=&tz=` — foods that fit what is left of the day. Estimates, marked as such (§7.7) |
 | `GET` | `/v1/insights/{day,week}` | read | M3 |
 | `POST` | `/v1/weight` | write | M3 |
 | `GET` | `/health/live` `/health/ready` | — | Unauthenticated, excluded from telemetry |
 | `GET` | `/metrics` | — | Prometheus, bound to the internal listener only |
+
+**`/v1/ideas` is the third route where a model produces nutrition**, after
+`/v1/ai-meal` and `/v1/me/goals/suggest`, and it is the one with the weakest
+justification: it fires because a tab was opened rather than because somebody
+asked a question. Four things bound it, and they are in `IdeasService` in that
+order — the gap is computed server-side from the same day view the Today screen
+renders; every returned item is Atwater-checked against its own macros and
+DROPPED if it fails; the model returns per-100g rates and the multiplication
+stays in our code; and every row it creates is written `source: 'ai'`, owned by
+the user, with all nutrient states `imputed`.
+
+It is also the only AI route deliberately **without** `QuotaGuard`. The guard
+runs before the handler and therefore before the cache, so an exhausted user
+would be refused a list they had already been shown and already paid for. The
+service checks the same quota itself, after the cache lookup and before the
+call — the only ordering where the ceiling bounds spend without also bounding
+what the user is allowed to look at.
+
+**The subject is the person, not the day.** `ideasToUserTurn` puts the profile
+and the goal first and today's figures last, and the prompt says outright that
+the day is a constraint on the answer rather than the answer. That ordering was
+a correction: the first version led with the remaining targets and produced a
+gap-filling calculator — it answered "what closes today's arithmetic", which is
+not a question anyone opens an app to ask, and on a day with nothing logged it
+had no subject at all. Sections are weighted roughly by the order they are read
+in, so the order IS the instruction.
+
+**The transport must not swallow this route's failures.** `getMealInsight` on
+the client does swallow its own, correctly: a meal card that loses its note
+still has every number on it. The ideas response IS its screen, so a swallowed
+failure renders as a confident wrong explanation. A 404 from an unrestarted
+server reached a device as "a model was not reachable" once, and that is why
+`IdeasScreen` now classifies the failure and names it.
 
 **The critical split: `/v1/resolve` never writes a log.** It returns a draft; `POST /v1/logs` commits. This makes "never auto-commit a parse" (USER-FLOWS §7) a property of the API rather than client discipline, and it lets an offline commit replay without re-invoking the model.
 

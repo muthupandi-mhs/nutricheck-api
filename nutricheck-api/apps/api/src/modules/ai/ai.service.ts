@@ -1,6 +1,8 @@
 import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts';
+import type { IdeasInput } from './ideas-input';
 import type {
   AiMealResult,
+  IdeasResult,
   IdentifyResult,
   InsightResult,
   TargetsResult,
@@ -85,6 +87,30 @@ export abstract class AiService {
     profile: UserProfile,
     derived: GoalPreview,
   ): Promise<AiCallResult<TargetsResult>>;
+
+  /**
+   * Suggest what somebody could eat next, given what is left of their day.
+   *
+   * The third step allowed to produce nutrition, and the only one that runs
+   * without anybody having asked a question — it fires because a tab was
+   * opened. That is a weaker justification than either of the others has, and
+   * the containment is correspondingly tighter rather than looser:
+   *
+   * - RATES, NOT TOTALS, as on `interpretMeal`. Every figure the user reads is
+   *   a product computed on the server from a per-100g rate and a gram weight.
+   * - Everything it is given is already computed. The gap it is suggesting
+   *   against is handed over as a figure, so there is no arithmetic left for it
+   *   to get wrong.
+   * - Whatever comes back is Atwater-checked before it is shown, and an item
+   *   whose calories disagree with its own macros is DROPPED. That check is
+   *   arithmetic we can do exactly, and a model that fails it has not made a
+   *   rounding error.
+   *
+   * `reason` is required per idea for the same purpose `reasoning` serves on
+   * the targets step: a number with an argument attached can be disagreed with,
+   * and one without it can only be believed or ignored.
+   */
+  abstract suggestFoods(input: IdeasInput): Promise<AiCallResult<IdeasResult>>;
 
   /** Pick one candidate per item, constrained to an enum of the ids supplied. */
   abstract rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>>;

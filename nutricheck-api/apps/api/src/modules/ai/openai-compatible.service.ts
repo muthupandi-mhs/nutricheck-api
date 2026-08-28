@@ -16,6 +16,7 @@ import {
 } from './ai.service';
 import {
   AiMealResult,
+  IdeasResult,
   IdentifyResult,
   InsightResult,
   TargetsResult,
@@ -23,6 +24,7 @@ import {
   rerankSchemaFor,
   type RerankResult,
 } from './ai.schemas';
+import { ideasToUserTurn, type IdeasInput } from './ideas-input';
 import { factsToUserTurn } from './insight-input';
 import { profileToUserTurn } from './targets-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
@@ -155,6 +157,21 @@ export class OpenAiCompatibleService extends AiService {
       profileToUserTurn(profile, derived),
       TargetsResult,
       'suggested_targets',
+    );
+  }
+
+  async suggestFoods(input: IdeasInput): Promise<AiCallResult<IdeasResult>> {
+    // The whole of what this step knows about the person goes in the USER turn,
+    // never the system prompt. Same rule as `parse` and for the same bill: the
+    // prompt is the cached prefix, and one body weight interpolated into it
+    // makes every request a cache miss.
+    return this.call(
+      'ideas',
+      PROMPTS.ideas.system,
+      PROMPTS.ideas.version,
+      ideasToUserTurn(input),
+      IdeasResult,
+      'food_ideas',
     );
   }
 

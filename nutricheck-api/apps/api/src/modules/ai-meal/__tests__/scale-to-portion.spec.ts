@@ -16,6 +16,7 @@ function item(over: Partial<AiMealItem> = {}): AiMealItem {
     grams: 300,
     per100g: { kcal: 168, proteinG: 3.9, carbsG: 27.4, fatG: 5.5, fiberG: 1.2 },
     confidence: 'high',
+    meal: null,
     ...over,
   };
 }

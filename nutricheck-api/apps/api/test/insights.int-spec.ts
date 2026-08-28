@@ -8,6 +8,7 @@ import { AiRunsService } from '../src/modules/ai/ai-runs.service';
 import { AiService, type AiCallResult, type RerankItem } from '../src/modules/ai/ai.service';
 import type {
   AiMealResult,
+  IdeasResult,
   IdentifyResult,
   InsightResult,
   ParseResult,
@@ -75,6 +76,18 @@ class FakeAi extends AiService {
   }
   async rerank(_items: RerankItem[]): Promise<AiCallResult<RerankResult>> {
     throw new Error('the note path does not re-rank');
+  }
+  /** Same reason as `suggestTargets`: unreached, stubbed so the compiler stays the guard. */
+  async suggestFoods(): Promise<AiCallResult<IdeasResult>> {
+    return {
+      value: { note: 'a fake note', ideas: [] },
+      usage: { inputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 0 },
+      latencyMs: 0,
+      stopReason: 'end_turn',
+      model: 'claude-opus-5',
+      promptVersion: 'ideas-v1',
+      raw: { fake: true },
+    };
   }
   async identify(): Promise<AiCallResult<IdentifyResult>> {
     throw new Error('the note path does not identify');

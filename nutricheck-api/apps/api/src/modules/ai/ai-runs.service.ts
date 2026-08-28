@@ -8,8 +8,21 @@ import { cacheHitRatio, costUsd, type TokenUsage } from './cost';
  * Mirrors the ai_step enum. Widened past parse and rerank when the meal path
  * arrived. Every step here now records: `identify` is the one that does not,
  * because nothing calls it yet — see the unreachable `identify()` path.
+ *
+ * `ideas` is the one to watch. It is the first step that fires because a TAB
+ * WAS OPENED rather than because somebody asked a question, so its volume is
+ * bounded by navigation rather than by intent — which is exactly the shape of
+ * spend that runs away without anyone noticing. It records like the rest, and
+ * that is what keeps RESOLVE_USER_DAILY_SPEND_USD a real ceiling for it.
  */
-export type AiStep = 'parse' | 'rerank' | 'insight' | 'identify' | 'meal' | 'targets';
+export type AiStep =
+  | 'parse'
+  | 'rerank'
+  | 'insight'
+  | 'identify'
+  | 'meal'
+  | 'targets'
+  | 'ideas';
 
 export interface RecordRunInput {
   userId: string;

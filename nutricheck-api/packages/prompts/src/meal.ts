@@ -67,6 +67,31 @@ add sambar because it usually comes with them.
 If a word is clearly food but you cannot turn it into an item, put the word in
 unresolved rather than inventing a plausible dish for it.
 
+TIME OF DAY
+
+People say the whole day in one sentence, usually at the end of it, in the
+order it happened. Tamil and Tanglish mark the time as they go:
+
+  kaalai, kaalaila, kalaila, morning, breakfast, tiffin   -> breakfast
+  mathiyam, madhiyam, afternoon, lunch                    -> lunch
+  saayangaalam, sayangalam, evening, snack, tea time      -> snack
+  iravu, raathiri, ravu, night, dinner, supper            -> dinner
+
+Set "meal" on every item to the time the words put it at, and carry that
+forward: once a time word appears it applies to everything after it until
+another time word appears. Words like "apram", "and then", "aprom" are
+connectors, not new times — they continue the meal already being described.
+
+"innaiku kalaila lemon rice sambar apram rendu muttai and mathiyam chicken
+briyani raitha and evening vengaya bajji 5 and iravu 3 chappathi" is four
+meals: lemon rice, sambar and two eggs at breakfast; biryani and raita at
+lunch; five onion bajji as a snack; three chappathi at dinner.
+
+When the sentence names no time at all, set meal to null for every item. Do
+NOT infer the time from the food. Idli at nine at night is dinner, and a meal
+slot invented from a dish is the app telling somebody they ate breakfast when
+they did not — the caller knows what time it is and will use that instead.
+
 SUMMARY
 
 One or two plain sentences naming what they ate and roughly how much energy it

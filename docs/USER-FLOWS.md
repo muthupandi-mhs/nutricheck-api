@@ -71,11 +71,12 @@ Ninety seconds, and it ends on a number the user wanted rather than a permission
 
 1. **Welcome** — one screen, one sentence about what the app does. No carousel.
 2. **Account** — Sign in with Apple, Google, or email. Apple is mandatory on iOS if you offer any social login.
-3. **About you** — sex, age, height, current weight. Four fields, sensible keyboards, metric/imperial toggle remembered.
-4. **Activity level** — five plain-language options, not a multiplier. "Desk job, little exercise" beats "1.2×".
-5. **Objective** — lose, maintain, or gain, plus a rate, floored so the calorie target can never fall below BMR.
-6. **Your targets** — the payoff screen. Three numbers (calories, protein, fiber) with the reasoning visible and every one editable. Users who can see the math trust it and change it less.
-7. **Log your first meal** — straight into search, *not* the composer. The first log should succeed with certainty, before you ask them to trust a parse.
+3. **Your name** — first name required, surname asked for and optional. The one question in the flow that feeds no calculation: it is what the app calls you afterwards, and it is asked on its own screen rather than at the top of the next one so the first thing asked of a person is not their body.
+4. **About you** — sex, age, height, current weight. Four fields, sensible keyboards, metric only (the metric/imperial toggle is gone; the stored value was always metric).
+5. **Activity level** — five plain-language options, not a multiplier. "Desk job, little exercise" beats "1.2×".
+6. **Objective** — lose, maintain, or gain, plus a rate, floored so the calorie target can never fall below BMR.
+7. **Your targets** — the payoff screen. Three numbers (calories, protein, fiber) with the reasoning visible and every one editable. Users who can see the math trust it and change it less.
+8. **Log your first meal** — straight into search, *not* the composer. The first log should succeed with certainty, before you ask them to trust a parse.
 
 > **What onboarding must not do.** No microphone permission, no notification permission, no health permission. Nothing here has earned them yet, and a cold prompt at step 2 is the most expensive dialog in the app — a denial is close to permanent. Permissions are asked at the moment of use; see §9.
 >

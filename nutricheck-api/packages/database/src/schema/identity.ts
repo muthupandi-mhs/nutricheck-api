@@ -86,6 +86,19 @@ export const userProfiles = pgTable('user_profiles', {
   userId: uuid('user_id')
     .primaryKey()
     .references(() => users.id, { onDelete: 'cascade' }),
+  /**
+   * What to call them. Nullable, and not because the app is unsure it wants a
+   * name — the onboarding step asks for one on the way in. Every account that
+   * existed before that step did is a row with no name in it, and a NOT NULL
+   * here would either fail the migration or invent a default that the user then
+   * has to notice and correct.
+   *
+   * No index and no uniqueness: this is display text, never an identifier. The
+   * email is the identifier and always was.
+   */
+  firstName: text('first_name'),
+  /** Asked for beside the first, never required — a surname earns no feature. */
+  lastName: text('last_name'),
   sex: sexEnum('sex').notNull(),
   birthDate: date('birth_date').notNull(),
   heightCm: doublePrecision('height_cm').notNull(),

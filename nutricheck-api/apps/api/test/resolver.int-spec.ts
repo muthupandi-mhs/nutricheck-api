@@ -15,6 +15,7 @@ import {
 } from '../src/modules/ai/ai.service';
 import type {
   AiMealResult,
+  IdeasResult,
   IdentifyResult,
   InsightResult,
   ParseResult,
@@ -90,6 +91,10 @@ class FakeAi extends AiService {
     return wrap({ kcal: 2000, proteinG: 120, fiberG: 28, reasoning: 'a fake suggestion' }, 'targets-v1');
   }
 
+  /** Same reason as `suggestTargets`: unreached, stubbed so the compiler stays the guard. */
+  async suggestFoods(): Promise<AiCallResult<IdeasResult>> {
+    return wrap({ note: 'a fake note', ideas: [] }, 'ideas-v1');
+  }
   identifyCalls = 0;
   identifyResult: IdentifyResult = {
     isFood: true,

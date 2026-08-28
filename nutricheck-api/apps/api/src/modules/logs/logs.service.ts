@@ -7,6 +7,7 @@ import {
   type UpdateLogEntry,
   type UpdateLogItem,
   type DayPoint,
+  type MonthSummary,
   type WeekSummary,
 } from '@nutricheck/contracts';
 import {
@@ -445,53 +446,40 @@ export class LogsService {
    * them, so a bar on the chart contains exactly the entries the day view
    * would show for that date.
    */
+  /**
+   * A whole calendar month, one `DayPoint` per day.
+   *
+   * Shares `dayPointsBetween` with `week()` rather than running a second,
+   * near-identical aggregate. The two differ only in the window and in what
+   * they compute over the result, and duplicating the SQL would be duplicating
+   * the unknown-handling — the `FILTER (WHERE state <> 'unknown')` clauses are
+   * the subtle part, and a copy of them is a copy that can drift.
+   */
+  async month(userId: string, date: string, tz: string): Promise<MonthSummary> {
+    const from = firstOfMonth(date);
+    const to = lastOfMonth(date);
+
+    const days = await this.dayPointsBetween(userId, from, to, tz);
+
+    // The goal in effect at the END of the window, matching `week()`. See the
+    // note on MonthSummary: per-day resolution is a lookup per cell.
+    const goal = await this.goals.goalInEffect(userId, to);
+
+    return {
+      from,
+      to,
+      days,
+      goal: goal
+        ? { kcal: goal.kcal, proteinG: goal.proteinG, carbsG: goal.carbsG, fatG: goal.fatG, fiberG: goal.fiberG }
+        : { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 },
+      loggedDays: days.filter((d) => d.logged).length,
+    };
+  }
+
   async week(userId: string, date: string, tz: string): Promise<WeekSummary> {
     const from = addDays(date, -(WEEK_DAYS - 1));
 
-    const result = await this.db.execute<WeekRow>(sql`
-      SELECT
-        (e.logged_at AT TIME ZONE ${tz})::date AS d,
-        COUNT(DISTINCT e.id)                   AS entry_count,
-        COALESCE(SUM(li.kcal), 0)              AS kcal,
-        COALESCE(SUM(li.protein_g), 0)         AS protein_g,
-        -- An unknown is excluded from its own sum, never counted as zero.
-        -- Same rule as sumDay, applied per nutrient rather than shared.
-        COALESCE(SUM(li.carbs_g) FILTER (
-          WHERE li.carbs_state <> 'unknown' AND li.carbs_g IS NOT NULL
-        ), 0)                                  AS carbs_g,
-        COALESCE(SUM(li.fat_g) FILTER (
-          WHERE li.fat_state <> 'unknown' AND li.fat_g IS NOT NULL
-        ), 0)                                  AS fat_g,
-        COALESCE(SUM(li.fiber_g) FILTER (
-          WHERE li.fiber_state <> 'unknown' AND li.fiber_g IS NOT NULL
-        ), 0)                                  AS fiber_g
-      FROM log_entries e
-      LEFT JOIN log_items li ON li.entry_id = e.id
-      WHERE e.user_id = ${userId}
-        AND (e.logged_at AT TIME ZONE ${tz})::date BETWEEN ${from}::date AND ${date}::date
-      GROUP BY d
-    `);
-
-    const byDate = new Map(
-      result.rows.map((row) => [toLocalDate(row.d), row] as const),
-    );
-
-    // Every one of the seven days is present whether or not it has data: the
-    // chart has seven bars, and a missing day must render as an empty one
-    // rather than shifting its neighbours along.
-    const days: DayPoint[] = Array.from({ length: WEEK_DAYS }, (_, i) => {
-      const day = addDays(from, i);
-      const row = byDate.get(day);
-      return {
-        date: day,
-        kcal: round2(Number(row?.kcal ?? 0)),
-        proteinG: round2(Number(row?.protein_g ?? 0)),
-        carbsG: round2(Number(row?.carbs_g ?? 0)),
-        fatG: round2(Number(row?.fat_g ?? 0)),
-        fiberG: round2(Number(row?.fiber_g ?? 0)),
-        logged: Number(row?.entry_count ?? 0) > 0,
-      };
-    });
+    const days = await this.dayPointsBetween(userId, from, date, tz);
 
     const logged = days.filter((d) => d.logged);
     const mean = (pick: (d: DayPoint) => number) =>
@@ -519,6 +507,64 @@ export class LogsService {
       },
       streakDays: await this.streak(userId, date, tz),
     };
+  }
+
+  /**
+   * One `DayPoint` per day between `from` and `to` inclusive, gaps filled.
+   *
+   * Every day in the range is present whether or not it has data: a chart has a
+   * bar per day and a calendar has a cell per day, and a missing row must
+   * render as an empty one rather than shifting its neighbours along.
+   */
+  private async dayPointsBetween(
+    userId: string,
+    from: string,
+    to: string,
+    tz: string,
+  ): Promise<DayPoint[]> {
+    const result = await this.db.execute<WeekRow>(sql`
+      SELECT
+        (e.logged_at AT TIME ZONE ${tz})::date AS d,
+        COUNT(DISTINCT e.id)                   AS entry_count,
+        COALESCE(SUM(li.kcal), 0)              AS kcal,
+        COALESCE(SUM(li.protein_g), 0)         AS protein_g,
+        -- An unknown is excluded from its own sum, never counted as zero.
+        -- Same rule as sumDay, applied per nutrient rather than shared.
+        COALESCE(SUM(li.carbs_g) FILTER (
+          WHERE li.carbs_state <> 'unknown' AND li.carbs_g IS NOT NULL
+        ), 0)                                  AS carbs_g,
+        COALESCE(SUM(li.fat_g) FILTER (
+          WHERE li.fat_state <> 'unknown' AND li.fat_g IS NOT NULL
+        ), 0)                                  AS fat_g,
+        COALESCE(SUM(li.fiber_g) FILTER (
+          WHERE li.fiber_state <> 'unknown' AND li.fiber_g IS NOT NULL
+        ), 0)                                  AS fiber_g
+      FROM log_entries e
+      LEFT JOIN log_items li ON li.entry_id = e.id
+      WHERE e.user_id = ${userId}
+        AND (e.logged_at AT TIME ZONE ${tz})::date BETWEEN ${from}::date AND ${to}::date
+      GROUP BY d
+    `);
+
+    const byDate = new Map(
+      result.rows.map((row) => [toLocalDate(row.d), row] as const),
+    );
+
+    const days: DayPoint[] = [];
+    for (let day = from; day <= to; day = addDays(day, 1)) {
+      const row = byDate.get(day);
+      days.push({
+        date: day,
+        kcal: round2(Number(row?.kcal ?? 0)),
+        proteinG: round2(Number(row?.protein_g ?? 0)),
+        carbsG: round2(Number(row?.carbs_g ?? 0)),
+        fatG: round2(Number(row?.fat_g ?? 0)),
+        fiberG: round2(Number(row?.fiber_g ?? 0)),
+        logged: Number(row?.entry_count ?? 0) > 0,
+      });
+    }
+
+    return days;
   }
 
   /**
@@ -689,6 +735,22 @@ function addDays(date: string, delta: number): string {
   const [year, month, day] = date.split('-').map(Number);
   const shifted = Date.UTC(year!, month! - 1, day!) + delta * 86_400_000;
   return new Date(shifted).toISOString().slice(0, 10);
+}
+
+/** First of the calendar month `date` falls in. Pure string work — no zone. */
+export function firstOfMonth(date: string): string {
+  return `${date.slice(0, 7)}-01`;
+}
+
+/**
+ * Last of the calendar month `date` falls in.
+ *
+ * Day 0 of the NEXT month is the last of this one, which is how this avoids a
+ * table of month lengths and gets February right in a leap year for free.
+ */
+export function lastOfMonth(date: string): string {
+  const [year, month] = date.split('-').map(Number);
+  return new Date(Date.UTC(year!, month!, 0)).toISOString().slice(0, 10);
 }
 
 /**

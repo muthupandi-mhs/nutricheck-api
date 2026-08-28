@@ -15,6 +15,7 @@ import {
 } from './ai.service';
 import {
   AiMealResult,
+  IdeasResult,
   IdentifyResult,
   InsightResult,
   TargetsResult,
@@ -22,6 +23,7 @@ import {
   rerankSchemaFor,
   type RerankResult,
 } from './ai.schemas';
+import { ideasToUserTurn, type IdeasInput } from './ideas-input';
 import { factsToUserTurn } from './insight-input';
 import { profileToUserTurn } from './targets-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
@@ -143,6 +145,19 @@ export class AnthropicService extends AiService {
       PROMPTS.targets.version,
       profileToUserTurn(profile, derived),
       betaZodOutputFormat(TargetsResult),
+    );
+  }
+
+  async suggestFoods(input: IdeasInput): Promise<AiCallResult<IdeasResult>> {
+    // Everything about the person goes in the user turn, never the system
+    // prompt. The prompt is the cached prefix and one body weight in it makes
+    // every request a miss -- the same rule `parse` follows for `knownUnits`.
+    return this.call(
+      'ideas',
+      PROMPTS.ideas.system,
+      PROMPTS.ideas.version,
+      ideasToUserTurn(input),
+      betaZodOutputFormat(IdeasResult),
     );
   }
 

@@ -50,6 +50,8 @@ export class GoalsService {
         .insert(schema.userProfiles)
         .values({
           userId,
+          firstName: merged.firstName ?? null,
+          lastName: merged.lastName ?? null,
           sex: merged.sex,
           birthDate: merged.birthDate,
           heightCm: merged.heightCm,
@@ -62,6 +64,8 @@ export class GoalsService {
         .onConflictDoUpdate({
           target: schema.userProfiles.userId,
           set: {
+            firstName: merged.firstName ?? null,
+            lastName: merged.lastName ?? null,
             sex: merged.sex,
             birthDate: merged.birthDate,
             heightCm: merged.heightCm,
@@ -227,6 +231,11 @@ export class GoalsService {
     if (!row) return null;
 
     return {
+      // `?? undefined` rather than passing the null through: the contract says
+      // the field is absent when there is no name, and `firstName: null` is a
+      // third state that every reader would then have to handle.
+      firstName: row.firstName ?? undefined,
+      lastName: row.lastName ?? undefined,
       sex: row.sex,
       birthDate: row.birthDate,
       heightCm: row.heightCm,

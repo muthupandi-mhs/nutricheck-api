@@ -17,6 +17,7 @@ import type {
   BatchCommitResult,
   DaySummary,
   LogEntry,
+  MonthSummary,
   WeekSummary,
 } from '@nutricheck/contracts';
 import type { FastifyReply } from 'fastify';
@@ -28,6 +29,7 @@ import {
   UpdateLogEntryDto,
   UpdateLogItemDto,
   WeekQueryDto,
+  MonthQueryDto,
 } from './logs.dto';
 import { LogsService } from './logs.service';
 
@@ -88,6 +90,23 @@ export class LogsController {
     @Query() query: WeekQueryDto,
   ): Promise<WeekSummary> {
     return this.logs.week(userId, query.date, query.tz);
+  }
+
+  /**
+   * A whole calendar month, one point per day — the history calendar behind
+   * Today's masthead.
+   *
+   * Above `GET :id` for the same reason `day` and `week` are: Nest matches in
+   * declaration order, and a `:id` route ahead of this would swallow `/month`
+   * and reject it as a malformed uuid.
+   */
+  @Get('month')
+  @ApiOperation({ summary: 'Every day of one calendar month, logged or not' })
+  month(
+    @CurrentUser('sub') userId: string,
+    @Query() query: MonthQueryDto,
+  ): Promise<MonthSummary> {
+    return this.logs.month(userId, query.date, query.tz);
   }
 
   @Get(':id')

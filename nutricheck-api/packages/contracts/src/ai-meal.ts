@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { FoodSummary } from './food';
+import { MealSlot } from './logs';
 
 /**
  * The corpus-free path: a whole meal read out of one spoken sentence.
@@ -36,6 +37,19 @@ export const AiMealItemDraft = z.object({
   fiberG: z.number().nonnegative(),
   /** Low when the dish was unfamiliar or the portion had to be assumed. */
   confidence: z.enum(['high', 'low']),
+  /**
+   * Which meal the sentence put this item in, or null when it did not say.
+   *
+   * Per item rather than per draft, because one sentence is routinely a whole
+   * day — "kalaila lemon rice ... mathiyam briyani ... iravu 3 chappathi" is
+   * four meals said at once, and a single slot on the draft would force the
+   * client to file breakfast under dinner.
+   *
+   * Null is not a failure and not a default: it means the words carried no
+   * time, and the client fills it from the clock. Guessing the slot from the
+   * food would be inventing a fact about somebody's day.
+   */
+  meal: MealSlot.nullable(),
 });
 export type AiMealItemDraft = z.infer<typeof AiMealItemDraft>;
 

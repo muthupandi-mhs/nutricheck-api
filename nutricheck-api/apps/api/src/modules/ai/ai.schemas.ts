@@ -157,6 +157,21 @@ export const AiMealItem = z.object({
   }),
   /** Low when the dish is unfamiliar or the portion was never stated. */
   confidence: z.enum(['high', 'low']),
+  /**
+   * Which meal the WORDS put this in, or null when they said nothing about it.
+   *
+   * Nullable rather than defaulted, and the difference matters: a default here
+   * would be the model guessing a time of day from a food, which is a thing it
+   * will happily do — idli reads as breakfast to a language model whatever
+   * time it was eaten. Null means "the sentence does not say", and the client
+   * fills it with the clock, which is the only source that actually knows.
+   *
+   * It exists because people narrate a whole day at once, at the end of it:
+   * "kalaila lemon rice, mathiyam briyani, iravu 3 chappathi" is four meals in
+   * one sentence, and logging that as one dinner is the app throwing away the
+   * one thing the person took the trouble to tell it.
+   */
+  meal: z.enum(['breakfast', 'lunch', 'dinner', 'snack']).nullable(),
 });
 export type AiMealItem = z.infer<typeof AiMealItem>;
 
@@ -179,3 +194,63 @@ export const IdentifyResult = z.object({
   confidence: z.enum(['high', 'low']),
 });
 export type IdentifyResult = z.infer<typeof IdentifyResult>;
+
+/**
+ * One suggested food, for a person with some of their day left.
+ *
+ * The third schema with numbers in it, and the one that had to argue hardest
+ * for them. The meal path produces nutrition because the alternative is a dead
+ * end on a sentence the corpus cannot serve; the targets path produces numbers
+ * because it is handed the formula's answer and asked whether it should move.
+ * This one runs because somebody opened a tab.
+ *
+ * It is shaped exactly like `AiMealItem` on purpose. The same three containments
+ * apply and they are the reason this is tolerable at all — rates rather than
+ * totals so the arithmetic stays with us, rows written source 'ai' and owned by
+ * the person who saw them, every nutrient state 'imputed' so the app renders a
+ * `~`. What it adds is `reason`, which is not decoration: a suggestion with no
+ * argument attached cannot be disagreed with, and this list is only defensible
+ * if the user can see why each row is on it.
+ *
+ * There is no field for a total anywhere in here, and no field for a food id.
+ * A model on this path can be wrong about a rate; it cannot address a row in
+ * the corpus, and it cannot state what somebody's serving adds up to.
+ */
+export const IdeaItem = z.object({
+  /** Display name in the corpus's register: "Curd, plain", "Boiled egg". */
+  name: z.string().min(1).max(120),
+  /** Why this food for this gap, addressed to the user. */
+  reason: z.string().min(1).max(240),
+  /** The portion in ordinary words: "1 cup", "2 eggs", "1 bowl". */
+  servingLabel: z.string().min(1).max(60),
+  /** TOTAL grams for that serving, not per unit. Our arithmetic uses this. */
+  grams: z.number().positive().max(2000),
+  /**
+   * Per 100 g, always. Asking for a rate rather than a total is what leaves
+   * the multiplication with us — see `scaleIdea`.
+   */
+  per100g: z.object({
+    kcal: z.number().nonnegative().max(900),
+    proteinG: z.number().nonnegative().max(100),
+    carbsG: z.number().nonnegative().max(100),
+    fatG: z.number().nonnegative().max(100),
+    fiberG: z.number().nonnegative().max(100),
+  }),
+  confidence: z.enum(['high', 'low']),
+});
+export type IdeaItem = z.infer<typeof IdeaItem>;
+
+export const IdeasResult = z.object({
+  /**
+   * One or two sentences about where the day stands. The only place a figure
+   * the model was GIVEN may be repeated, and no place at all for a new one.
+   */
+  note: z.string().max(400),
+  /**
+   * Capped at five. A longer list is not a better answer — it is the model
+   * declining to choose, and every extra row is another set of invented rates
+   * to pay for and check.
+   */
+  ideas: z.array(IdeaItem).max(5),
+});
+export type IdeasResult = z.infer<typeof IdeasResult>;

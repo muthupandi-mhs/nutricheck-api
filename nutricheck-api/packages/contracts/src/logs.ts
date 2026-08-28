@@ -211,3 +211,54 @@ export const WeekSummary = z.object({
   streakDays: z.number().int().nonnegative(),
 });
 export type WeekSummary = z.infer<typeof WeekSummary>;
+
+/**
+ * A calendar month, for the history view behind the Today masthead.
+ *
+ * `date` is any day inside the month wanted — the server snaps to the first and
+ * last of that month itself. Passing an anchor rather than a `2026-08` string
+ * keeps one date format on the wire and means the client can hand over
+ * whichever day it is already holding without formatting anything.
+ */
+export const MonthQuery = z.object({
+  /** Any day in the month. The window is that whole calendar month. */
+  date: LocalDate,
+  /** IANA zone; the day boundaries are the user's, exactly as for a day view. */
+  tz: z.string().min(1).default('UTC'),
+});
+export type MonthQuery = z.infer<typeof MonthQuery>;
+
+/**
+ * Every day of one calendar month, logged or not.
+ *
+ * The same `DayPoint` the week chart uses, and deliberately so: a calendar cell
+ * and a chart bar are answering the same question at different resolutions, and
+ * a second shape for it would be a second place for `logged` to mean something
+ * slightly different.
+ *
+ * Length is not fixed — months are 28 to 31 days — but every day in the range
+ * is present whether or not it has entries, so a client can index the grid by
+ * position without checking for holes.
+ *
+ * **`goal` is the one in effect on the LAST day of the month**, not per day.
+ * That is a real limitation and it is the same one `WeekSummary` carries: a
+ * user who changed their target mid-month has the back half's colours computed
+ * against the front half's goal. Resolving it per day means a goal lookup per
+ * cell, and it is not worth that until somebody actually changes targets often
+ * enough to notice.
+ */
+export const MonthSummary = z.object({
+  from: LocalDate,
+  to: LocalDate,
+  days: z.array(DayPoint),
+  goal: z.object({
+    kcal: z.number(),
+    proteinG: z.number(),
+    carbsG: z.number(),
+    fatG: z.number(),
+    fiberG: z.number(),
+  }),
+  /** Days in the month with at least one entry. */
+  loggedDays: z.number().int().nonnegative(),
+});
+export type MonthSummary = z.infer<typeof MonthSummary>;

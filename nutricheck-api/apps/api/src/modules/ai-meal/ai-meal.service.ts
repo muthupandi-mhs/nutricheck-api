@@ -11,6 +11,7 @@ import { AiRunsService } from '../ai/ai-runs.service';
 import { AiService } from '../ai/ai.service';
 import type { AiMealItem } from '../ai/ai.schemas';
 import { FoodsService } from '../foods/foods.service';
+import { assignMealTimes } from './meal-times';
 import { QuotaService } from '../quota/quota.service';
 
 /**
@@ -61,8 +62,18 @@ export class AiMealService {
 
     await this.aiRuns.recordCall(userId, 'meal', hashOf(phrase), result);
 
+    // The sentence gets the last word on WHEN, before anything is written.
+    //
+    // The model is asked for it and usually answers, but the failure when it
+    // does not is silent and total: every slot comes back null, the client
+    // falls back to the clock, and a day narrated at midday is filed as one
+    // enormous lunch. Reading the time words out of the sentence is
+    // deterministic, uses only what the person said, and cannot be talked out
+    // of it by a model having an off minute.
+    const timed = assignMealTimes(phrase, result.value.items);
+
     const items: AiMealItemDraft[] = [];
-    for (const item of result.value.items) {
+    for (const item of timed) {
       items.push(await this.materialise(userId, item));
     }
 
@@ -205,6 +216,9 @@ export function scaleToPortion(
     spokenAs: item.spokenAs,
     quantity: item.quantity,
     unit: item.unit,
+    // Passed straight through, null included. This function multiplies; it
+    // does not decide what time anybody ate.
+    meal: item.meal ?? null,
     grams: round(item.grams),
     kcal: round(item.per100g.kcal * factor),
     proteinG: round(item.per100g.proteinG * factor),

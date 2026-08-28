@@ -21,7 +21,31 @@ export type ActivityLevel = z.infer<typeof ActivityLevel>;
 export const Objective = z.enum(['lose', 'maintain', 'gain']);
 export type Objective = z.infer<typeof Objective>;
 
+/**
+ * A display name. Trimmed before it is measured, so a field of spaces is empty
+ * rather than 20 characters long, and capped well above any real name — the
+ * bound is there to stop a paste of a novel reaching the database, not to
+ * arbitrate what a name may be. No character class is enforced: every rule
+ * anyone has ever written about the shape of a name is wrong somewhere.
+ */
+const NameField = z.string().trim().min(1).max(60);
+
 export const UserProfile = z.object({
+  /**
+   * Optional, and it has to stay that way. The name step was added after there
+   * were accounts, so a profile written before it exists without one — and the
+   * profile save is a merge, so requiring a name here would reject every weight
+   * change made by a user who predates the question.
+   *
+   * **Absent and null are different, and the difference is load-bearing.** The
+   * save merges what it is given over what is stored, and a key that is missing
+   * from the body is a key the client said nothing about — so `undefined` keeps
+   * whatever is there. Clearing a surname therefore has to be sayable, and
+   * `null` is how it is said. Without that, somebody deleting their surname on
+   * the profile screen watches it come back on the next load.
+   */
+  firstName: NameField.nullish(),
+  lastName: NameField.nullish(),
   sex: Sex,
   birthDate: LocalDate,
   heightCm: z.number().min(80).max(260),
