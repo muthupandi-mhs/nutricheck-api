@@ -11,9 +11,10 @@ import { RateLimitedException } from '../problems';
  * reaches the app as `{ title: "Throttler", detail: "ThrottlerException: Too
  * Many Requests" }` — and the sign-in screen prints both verbatim.
  *
- * Auth is where throttling actually bites a real person (register is 5/hour per
- * IP, login 10 per 15 minutes), so this is the difference between a legible
- * "wait 12 minutes" and a framework class name shown to a user.
+ * Auth is where throttling actually bites a real person — the limits are per
+ * IP, and an IP is shared by everybody behind the same carrier — so this is the
+ * difference between a legible "wait 12 minutes" and a framework class name
+ * shown to a user.
  */
 @Injectable()
 export class ProblemThrottlerGuard extends ThrottlerGuard {

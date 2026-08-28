@@ -63,9 +63,9 @@ export type LoginRequest = z.infer<typeof LoginRequest>;
  *   - The alternative is worse for the user, not just different: without it,
  *     step two has to send a password to find out which call it should have
  *     made, and a mistyped password burns a registration attempt.
- *   - What it must not become is a *fast* oracle. It carries a tighter throttle
- *     than login for that reason — enumeration is a volume attack, and volume
- *     is the part worth denying.
+ *   - What it must not become is a *fast* oracle. It carries the tightest
+ *     throttle of the auth routes for that reason — enumeration is a volume
+ *     attack, and volume is the part worth denying.
  *
  * It deliberately reveals nothing else. Not whether the account is onboarded,
  * not when it was made, not how it signs in.

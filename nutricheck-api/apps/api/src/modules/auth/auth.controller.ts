@@ -22,6 +22,37 @@ import { ChangePasswordDto, CheckEmailDto, LoginDto, RefreshDto, RegisterDto } f
  * endpoints credential stuffing aims at, and the default 120/min would let an
  * attacker try 172,000 passwords a day from one address.
  */
+/**
+ * Per-IP limits on the two unauthenticated routes that can create or guess at
+ * an account.
+ *
+ * They were 5 an hour and 10 a quarter of an hour, and both were too tight for
+ * the market this is built for. The throttler keys on IP, and Indian mobile
+ * carriers put thousands of subscribers behind one public address —
+ * carrier-grade NAT is the norm, not the exception. At five registrations an
+ * hour per IP, the sixth genuine person on a carrier is told to come back
+ * later, and there is nothing they can do about it because the other five are
+ * strangers.
+ *
+ * The numbers below are still low enough to make scripted bulk creation from
+ * one address pointless, which is what the limit is for. What actually defends
+ * the password is Argon2id and refresh-token reuse detection, neither of which
+ * a shared IP weakens.
+ */
+const REGISTER_PER_HOUR = 30;
+const LOGIN_PER_15_MIN = 30;
+
+/**
+ * Lower than the other two, because this one needs no password and so is the
+ * fastest way to ask whether an address exists. Not as low as it was: at eight
+ * a quarter-hour it was the FIRST step of signing up, so a shared carrier
+ * address ran out of them before anybody got as far as choosing a password.
+ *
+ * Enumeration is a volume attack. Twenty an address is useless for scanning a
+ * list and plenty for a household.
+ */
+const CHECK_EMAIL_PER_15_MIN = 20;
+
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
 @UseGuards(ProblemThrottlerGuard)
@@ -31,10 +62,10 @@ export class AuthController {
   @Public()
   @Post('check-email')
   @HttpCode(HttpStatus.OK)
-  // Tighter than login, which allows 10 in 15 minutes. This one needs no
-  // password, so a permissive limit here would turn it into a fast enumeration
-  // oracle -- the volume is the part worth denying, not the single answer.
-  @Throttle({ default: { ttl: 900_000, limit: 8 } })
+  // Tighter than login and register. This one needs no password, so a
+  // permissive limit would turn it into a fast enumeration oracle -- the
+  // volume is the part worth denying, not the single answer.
+  @Throttle({ default: { ttl: 900_000, limit: CHECK_EMAIL_PER_15_MIN } })
   @ApiOperation({ summary: 'Whether an address already has an account' })
   checkEmail(@Body() body: CheckEmailDto): Promise<CheckEmailResponse> {
     return this.auth.checkEmail(body.email);
@@ -42,7 +73,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @Throttle({ default: { ttl: 3_600_000, limit: 5 } })
+  @Throttle({ default: { ttl: 3_600_000, limit: REGISTER_PER_HOUR } })
   @ApiOperation({ summary: 'Create an account and sign in' })
   register(@Body() body: RegisterDto): Promise<AuthResponse> {
     return this.auth.register(body);
@@ -51,7 +82,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 900_000, limit: 10 } })
+  @Throttle({ default: { ttl: 900_000, limit: LOGIN_PER_15_MIN } })
   @ApiOperation({ summary: 'Sign in with email and password' })
   login(@Body() body: LoginDto): Promise<AuthResponse> {
     return this.auth.login(body);
