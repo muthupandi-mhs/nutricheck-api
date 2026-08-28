@@ -85,7 +85,7 @@ decision; see §6.
 |---|---|
 | **App points at** | `local` — `BACKEND` in `nutricheck/src/config.ts` |
 | **Local stack** | Rebuilt many times today. 13,440 foods. Migrated through 0009. Real `AI_API_KEY` in `.env.local` |
-| **Local database** | **Empty.** Every account was deleted on request. `ai_runs` kept 74 anonymised rows — that FK is `ON DELETE SET NULL` on purpose, so spend history survives an account |
+| **Local database** | **Empty.** Every account was deleted on request. `ai_runs` kept 78 anonymised rows — that FK is `ON DELETE SET NULL` on purpose, so spend history survives an account |
 | **Staging** | `https://3-6-120-121.sslip.io` — running the commit pushed at the START of this session. None of §2 is on it |
 | **API tests** | 89 unit + 133 integration. Green |
 | **Mobile tests** | **Not run this session, by instruction.** Typecheck and a release bundle were used instead |
