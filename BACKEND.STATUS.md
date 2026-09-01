@@ -65,6 +65,19 @@ of that rather than instead of it.
 - **Staging** — 4 GB Lightsail, HTTPS via Caddy, deploys on push to `staging`.
   docs/DEPLOY.md and docs/CI-CD.md
 - **Tamil / Tanglish / Hindi / Bengali / Gujarati** search
+- **Weight history** — `GET`/`POST` `/v1/me/weight`, `DELETE /v1/me/weight/:date`.
+  `weight_logs` is the history, `user_profiles.weight_kg` stays the CURRENT
+  weight, and the two are written in step at both doors — logging the newest
+  reading updates the profile and recomputes the goal in one transaction.
+  Least-squares trend over the window, never last-minus-first
+- **Fasting** — `GET`/`POST` `/v1/me/fasting`, `PATCH .../current`,
+  `POST .../current/end`, `DELETE /v1/me/fasting/:id`. Declared sessions with a
+  start, an end and a target; **never inferred from the food log**, and never
+  closed by the server. At most one open fast per user, enforced by a partial
+  unique index rather than a check-then-insert. The plan IS its `target_hours`
+  — no enum, no preference row: the start control opens on the last one used.
+  A running fast's length is null on the wire, because the device's clock is
+  the only one that is right continuously
 
 ### Not built
 
@@ -77,7 +90,7 @@ of that rather than instead of it.
 | **eslint** | `npm run lint` exists in apps/api and eslint is in no devDependencies anywhere, so it has never once run |
 | **Tamil aliases** | 25 of 7,928 USDA rows carry one. That number is the entire reason `/v1/ai-meal` exists, and ~100 hand-written aliases would fix the common cases with no model involved and no invented numbers |
 | Embeddings + RRF | Search is trigram-only. `food_embeddings` exists and is empty |
-| Weight tracking (M3) | Not started. The **week summary** now exists — the insights tab has a backend — but weight logging and trend do not |
+| ~~Weight tracking (M3)~~ | **Built.** Weight history, trend and the report screen; fasting sits beside it as a separate module that derives nothing from the log. See §1 |
 | Password reset | Email+password with no recovery = a forgotten password is a lost account |
 | ~~Server-side transcription~~ | **Built 2026-08-26.** Reversed the deferral: on-device dictation could not carry Tamil or Tanglish, so `POST /v1/transcribe` now exists. See §5 |
 
@@ -252,7 +265,7 @@ three.
 | 3 | Free-tier quota | Currently 50/day + $1/day spend ceiling, both guesses |
 | 4 | Open Food Facts share-alike | Licence review never opened. A launch blocker if found late |
 | 5 | Barcode scanning | Decides whether the app asks for camera permission at all |
-| 6 | Social login | Email+password only. Apple is mandatory on iOS once any social login exists |
+| 6 | Sign in with Apple | **Google shipped** — `POST /v1/auth/google`, verified locally against Google's JWKS. That makes Apple mandatory before the first iOS submission (App Store 4.8); Android is unaffected |
 
 **Language scope is settled: Tamil and English.** Hindi/Bengali/Gujarati rows exist
 and should NOT be deleted — they cost nothing and much of that food (chapati, dal,

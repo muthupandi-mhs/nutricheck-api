@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import {
+  check,
   date,
   doublePrecision,
   index,
@@ -202,3 +204,68 @@ export const weightLogs = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex('weight_logs_user_date_uq').on(t.userId, t.measuredOn)],
+);
+
+/**
+ * Declared fasts — a start, an end, and the length somebody was aiming for.
+ *
+ * **Instants, not dates.** `weight_logs` above is keyed by a local `date`
+ * because a weight is a measurement OF a day; a fast is an interval on the
+ * clock whose length is the entire point, so both ends are `timestamptz`.
+ * Filing one under a day would mean choosing between the day it started and
+ * the day it finished, and a sixteen-hour fast usually spans both.
+ *
+ * **Nothing here is derived from the food log.** The app can already say how
+ * long it has been since the last entry, and that gap is not this: this table
+ * only ever holds intervals somebody explicitly began. Inferring rows from
+ * meal times would fill the history with fasts nobody kept — including the one
+ * that runs every night while they are asleep.
+ *
+ * **`ended_at IS NULL` is the running state, and there is no status column.**
+ * A status and a timestamp are two spellings of the same fact, and holding
+ * both is a chance to write them down inconsistently.
+ *
+ * **At most one open fast per user, enforced here rather than in the service.**
+ * The partial unique index is what makes that true under concurrency: a
+ * check-then-insert lets two taps a few milliseconds apart both find nothing
+ * open and both start one, leaving a user with two timers and no way to say
+ * which is theirs. The service still checks first — for the error message —
+ * and treats a 23505 from this index as the authority.
+ *
+ * **`target_hours` is the plan.** There is no plan enum: "16:8" is a name for
+ * a sixteen-hour fast, and the label is looked up from `FASTING_PLANS` in the
+ * contracts by both ends. A slug stored beside the hours would be a second
+ * fact that can disagree with the first.
+ */
+export const fastingSessions = pgTable(
+  'fasting_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    /** Null while it is running. Set once, when the user ends it. */
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    targetHours: integer('target_hours').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex('fasting_sessions_open_uq')
+      .on(t.userId)
+      .where(sql`${t.endedAt} is null`),
+    /**
+     * The history scan, newest first. Not covered by the index above, which
+     * only sees open rows — the list this screen draws is entirely closed
+     * ones, and there is exactly one open row to find.
+     */
+    index('fasting_sessions_user_started_idx').on(t.userId, t.startedAt.desc()),
+    /**
+     * A fast that ends before it starts is a negative duration, and a negative
+     * duration would sit in the average and the "longest" figure forever. The
+     * service refuses it too, with a message; this is the guarantee that
+     * survives a bug in the service.
+     */
+    check('fasting_sessions_span_ck', sql`${t.endedAt} is null or ${t.endedAt} > ${t.startedAt}`),
+  ],
+);

@@ -110,7 +110,8 @@ nutricheck/src/
   navigation/   RootNavigator (stack) + 2-tab host
   state/        AppState (day store, undo, offline queue) · Onboarding (draft)
   screens/      onboarding · home · composer · confirm · search · entry ·
-                insights · settings
+                insights · settings · calendar · ideas · voice ·
+                weight · fasting
 ```
 
 ### Forms — react-hook-form + Zod
@@ -403,7 +404,7 @@ apply, that is correct, not a missing file.
 
 ---
 
-## 8. Tests — 107, seven suites
+## 8. Tests — 198, twelve suites
 
 | Suite | Covers |
 |---|---|
@@ -411,7 +412,7 @@ apply, that is correct, not a missing file.
 | `httpApi.test.ts` | the real transport against a stubbed `fetch` — routes, error mapping, SSE |
 | `dictation.test.ts` | recorder lifecycle and the upload to `POST /v1/transcribe` |
 | `turnDetector.test.ts` | end-of-speech detection, replayed against the committed device trace |
-| `screens.test.tsx` | all 15 screens rendered past loading, **light and dark** |
+| `screens.test.tsx` | every screen rendered past loading, **light and dark**, plus the weight report driven end to end. A screen that is not in the `screens` table at the top of this file is a screen nothing renders — add it there when you add it to the navigator |
 | `forms.test.tsx` | every schema's accepted/rejected table, plus the create-food screen driven end to end: typing, the message under each field, and the request that leaves |
 | `App.test.tsx` | full-tree boot smoke |
 

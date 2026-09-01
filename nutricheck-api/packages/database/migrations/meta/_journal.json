@@ -92,6 +92,13 @@
       "when": 1788237423115,
       "tag": "0012_weight_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788244396921,
+      "tag": "0013_fasting_sessions",
+      "breakpoints": true
     }
   ]
 }

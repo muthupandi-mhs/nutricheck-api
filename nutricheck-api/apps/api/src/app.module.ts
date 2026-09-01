@@ -25,6 +25,7 @@ import { TranscriptionModule } from './modules/transcription/transcription.modul
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { WeightModule } from './modules/weight/weight.module';
+import { FastingModule } from './modules/fasting/fasting.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { WeightModule } from './modules/weight/weight.module';
     FoodsModule,
     GoalsModule,
     WeightModule,
+    FastingModule,
     LogsModule,
     MealsModule,
     SuggestionsModule,
