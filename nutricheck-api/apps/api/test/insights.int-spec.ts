@@ -15,6 +15,7 @@ import type {
   ParseResult,
   RerankResult,
   TargetsResult,
+  WeekReviewResult,
 } from '../src/modules/ai/ai.schemas';
 import { GoalsService } from '../src/modules/goals/goals.service';
 import { InsightsService } from '../src/modules/insights/insights.service';
@@ -90,6 +91,10 @@ class FakeAi extends AiService {
       raw: { fake: true },
     };
   }
+  /** Unreached: this suite is the meal note, not the weekly review. */
+  async weekReview(): Promise<AiCallResult<WeekReviewResult>> {
+    throw new Error('the note path does not review a week');
+  }
   async identify(): Promise<AiCallResult<IdentifyResult>> {
     throw new Error('the note path does not identify');
   }
@@ -126,7 +131,22 @@ describe('insights', () => {
     logs = new LogsService(pg.db, new GoalsService(pg.db));
     ai = new FakeAi();
     aiRuns = new AiRunsService(pg.db);
-    insights = new InsightsService(logs, ai, aiRuns, redis);
+    /**
+     * Quota and weight are stubs, and this suite is about the meal note, which
+     * touches neither. The weekly review does — it checks the allowance before
+     * calling and reads the fitted trend — so it needs an integration test of
+     * its own rather than a pass here on a permissive stub. There is not one
+     * yet; `week-facts.spec.ts` covers its arithmetic and nothing covers the
+     * route end to end.
+     */
+    insights = new InsightsService(
+      logs,
+      ai,
+      aiRuns,
+      { status: async () => ({ blocked: false }), consume: async () => undefined } as never,
+      { trendEndingOn: async () => null } as never,
+      redis,
+    );
 
     lentilsId = await foodIdBySourceId('169705');
   });

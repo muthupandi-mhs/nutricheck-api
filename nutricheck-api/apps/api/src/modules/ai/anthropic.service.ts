@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { PROMPTS } from '@nutricheck/prompts';
-import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts';
+import type { GoalPreview, MealFacts, UserProfile, WeekFacts } from '@nutricheck/contracts';
 import type { AppConfig } from '../../config/config.schema';
 import {
   AiMalformedError,
@@ -23,9 +23,11 @@ import {
   ParseResult,
   rerankSchemaFor,
   type RerankResult,
+  WeekReviewResult,
 } from './ai.schemas';
 import { ideasToUserTurn, type IdeasInput } from './ideas-input';
 import { factsToUserTurn } from './insight-input';
+import { weekFactsToUserTurn } from './week-review-input';
 import { profileToUserTurn } from './targets-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
 import type { TokenUsage } from './cost';
@@ -133,6 +135,16 @@ export class AnthropicService extends AiService {
       PROMPTS.insight.version,
       factsToUserTurn(facts),
       betaZodOutputFormat(InsightResult),
+    );
+  }
+
+  async weekReview(facts: WeekFacts): Promise<AiCallResult<WeekReviewResult>> {
+    return this.call(
+      'review',
+      PROMPTS.weekReview.system,
+      PROMPTS.weekReview.version,
+      weekFactsToUserTurn(facts),
+      betaZodOutputFormat(WeekReviewResult),
     );
   }
 

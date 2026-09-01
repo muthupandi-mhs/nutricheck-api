@@ -1,4 +1,4 @@
-import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts';
+import type { GoalPreview, MealFacts, UserProfile, WeekFacts } from '@nutricheck/contracts';
 import type { IdeasInput } from './ideas-input';
 import type {
   AiMealResult,
@@ -7,6 +7,7 @@ import type {
   IdentifyResult,
   InsightResult,
   TargetsResult,
+  WeekReviewResult,
   ParseResult,
   RerankResult,
 } from './ai.schemas';
@@ -67,6 +68,22 @@ export abstract class AiService {
    * states a wrong number as confidently as a right one.
    */
   abstract insight(facts: MealFacts): Promise<AiCallResult<InsightResult>>;
+
+  /**
+   * Write three or four sentences about somebody's week.
+   *
+   * The same contract as `insight` one scale up, and the same reason for it:
+   * every figure is computed from the week aggregate before it gets here, and
+   * `WeekReviewResult` has no numeric field to put an invented one in.
+   *
+   * This is the only step permitted to mention the scale, and it may only
+   * report what the scale did — the trend is a fit `WeightService` already
+   * computed for the chart, handed over beside the rate the user themselves
+   * chose. What it may not do is say what either number ought to be. See the
+   * prompt: the line between reporting a measurement and grading a person is
+   * the whole of what makes this surface safe.
+   */
+  abstract weekReview(facts: WeekFacts): Promise<AiCallResult<WeekReviewResult>>;
 
   /**
    * Suggest daily targets for one person.

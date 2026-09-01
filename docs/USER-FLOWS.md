@@ -123,6 +123,31 @@ Two seconds, no network round-trip, no model call. The most important flow in th
 
 The only AI route in v1, and the one the product is now judged on. Voice is not a separate flow — it is dictation into the same field.
 
+**[changed 2026-08-28]** The composer is no longer the way in. The microphone on
+the tab bar raises a **sheet over the live tab** — the day stays behind it,
+scrolled where it was — carrying one input row with a microphone at the end of
+it. Talking and typing are the same action, so the field and the mic are one
+control rather than two screens that make somebody choose an input method
+before they have decided what to say. The full-page microphone survives for
+**onboarding only**, where speaking to the app IS the task and there is nothing
+else on the screen to keep.
+
+**Typing goes through an assistant** (`POST /v1/chat`): it answers a question
+about the day, or decides the message was a meal and hands back the user's own
+words. **The microphone does not.** Speaking is already record → transcribe →
+parse, and a classification turn in front of that adds a model call and a wait
+to the action people repeat daily — to classify a sentence spoken into a button
+labelled "say what you ate". Nothing auto-commits on either path: a phrase from
+the assistant lands on the same read-back a spoken one does.
+
+**A day said in one sentence becomes several meals.** "innaiku kalaila lemon
+rice sambar apram rendu muttai and mathiyam chicken briyani … iravu 3 sappathi"
+commits one entry per meal, in the order the day happened. Every time word is a
+fact about when somebody ate that the app used to throw away, filing the lot as
+one dinner because that is when they happened to be talking. When the sentence
+names no time at all, the clock decides — never the food, because a model reads
+idli as breakfast at nine at night.
+
 1. **One field, natural phrasing** — "two rotis, dal and a bowl of curd". No structure, no per-item rows, no quantity pickers.
 2. **Hold to dictate** — on-device speech into the same field, editable before sending. Falls back to server-side transcription where platform dictation is weak for the user's language.
 3. **Read the sentence** — one model call returns the foods, the amounts and the nutrition. **[changed 2026-08-27]** This used to parse into items and then match each against the corpus. It no longer searches the corpus at all: it holds 25 Tamil aliases across 13,440 foods, so "rendu muttai and 5 dosai and chutney" matched almost nothing, and a dead end is worse for the user than an estimate they can see is an estimate. The cost is that the numbers are estimates — see docs/BACKEND.md §7.7 for what bounds that.

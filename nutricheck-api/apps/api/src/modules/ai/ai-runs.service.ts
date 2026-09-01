@@ -23,7 +23,8 @@ export type AiStep =
   | 'meal'
   | 'targets'
   | 'ideas'
-  | 'chat';
+  | 'chat'
+  | 'review';
 
 export interface RecordRunInput {
   userId: string;

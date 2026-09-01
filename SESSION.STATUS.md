@@ -1,4 +1,4 @@
-# Session handoff — 2026-08-28 (second session)
+# Session handoff — 2026-08-28 (afternoon)
 
 Written at the end of a session so the next one can pick up mid-flight. The
 durable facts live in [BACKEND.STATUS.md](BACKEND.STATUS.md),
@@ -8,203 +8,251 @@ only what is **in flight**.
 
 ---
 
-## 1. Read this first: everything is pushed, and staging deployed unwatched
+## 1. The 58 unpushed commits are gone — both repos are pushed and deployed
 
-Both repos are level with `origin/staging`. The 58-commit backlog the previous
-handoff opened with is gone.
-
-```
-nutricheck-api    (c:\Projects\New folder)            f444e85   in sync
-nutricheck-mobile (c:\Projects\New folder\nutricheck) 7f9c349   in sync
-```
-
-The previous handoff's headline — *"pushing the API runs migration 0007 and it
-loses data"* — was **already resolved before this session started**. The API repo
-was found at 0 ahead, 0 behind, so 0007–0009 had been pushed and deployed by
-somebody else. Nothing in this session had to decide it.
-
-**What is unverified: whether the staging deploy of `f444e85` finished.** Pushing
-to `staging` deploys automatically and runs migrations first
-([CI-CD.md](docs/CI-CD.md)), so migration `0011_profile_name` should have applied
-— but `gh` is not installed on this machine and Swagger is not exposed on
-staging, so it could not be confirmed from here. Check before trusting it:
+The previous handoff opened on 58 unpushed commits and a destructive migration.
+That is settled. Verified by `git fetch` and by hitting the box, not assumed:
 
 ```
-ssh -i "C:\Users\Admin\Documents\LightsailDefaultKey-ap-south-1.pem" ubuntu@3.6.120.121
+nutricheck-api    HEAD f444e85 == origin/staging   0 unpushed
+nutricheck-mobile HEAD 7f9c349 == origin/staging   0 unpushed
 ```
 
-**This matters for the APK.** The app now sends `firstName` on the profile save.
-Against an un-migrated server it does not error — the Zod pipe uses plain
-`.parse()` on non-strict objects, so unknown keys are **stripped**. Onboarding
-completes, the save returns 200, and the name silently never persists. It looks
-like a client bug and is not one.
+**Staging is running it.** `https://3-6-120-121.sslip.io/health/ready` is 200,
+and both new routes answer **401** rather than 404 — they exist and want a token:
 
-**The mobile tree is dirty again** with another session's work — `KeyboardAvoid`,
-`RootNavigator`, `CalendarScreen`, `screens.test.tsx`. Not from this session.
+- `GET /v1/ideas`
+- `GET /v1/logs/month`
+
+**The 0007 question was answered by pushing.** Migrations 0007 → 0010 have run
+against staging. 0007 folds everyone on `activity_level = 'active'` into
+`'moderate'` and 0008 does not put them back, so if any staging account had
+picked `'active'`, that value — and therefore their calorie target — is now
+`'moderate'` and the original is unrecoverable. **This was not verified from
+here**; checking costs one query on the box:
+
+```sql
+SELECT activity_level, count(*) FROM user_profiles GROUP BY 1;
+```
+
+Nothing can be done if rows moved. It is worth knowing before somebody reports
+their target changed on its own.
 
 ---
 
-## 2. What changed this session
+## 2. What was built this session
 
-Five things, all on the same seam: the profile, and how the app looks while
-asking for it.
+Two features, both shipped to staging.
 
-**Buttons speak with one voice.** The uppercase, tracked pill label was an opt-in
-`loud` prop, so onboarding shouted and the confirm sheet murmured — one control
-reading as two depending on which screen you reached it from. It is intrinsic
-now: a button either looks like this or it is not a button. New `button` /
-`buttonSm` type roles carry it; `loud` is deleted from all 11 call sites.
-`TextButton` is untouched, because it is a link.
+### The Ideas tab — food suggestions from the profile and the day
 
-**A name is asked for, first.** New `OnboardName` step before "About you", first
-name required and surname optional. Full-stack: `user_profiles.first_name` /
-`last_name` (migration 0011, both nullable), the contract, the service, the
-draft, and the You screen which now shows the name instead of "Your account".
+A third tab between Today and Insights. `GET /v1/ideas` computes what is left of
+the day from the same `LogsService.day()` the Today screen renders, hands the
+model the profile and that gap, and returns 3–5 foods with reasons. Tapping one
+opens the ordinary portion screen; nothing on that tab logs anything.
 
-**Text fields stop where the server stops.** `PHRASE_MAX` 500 and `SEARCH_MAX`
-120, copied from the contracts rather than invented — a rule the server enforces
-and the client does not is a 422 nobody can read. `Field` now counts down inside
-the last tenth of the allowance, because a keyboard that stops accepting letters
-without saying why is indistinguishable from one that has frozen.
+**This is the third place a model produces nutrition**, after `/v1/ai-meal` and
+`/v1/me/goals/suggest`, and the only one that fires because a tab was opened
+rather than because somebody asked a question. It was built that way on an
+explicit decision — the alternative offered was ranking the existing 13,440-row
+corpus with no model at all, and it was declined. §4 is what bounds it.
 
-**The profile is editable.** New `ProfileEditor` screen off the You screen's
-identity card: name, body, activity, objective, rate, with the derived targets
-recomputing live underneath. Before this, a weight that changed could never move
-the calorie target — onboarding collected the profile once and there was no route
-back to it.
+**The subject is the person, not the day.** The first version led with the
+remaining targets and produced a gap-filling calculator: it answered "what
+closes today's arithmetic", which nobody opens an app to ask, and on a day with
+nothing logged it had no subject at all. `ideasToUserTurn` now puts the profile
+and goal first and today's figures last, and the prompt says the day constrains
+the answer rather than being it. Sections are weighted by reading order, so the
+order is the instruction.
 
-**The permissions section is gone** from the You screen. Every row read "Not
-asked", because the app asks at the moment of use and none of those moments has
-arrived — three rows of furniture answering a question nobody had, and the one
-place a user could get the impression something had been granted.
+### The calendar — history behind Today's masthead
 
----
+The search button on the left of Today is **gone**, replaced by a calendar that
+opens a month grid. Every day is coloured by how close it landed to its calorie
+target; tapping one sets `AppState.date` and returns to Today.
 
-## 3. The backend a build talks to is no longer a thing to remember
+That state had existed all along with no control anywhere that could move it —
+every day but today was unreachable from the UI. Search was not stranded: the
+composer and four paths in the confirm sheet still reach it.
 
-`BACKEND` was a constant flipped by hand before a release build and flipped back
-after. It is now derived:
+`GET /v1/logs/month` generalises the week aggregate rather than copying its SQL;
+the `FILTER (WHERE state <> 'unknown')` handling is the subtle part and a second
+copy is a copy that can drift.
 
-```ts
-const BACKEND: Backend = __DEV__ ? OVERRIDE ?? 'local' : 'staging';
-```
+**The colour means closeness, not completion**, and that is a deliberate
+departure from the reference screenshot it was modelled on. Its legend grades
+completion — `>66%` green, more is greener — which is right for a step counter
+and wrong here: 3,000 kcal against a 2,000 target would come out bright green,
+and the day somebody most overshot would look like their best. Both directions
+now cost. `adherence.test.ts` asserts exactly that, so it cannot be "fixed" back
+into a bug quietly.
 
-Debug builds talk to the machine they were built on; anything handed to somebody
-else talks to the deployed box. `OVERRIDE` (null by default) points a **debug**
-build at staging for an afternoon and deliberately cannot reach a release build.
+### Also
 
-The asymmetry is the point. Forgetting toward local costs a confusing morning.
-Forgetting toward release ships an app that cannot talk to anything:
-`usesCleartextTraffic` is FALSE in release builds, so a shipped app pointed at
-`localhost` gives a socket that never connects, no error beyond that, and works
-perfectly on the desk it was built on.
-
-`__tests__/config.test.ts` holds the rule — a release build must carry no
-localhost, must be `https://`, and must not need a cable. Verified by mutation:
-replacing the expression with a constant fails it.
+**The "Add again" strip is off the Today screen** — the repeat tiles, the
+`Again` component and the `AGAIN` constant are all removed. See §6.1: this was
+asked for and done, and it has a cost worth reading before it is left that way.
 
 ---
 
-## 4. Current environment state
+## 3. Current environment state
 
 | | |
 |---|---|
-| **App points at** | **Decided by the build** — debug → local, release → staging. `nutricheck/src/config.ts` |
-| **Staging** | `https://3-6-120-121.sslip.io` — probed live this session: `/health/live` and `/health/ready` both 200, database up at 1 ms, Redis 0 ms, valid certificate |
-| **Migrations on disk** | Through **0011** (`0010_food_ideas_step`, `0011_profile_name`) |
-| **API tests** | 116 unit + 12 ingest, green, run with `--force` so nothing came from turbo cache. **Integration not run** — needs Postgres |
-| **Mobile tests** | **138 across 10 suites, green.** The previous handoff's "not run all session" is closed |
-| **Android release APK** | Builds with no signing setup — the release type is signed with the **debug keystore** (RN template default). `enableProguardInReleaseBuilds = false`. `versionCode 1` |
+| **App points at** | Decided by the build now, not by a constant — see commit 7f9c349 |
+| **Local stack** | Docker: api, worker, postgres, redis all up. Rebuilt twice this session |
+| **Local database** | **9 accounts**, including two disposable smoke accounts (§6.2). `ai_runs`: parse 32, rerank 23, meal 25, targets 24, insight 17, **ideas 5** |
+| **Staging** | Current with `origin/staging`. Both new routes live |
+| **API tests** | **116 unit** (10 suites) + 12 ingest. Green. Integration suite NOT run |
+| **Mobile tests** | **139** (10 suites). Green. Typecheck clean |
+| **eslint** | Now installed and runnable — this is new, it used to be in no `devDependencies`. `npx eslint src` gives **2 errors, 25 warnings** (§6.3) |
+
+Staging box: `ssh -i "C:\Users\Admin\Documents\LightsailDefaultKey-ap-south-1.pem" ubuntu@3.6.120.121`
+
+**The mobile working tree is dirty and not all of it is from this session.** A
+second writer was active in `nutricheck/` throughout — `src/screens/voice/`
+(ListenScreen, MealScreen, TypeScreen, AskSheet, listening.ts) appeared and grew,
+`RootNavigator` gained a `Type` route, and `adherence.ts` gained a `BAND_RANGE`
+export after this session wrote it. Everything below typechecks and passes
+together, but do not assume the uncommitted diff is one person's work.
+
+---
+
+## 4. What stops the ideas model, since nobody asked it a question
+
+Four things, in the order they run, and none of them is the model:
+
+1. **The gap is computed here.** The model is handed "480 kcal left, 52 g of
+   protein left" and never the entries, so there is no arithmetic available for
+   it to get wrong and this tab cannot disagree with Today about a total.
+2. **Atwater check, and a failing item is DROPPED.** Stated calories against
+   4 × protein + 4 × carbs + 9 × fat. A model that returns 250 kcal beside
+   macros summing to 90 has not rounded — one of the two is invented and there
+   is no way to tell which, so the item is refused rather than corrected.
+   Correcting would mean choosing which half to believe. **This is the check
+   `/v1/ai-meal` does not have**, and this path needs it precisely because
+   nobody asked for these numbers.
+3. **Rates, not totals.** The model returns per-100g values and a gram weight;
+   every figure the user reads is a product computed in `scaleIdea`.
+4. **Rows are `source: 'ai'`**, owned by the person who opened the tab, every
+   nutrient state `imputed` — so the app renders a `~` and nobody else's search
+   sees them.
+
+The Atwater tolerance is 25% and that width is load-bearing: fibre sits inside
+carbohydrate but yields ~2 kcal/g rather than 4, so a correct answer about dal
+or chana overshoots the flat sum. A tighter bound would refuse exactly the foods
+this tab should be suggesting. There is a test for that case.
+
+**Verified live, not reasoned about.** A 72 kg active profile losing 0.5 kg/week
+returned four ideas, each reason tied to the goal — "a lean source of protein
+that supports muscle retention while you lose weight", "energy for your active
+lifestyle". `ai_runs` recorded it at $0.000439 and 5.3 s; the second request
+served from cache with no model call; nothing was dropped by either check.
 
 ---
 
 ## 5. Traps found this session
 
-- **`undefined` cannot clear a field through a merging save.** The profile save
-  is `{ ...existing, ...patch }` server-side, and `JSON.stringify` drops
-  undefined keys — so a cleared surname changed nothing and reappeared on the
-  next load. Absent and null now mean different things on the wire: absent is "I
-  am not saying anything about this field", `null` is "there is none". The
-  contract is `NameField.nullish()` for that reason and no other.
-- **A `Field` renders three nodes carrying `onChangeText`** — the component, its
-  inner view, and the input. So `findAll(...)[1]` is still the *first* field, and
-  a test typing into it is quietly typing in the wrong box. Two of this session's
-  tests passed for the wrong reason before this was caught. Select by
-  accessibility label.
-- **`maxLength` bounds what can be TYPED and nothing else.** A prefill, a
-  remembered phrase, and dictation appending to a sentence already in the box all
-  arrive in code and sail past it. Dictation is the one that could actually reach
-  the cap, since it appends and then navigates straight to the resolver.
-  `capPhrase` in `lib/format.ts` covers all three, cutting at a word boundary —
-  what is left goes to a model, and a sentence ending mid-word invites it to
-  guess at a food nobody said.
-- **turbo reports FULL TURBO on a stale cache.** A typecheck that "passed" in
-  133ms had not looked at the edited files. Use `--force` when the answer
-  matters.
-- **`git stash` in a tree with concurrent edits stashes somebody else's work
-  too.** A lint comparison against HEAD looked like a regression and was not.
+- **A swallowed error becomes a confident lie.** `getFoodIdeas` first returned
+  an empty list on any failure, copying `getMealInsight`. A 404 from a server
+  that had not been restarted then reached the device as "suggestions need a
+  model, and one was not reachable" — a sentence the app had no evidence for,
+  naming a cause that was not the cause, on a screen with no way to tell. The
+  rule that distinguishes them: **swallow only when the screen still has its
+  content without the call.** A meal card keeps every number when it loses its
+  note; the ideas response IS its screen. `IdeasScreen` now classifies the
+  failure — offline, quota, no profile, unknown — and `unknown` says plainly
+  that it cannot tell, which beats guessing.
+- **The local API runs from Docker, not from `nest start --watch`.** Code
+  changes do nothing until `npm run docker:up` (which rebuilds). Two features
+  looked broken on the device for exactly this reason. Check for 404 vs 401
+  before debugging anything else: 404 means the container predates the route.
+- **A tab index is positional.** Inserting Ideas between Today and Insights
+  moved Insights from index 1 to 2 and broke `tabBar.test.tsx`, which is the
+  test doing its job.
+- **`lastOfMonth` via day 0 of the next month** gets February and leap years
+  right for free, with no table of month lengths. Verified live against the
+  route: 31 / 30 / 28 / 29 (2028) / 31 / 31.
+- **Months before the first goal return `goal.kcal` of 0.** Easy to hit by
+  paging back. Those days are left uncoloured and the footer says "no target was
+  set then" rather than "measured against a target of 0 kcal", which would be
+  both nonsense and an accusation.
+- **`psql -U postgres` is wrong for this stack.** The role is `nutricheck`.
+- **Postgres takes a moment after `docker:up`.** "the database system is
+  starting up" is not a failure; poll rather than concluding.
 
 ---
 
 ## 6. Open, in rough priority order
 
-1. **Confirm the `f444e85` staging deploy and migration 0011** (§1). Everything
-   about the name feature is silently a no-op until it lands.
-2. **Lint is red: 4 errors, all unused identifiers.** `countItems`
-   (ComposerScreen), `Button` (SearchScreen), `Gap` (CalendarScreen), `Press`
-   (HomeScreen). The last two are from in-flight work — deleting an import from a
-   half-written file risks removing something about to be used. If CI ever runs
-   `npm run check`, it fails at lint before reaching the tests.
-3. **The API cannot lint at all.** `apps/api` has an `eslint` script, no eslint
-   dependency and no config; `npx` fetches 10.9.1 from the registry and exits.
-   (The previous handoff's item 9 was half right: **mobile** lint works and is in
-   devDependencies.)
-4. **Integration tests have not run since the schema changed.** 0010 and 0011
-   both touch tables they exercise.
-5. **`Change password` is a live stub** on the You screen. `ChangePasswordRequest`
-   already exists in the auth contract, so this one is a screen away from
-   working.
-6. **Export, privacy, delete account are stubs too** (`onPress={() => {}}`).
-   Those need endpoints, not just screens.
-7. **A production keystore.** The release APK is signed with the debug key —
-   fine for testers, rejected by Play, and an app signed with a different key
-   later cannot upgrade over it. Bump `versionCode` too, or a second APK is
-   refused as a downgrade.
-8. **`/v1/ai-meal` prompt quality**, unchanged from the last handoff: the summary
-   restates the sentence instead of giving the energy figure, and coconut chutney
-   came back at 100 kcal/100 g against a real ~190.
-9. **The targets prompt needs watching** — caught once returning 2,280 against a
-   calculated 2,294 and calling it an adjustment. Guarded now, still the failure
-   mode to watch.
+1. **Decide whether the repeat strip stays gone.** It was removed from Today on
+   request. `SuggestionsService` calls it "the retention feature and the margin
+   — once the frequent-and-recent list is good, the majority of logs stop
+   costing an AI call at all". With it gone **every log goes through a model
+   call**: a repeat that took two seconds and cost nothing now takes a sentence
+   and a billed request. If it was in the way visually rather than unwanted,
+   moving it below the day's ledger keeps the cheap path. Restoring it is JSX
+   only — the plumbing is untouched.
+2. **Two disposable accounts in the local database.**
+   `ideas-smoke-…@example.com` and `cal-smoke-…@example.com`, created to verify
+   the routes end to end. Harmless, and mine to have made; delete them whenever.
+3. **eslint runs now, and finds 2 errors.** `countItems` unused in
+   `ComposerScreen`, `Button` unused in `SearchScreen` — both in the other
+   writer's in-flight files, so they were left alone rather than risk a
+   conflict. 25 warnings, almost all `no-void`. The repo is still not
+   prettier-formatted; running it rewrites whole files.
+4. **`AppState` still fetches recents that nothing reads.** Three `getRecents()`
+   calls remain after the strip came off Today. Wasted work on every refresh.
+   Left in place because removing store plumbing is a separate decision and the
+   other writer may be building against it.
+5. **`RecentCard.tsx` is orphaned** — nothing imports it, and it was already
+   unreferenced before the strip was removed.
+6. **The ideas prompt runs on `gpt-4o-mini` and it shows.** Reasons are
+   serviceable but generic: "a good source of protein and probiotics". A
+   stronger model would sharpen them. Watch also for it reaching for elaborate
+   dishes, whose numbers it would be inventing rather than recalling.
+7. **The API integration suite has not run** this session. It is the natural net
+   for `/v1/ideas` and `/v1/logs/month`, neither of which has an integration
+   test — only unit tests over their arithmetic.
+8. **`/v1/ai-meal` prompt quality.** Unchanged and still open: the summary
+   restates the sentence rather than giving the energy figure, and coconut
+   chutney came back at 100 kcal/100 g against a real ~190.
+9. **The targets prompt still needs watching** — the fourteen-calorie
+   near-miss failure mode.
 10. **`identify()` + `ai_food_matches` are built and unreachable.**
 11. **~100 Tamil produce aliases.** 25 of 7,928 USDA rows carry one.
-12. **`I forgot my password` is still a dead link.** No reset endpoint exists; a
-    forgotten password is an unrecoverable account.
+12. **"I forgot my password" is still inert.** The TODO is at
+    `AuthPasswordScreen.tsx:75`; there is no reset endpoint, so a forgotten
+    password is an unrecoverable account.
 13. **The legal links are unverified.** `src/lib/legal.ts` points at
-    `nutricheck.app/privacy` and `/terms`, which are a guess from the API's
-    problem-type domain. Nothing is published there.
+    `nutricheck.app/privacy` and `/terms`; nothing is published there.
+14. **Tests are not in CI**, deliberately — see docs/CI-CD.md.
 
 ---
 
-## 7. Decisions taken this session
+## 7. Decisions taken this session that were previously open
 
-- **A surname is asked for and never required.** The app says the first name back
-  to people and has no use for the second, so requiring it would cost completed
-  signups to collect something nothing reads. Nothing is enforced about the shape
-  of either: every rule anyone has written about what a name may contain is wrong
-  for somebody, and being told your own name is invalid is a poor first thing for
-  an app to say to you.
-- **Saving the profile recalculates the targets, and says so first.** That is the
-  point — a weight change that did not move the calorie target would be a lie —
-  but it also replaces a target set by hand on the targets screen. The editor
-  shows a card saying so when an override is in force, rather than explaining
-  afterwards.
-- **The uppercase button treatment is not optional.** Consistency across the app
-  beat per-screen judgement about which button deserved emphasis, because the
-  per-screen judgement is what produced two different-looking controls doing the
-  same job.
-- **Two commits carry work this session did not write.** The calendar, ideas and
-  voice screens on mobile, and the ai-meal, logs and ideas work on the API, were
-  uncommitted in the trees when "push everything" was asked for. They could not
-  be separated by file — several files carry both — so each commit body says so
-  rather than implying authorship. **That code is on staging unreviewed.**
+Recorded because each one settles or reverses something written down.
+
+- **Both repos were pushed**, taking the 0007 data loss on staging rather than
+  squashing the migrations. §1 has the query that says what it cost.
+- **A model authors food suggestions AND their nutrition.** Offered a
+  corpus-only ranking with no model, no cost and every number measured, and the
+  model path was chosen instead. §4 is how that was bounded rather than
+  abandoned — the Atwater check exists only because of this decision.
+- **Suggestions are about the person, not the day's arithmetic.** The first
+  build was a gap-filling calculator and was rewritten. §2.
+- **Calendar colour grades closeness, not completion**, departing from the
+  reference the feature was modelled on. §2.
+- **Search left Today's masthead** in favour of the calendar, reversing the
+  comment that put it there. It is still reachable from the composer and the
+  confirm sheet, which is where people are when they want it.
+- **The food image tile on idea cards is a circle**, matching the buttons, while
+  every other food row keeps the rounded square. `FoodGlyph` took a `shape` prop
+  rather than changing app-wide. The same food therefore renders two ways
+  depending on the screen — accepted deliberately; the default flips it back.
+- **`/v1/ideas` is the one AI route without `QuotaGuard`**, and that is not an
+  omission. The guard runs before the handler and therefore before the cache, so
+  an exhausted user would be refused a list they had already been shown and
+  already paid for. The service checks the same quota itself, after the cache
+  lookup and before the call.

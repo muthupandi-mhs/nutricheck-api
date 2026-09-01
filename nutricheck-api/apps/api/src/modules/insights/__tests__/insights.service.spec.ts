@@ -67,6 +67,8 @@ function factsFor(summary: DaySummary, meal = 'breakfast'): MealFacts {
     { day: async () => summary } as never,
     { isConfigured: false } as never,
     { recordCall: async () => 'run-id' } as never,
+    { status: async () => ({ blocked: false }), consume: async () => undefined } as never,
+    { trendEndingOn: async () => null } as never,
     { get: async () => null, set: async () => 'OK' } as never,
   );
   return (service as unknown as {

@@ -7,6 +7,7 @@ import { MEAL_SYSTEM } from './meal';
 import { PARSE_SYSTEM } from './parse';
 import { RERANK_SYSTEM } from './rerank';
 import { TARGETS_SYSTEM } from './targets';
+import { WEEK_REVIEW_SYSTEM } from './week-review';
 
 export {
   CHAT_SYSTEM,
@@ -17,6 +18,7 @@ export {
   PARSE_SYSTEM,
   RERANK_SYSTEM,
   TARGETS_SYSTEM,
+  WEEK_REVIEW_SYSTEM,
 };
 
 /**
@@ -60,6 +62,10 @@ export const PROMPTS = {
   ideas: {
     system: IDEAS_SYSTEM,
     version: versionOf(IDEAS_SYSTEM),
+  },
+  weekReview: {
+    system: WEEK_REVIEW_SYSTEM,
+    version: versionOf(WEEK_REVIEW_SYSTEM),
   },
   chat: {
     system: CHAT_SYSTEM,

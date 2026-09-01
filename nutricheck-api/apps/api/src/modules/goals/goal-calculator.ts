@@ -182,6 +182,18 @@ export function computeGoal(profile: UserProfile, on: Date = new Date()): Comput
   const flooredAtBmr = uncapped < bmr;
   const kcal = Math.round(flooredAtBmr ? bmr : uncapped);
 
+  /**
+   * The deficit actually applied, after BOTH rails.
+   *
+   * `cappedDelta` is only the first of them. When the floor bites, the real
+   * deficit is whatever fits between TDEE and BMR — less than the cap allowed —
+   * so reporting the capped figure as the effective rate overstates what the
+   * target will actually do. That number is about to be shown to somebody as a
+   * projection, and a projection that is faster than the arithmetic behind it
+   * is the one kind of wrong worth avoiding here.
+   */
+  const appliedDelta = flooredAtBmr ? Math.abs(tdee - bmr) : cappedDelta;
+
   const proteinG = Math.round(proteinTarget(profile));
   const { carbsG, fatG } = macrosFor(kcal, proteinG);
 
@@ -201,7 +213,7 @@ export function computeGoal(profile: UserProfile, on: Date = new Date()): Comput
       rateCapped,
       fatPctOfKcal: FAT_PCT_OF_KCAL,
       effectiveRateKgPerWeek:
-        profile.objective === 'maintain' ? 0 : round2((cappedDelta * 7) / KCAL_PER_KG),
+        profile.objective === 'maintain' ? 0 : round2((appliedDelta * 7) / KCAL_PER_KG),
     },
   };
 }

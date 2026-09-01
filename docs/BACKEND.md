@@ -55,7 +55,9 @@ came from something that did not survive contact with a real system.
 | Goals, log commit, entry edit, saved meals, repeat strip | Built |
 | **The resolver** — parse, candidate search, re-rank, arithmetic, SSE | **Built and exercised against a live model** |
 | **The corpus-free path** — `/v1/ai-meal` (§7.7) | **Built.** Reads a whole sentence with no corpus search. The one place a model supplies nutrition |
+| **The assistant** — `/v1/chat` | **Built.** The only open-ended prompt in the system. Answers from the computed day, or classifies a message as a meal and returns the user's own words |
 | Post-meal insight — `/v1/insights/meal` | Built. Facts computed in Postgres; the model only writes prose about them |
+| Weekly review — `/v1/insights/week` | Built. Same split one scale up: `weekFactsOf` does the arithmetic over `logs.week()`, the model writes about it. The only prompt allowed to mention the scale, and only to report what it did |
 | `identify()` + `ai_food_matches` — model-proposed name mappings | Built, not routed (§7.7) |
 | Embeddings + RRF fusion | Not built. Search is trigram-only; `food_embeddings` is empty |
 | Eval harness | Not built — the largest remaining gap (§15.4) |
@@ -442,6 +444,7 @@ One filter produces this for every thrown error. Nest `HttpException`s map by st
 | `POST` | `/v1/foods/custom` | write | |
 | `POST` | **`/v1/resolve`** | **AI** | Returns a draft. Writes nothing to the log |
 | `POST` | **`/v1/ai-meal`** | **AI** | Reads a whole sentence, no corpus search. Estimates, marked as such (§7.7) |
+| `POST` | **`/v1/chat`** | **AI** | One turn with the assistant behind the microphone sheet. Answers from the day, or hands back the user's own words to log. Stateless — the client sends the last 12 turns. Produces no nutrition |
 | `POST` | `/v1/resolve/:draftId/items/:itemId` | AI | Re-resolve one item |
 | `POST` | `/v1/logs` | write | Idempotent on `client_id` |
 | `POST` | `/v1/logs/batch` | write | Offline drain, per-element results |
@@ -452,6 +455,7 @@ One filter produces this for every thrown error. Nest `HttpException`s map by st
 | `GET`&nbsp;`POST` | `/v1/meals` | read/write | Saved meals and phrases |
 | `GET` | `/v1/quota` | read | Remaining resolves, reset time |
 | `GET` | **`/v1/ideas`** | **AI** | `?date=&tz=` — foods that fit what is left of the day. Estimates, marked as such (§7.7) |
+| `GET` | **`/v1/insights/week`** | **AI** | `?date=&tz=` — three or four sentences about seven days, with every figure they mention. Cached per week; a finished week is written once (§7.7) |
 | `GET` | `/v1/insights/{day,week}` | read | M3 |
 | `POST` | `/v1/weight` | write | M3 |
 | `GET` | `/health/live` `/health/ready` | — | Unauthenticated, excluded from telemetry |
@@ -466,6 +470,37 @@ renders; every returned item is Atwater-checked against its own macros and
 DROPPED if it fails; the model returns per-100g rates and the multiplication
 stays in our code; and every row it creates is written `source: 'ai'`, owned by
 the user, with all nutrient states `imputed`.
+
+**`/v1/insights/week` is the second route that fires on navigation**, and it is
+bounded differently from `/v1/ideas` because its subject is bounded differently.
+An ideas list depends on the day and turns over daily; a review depends on a
+window that has already happened, so once a week has ended its figures can never
+change and its review is written once and served from Redis for thirty days
+afterwards. The volume that reaches a model is one call per user per week they
+look at, not one per visit.
+
+The containment is the meal note's, unchanged: every average, delta, percentage
+and day count is computed in `weekFactsOf` over the same `logs.week()` aggregate
+the charts are drawn from, and `WeekReviewResult` has one string field and no
+numeric one. Two things are specific to this route:
+
+- **The scale may be mentioned, and only as a measurement.** It is the one
+  prompt permitted to, because it is the one surface where a fitted trend
+  exists — `WeightService.trendEndingOn`, over 28 days ending on the week's last
+  day, never a slope this module computed for itself. What stays forbidden is
+  everything around it: what the rate ought to be, or what it means about the
+  person.
+- **An incomplete week is described, not scored.** Averages cover logged days
+  only, the count of them leads whenever it is low, and an unlogged day is never
+  reported as a day of poor eating. Those are different facts about different
+  things, and only one of them is about the diet.
+
+`onTargetDays` counts logged days within `ON_TARGET_TOLERANCE` (0.15) of the
+calorie target, symmetrically. **That constant is duplicated in the mobile app**
+as `ON_TARGET` in `adherence.ts`, because the client cannot import
+`@nutricheck/contracts` yet. If they drift, the review will call a day on target
+while the history calendar paints it amber. A test on each side asserts the
+number.
 
 It is also the only AI route deliberately **without** `QuotaGuard`. The guard
 runs before the handler and therefore before the cache, so an exhausted user
@@ -489,6 +524,47 @@ still has every number on it. The ideas response IS its screen, so a swallowed
 failure renders as a confident wrong explanation. A 404 from an unrestarted
 server reached a device as "a model was not reachable" once, and that is why
 `IdeasScreen` now classifies the failure and names it.
+
+**`/v1/chat` is the only open-ended call in the system**, and everything about
+it is arranged around that. Every other route answers a shaped question — parse
+this, rank these, read this meal — where a wrong answer is caught by something
+downstream: a food id that must exist, a schema with no free-text field,
+arithmetic done in Postgres. Here somebody types a sentence and the model
+decides what it was.
+
+Four containments, and they are what make it tolerable:
+
+1. **It produces no nutrition.** A message classified as a meal comes back as
+   the user's own words and goes to `/v1/ai-meal`, which is the one route
+   allowed to put numbers on food. So the figure somebody is told in the sheet
+   and the figure they are shown on the read-back two seconds later cannot
+   disagree, because there is only one of them.
+2. **The context is computed, never recalled.** `chatContext` renders today's
+   totals, targets, remainders and items into the user turn from the same
+   `LogsService.day` the Today screen renders. The model has no database, no
+   tool call and no memory; everything it may assert is in that string, which
+   is what makes "never invent a number" an instruction it can follow.
+   Unmeasured nutrients are named as unmeasured, so a floor is never reported
+   as a reading.
+3. **A returned phrase must echo what was said.** `echoes()` requires the
+   phrase to be contained in the user's message, compared with spacing removed
+   and in ONE direction. A tidy removes words; an invention adds them, and the
+   first version of this check allowed containment either way — which passes
+   `"idli and sambar"` coming back as `"3 idli and sambar"`, a quantity nobody
+   said on the one screen where quantities are believed. When the check fails
+   the log is dropped, the reply still stands, and the miss is logged as a
+   warning because a model that keeps rewriting sentences is a prompt problem.
+4. **It is stateless and it counts.** The client sends the last 12 turns; the
+   server stores none of them, because a transcript of everything anybody has
+   said to this app is a retention decision nobody has taken. Every turn spends
+   a quota unit and is written to `ai_runs` as step `chat` (migration 0014) —
+   this is the one route with no natural stopping point, so it must not also be
+   the one route outside `RESOLVE_USER_DAILY_SPEND_USD`.
+
+The prompt is mostly refusal: no invented numbers, no medical or clinical
+advice, no judgement about anybody's eating, and never a claim that something
+was logged — because it does not write to the day. The app does, after the user
+has seen the read-back and tapped Add.
 
 **The critical split: `/v1/resolve` never writes a log.** It returns a draft; `POST /v1/logs` commits. This makes "never auto-commit a parse" (USER-FLOWS §7) a property of the API rather than client discipline, and it lets an offline commit replay without re-invoking the model.
 

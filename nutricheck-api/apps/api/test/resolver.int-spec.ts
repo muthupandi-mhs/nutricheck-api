@@ -22,6 +22,7 @@ import type {
   ParseResult,
   RerankResult,
   TargetsResult,
+  WeekReviewResult,
 } from '../src/modules/ai/ai.schemas';
 import { FoodsService } from '../src/modules/foods/foods.service';
 import { GoalsService } from '../src/modules/goals/goals.service';
@@ -95,6 +96,11 @@ class FakeAi extends AiService {
   /** Same reason as `suggestTargets`: unreached, stubbed so the compiler stays the guard. */
   async suggestFoods(): Promise<AiCallResult<IdeasResult>> {
     return wrap({ note: 'a fake note', ideas: [] }, 'ideas-v1');
+  }
+
+  /** Same reason again: the weekly review is not reachable from this suite. */
+  async weekReview(): Promise<AiCallResult<WeekReviewResult>> {
+    return wrap({ text: 'a fake review' }, 'week-review-v1');
   }
   identifyCalls = 0;
   identifyResult: IdentifyResult = {

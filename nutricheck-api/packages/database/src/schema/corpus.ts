@@ -81,7 +81,21 @@ export const foodPortions = pgTable(
     grams: doublePrecision('grams').notNull(),
     isDefault: boolean('is_default').default(false).notNull(),
   },
-  (t) => [index('food_portions_food_id_idx').on(t.foodId)],
+  (t) => [
+    index('food_portions_food_id_idx').on(t.foodId),
+    /**
+     * One weight per label per food.
+     *
+     * Its absence was not theoretical. The AI-meal path writes a portion on
+     * every mention with `onConflictDoNothing()`, and with nothing to conflict
+     * on, "do nothing" never fired: each mention inserted another row, and the
+     * same label accumulated different weights. "2 eggs" ended up stored as
+     * both 100 g and 136 g on one food, and which one a portion resolved to
+     * depended on the order the planner happened to return them in — so the
+     * same sentence could total differently on different days.
+     */
+    uniqueIndex('food_portions_food_label_uq').on(t.foodId, t.label),
+  ],
 );
 
 /**

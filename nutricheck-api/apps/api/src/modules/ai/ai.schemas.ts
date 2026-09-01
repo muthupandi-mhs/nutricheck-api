@@ -69,6 +69,24 @@ export const InsightResult = z.object({
 export type InsightResult = z.infer<typeof InsightResult>;
 
 /**
+ * The weekly review.
+ *
+ * One field, for the reason `InsightResult` has one: there is no numeric field
+ * here, so a figure the model computed itself has nowhere to go. Every number
+ * in `text` was handed over already calculated from the same week aggregate the
+ * charts below it are drawn from.
+ *
+ * 700 rather than 400. Three or four sentences about seven days needs the room
+ * a two-sentence note about one meal does not, and the prompt — not this cap —
+ * is what keeps it from becoming an essay. The cap is the backstop for a model
+ * that ignored it.
+ */
+export const WeekReviewResult = z.object({
+  text: z.string().max(700),
+});
+export type WeekReviewResult = z.infer<typeof WeekReviewResult>;
+
+/**
  * Suggested daily targets.
  *
  * The second schema in the system with numbers in it, and the only one whose

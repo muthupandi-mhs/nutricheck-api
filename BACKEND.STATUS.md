@@ -60,6 +60,24 @@ of that rather than instead of it.
   supplies numbers, and the deliberate exception to the rule everywhere else:
   rates not totals, rows written `source: 'ai'` and owned by the speaker, every
   nutrient state `imputed`. $0.000256 a meal. docs/BACKEND.md §7.7
+- **The assistant** — `POST /v1/chat`. One turn: it answers from the day, or
+  decides the message was a meal and hands back the user's OWN words to log.
+  The only open-ended prompt in the system, and the only one where the model
+  chooses what it was asked. Four containments hold it — it produces no
+  nutrition (a meal goes on to `/v1/ai-meal`), its context is computed from
+  `LogsService.day` and nothing else, a returned phrase must be contained in
+  what the user said (`echoes()`, one direction — the two-way version passed
+  'idli and sambar' coming back as '3 idli and sambar'), and it is stateless
+  with the client sending the last 12 turns. Every turn spends a quota unit and
+  is written to `ai_runs` as step `chat` — migration 0014 exists because this
+  is the one route with no natural stopping point. docs/BACKEND.md §5.3
+- **Meal times from the sentence** — a day narrated in one go splits into the
+  meals it names. The prompt reads `kalaila` / `mathiyam` / `evening` / `iravu`
+  and carries a time forward until the next one; `assignMealTimes` then reads
+  the same words out of the phrase deterministically, so the feature does not
+  depend on the model obeying. No time words at all means every slot is null
+  and the CLIENT'S clock decides — never the food, because a model reads idli
+  as breakfast at nine at night
 - **Post-meal insight** — `GET /v1/insights/meal`. Facts from Postgres, prose
   from the model, no numeric field for it to invent one in
 - **Staging** — 4 GB Lightsail, HTTPS via Caddy, deploys on push to `staging`.

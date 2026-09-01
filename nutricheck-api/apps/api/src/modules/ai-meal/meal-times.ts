@@ -157,6 +157,38 @@ function markersIn(phrase: string): Array<{ at: number; slot: MealSlot }> {
  * Takes only what it needs — the words each item came from — so it can be
  * tested on plain data and cannot accidentally read a nutrient.
  */
+/**
+ * Every time word, flattened, for callers that need to REMOVE them rather than
+ * read a meal out of them.
+ *
+ * The memory of what a food is keyed on the words somebody used, and a time
+ * word inside that name splits one food into several: "mathiyam chicken
+ * biryani" is not a dish, it is chicken biryani eaten in the afternoon, and
+ * storing it as its own food gives the same person two biryanis with two
+ * different estimates. This is the list that already knows those words.
+ */
+export const TIME_WORDS: ReadonlySet<string> = new Set(
+  MARKERS.flatMap((m) => m.words),
+);
+
+/**
+ * Words that mark sequence rather than food. Small and deliberately so — this
+ * is not a stop-word list, it is the handful of connectives that show up inside
+ * a dictated food name.
+ */
+export const SEQUENCE_WORDS: ReadonlySet<string> = new Set([
+  'apram',
+  'appram',
+  'aprom',
+  'then',
+  'after',
+  'later',
+  'innaiku',
+  'innaikku',
+  'inniku',
+  'today',
+]);
+
 export function assignMealTimes<T extends { spokenAs: string; meal: MealSlot | null }>(
   phrase: string,
   items: readonly T[],

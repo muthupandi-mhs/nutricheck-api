@@ -11,7 +11,7 @@ import { AiRunsService } from '../ai/ai-runs.service';
 import { AiService } from '../ai/ai.service';
 import type { AiMealItem } from '../ai/ai.schemas';
 import { FoodsService } from '../foods/foods.service';
-import { assignMealTimes } from './meal-times';
+import { assignMealTimes, SEQUENCE_WORDS, TIME_WORDS } from './meal-times';
 import { QuotaService } from '../quota/quota.service';
 
 /**
@@ -112,14 +112,33 @@ export class AiMealService {
    *
    * Keyed on (source, source_id) with the user inside the key, so saying
    * "dosai" every morning reuses one row instead of accumulating a hundred.
-   * The upsert refreshes the estimate, which is what you want the day the
-   * prompt improves.
+   *
+   * That row is this user's MEMORY of the food, and two rules make it one:
+   *
+   *   1. **The key ignores when they ate it.** See `memoryKey`. Keyed on the
+   *      raw name, "mathiyam chicken biryani" was a different food from
+   *      "chicken biryani" — one person, one dish, two rows, two estimates.
+   *   2. **The first answer stands — the rates AND the portion.** Both are
+   *      written once and not overwritten on a later mention. A model asked the
+   *      same question twice answers differently, and a biryani that is 700
+   *      kcal on Monday and 520 on Tuesday is not a tracker; the number has to
+   *      be stable to be worth anything, even when it is only an estimate.
+   *
+   *      The portion is half of that and was the half left out. With only the
+   *      rates remembered, the same sentence still moved between runs — one
+   *      call reading a serving of biryani as 200 g and the next as 250 g, for
+   *      a 90 kcal swing on one line with an identical rate behind it. Grams
+   *      are the larger source of variance of the two, because a rate is a
+   *      property of a dish and a portion is a guess about a plate.
+   *
+   *      The later answers are still recorded on the run for attribution; they
+   *      just do not silently rewrite what the user has already been shown.
    */
   private async materialise(
     userId: string,
     item: AiMealItem,
   ): Promise<AiMealItemDraft> {
-    const sourceId = `${userId}:${normalizeSearchText(item.name)}`;
+    const sourceId = `${userId}:${memoryKey(item.name)}`;
 
     const foodId = await this.db.transaction(async (tx) => {
       const [food] = await tx
@@ -156,16 +175,9 @@ export class AiMealService {
           fiberG: item.per100g.fiberG,
           fiberState: 'imputed',
         })
-        .onConflictDoUpdate({
-          target: schema.foodNutrients.foodId,
-          set: {
-            kcal: item.per100g.kcal,
-            proteinG: item.per100g.proteinG,
-            carbsG: item.per100g.carbsG,
-            fatG: item.per100g.fatG,
-            fiberG: item.per100g.fiberG,
-          },
-        });
+        // Nothing on conflict: the first estimate is the remembered one. See
+        // the note on this method for why it is not refreshed.
+        .onConflictDoNothing();
 
       // One portion, in the unit they counted in, so the next "5 dosai"
       // prefills from a row rather than from another model call.
@@ -179,7 +191,16 @@ export class AiMealService {
             grams: round(perUnit),
             isDefault: true,
           })
-          .onConflictDoNothing();
+          // Named target, not a bare `onConflictDoNothing()`.
+          //
+          // Without one there was nothing to conflict ON — `food_portions` had
+          // no unique index — so every mention inserted another row and the
+          // same label ended up with two weights. "2 eggs" was 100 g in one row
+          // and 136 g in another, and which one a portion resolved to came down
+          // to the order the planner returned them in.
+          .onConflictDoNothing({
+            target: [schema.foodPortions.foodId, schema.foodPortions.label],
+          });
       }
 
       return food!.id;
@@ -187,6 +208,43 @@ export class AiMealService {
 
     const detail = await this.foods.findById(foodId);
 
+    /**
+     * The portion as the row now holds it, scaled to what they said this time.
+     *
+     * "5 dosai" and "3 dosai" are the same remembered 60 g unit and different
+     * totals, so what is remembered is the per-unit weight and the count is
+     * still read from the sentence. Falls back to the model's own total when
+     * there is no remembered portion — a unit that divided to nothing on the
+     * first mention leaves no row to find.
+     */
+    const rememberedUnit = detail.portions.find((p) => p.label === `1 ${item.unit}`);
+    const grams = rememberedUnit ? round(rememberedUnit.grams * item.quantity) : item.grams;
+
+    /**
+     * The rates as the row now holds them.
+     *
+     * Nullable on the way out because the schema's three-state rule makes every
+     * macro nullable — an unmeasured nutrient is not a zero. An AI row always
+     * writes all five, so the fallback is here to satisfy the shape rather than
+     * to cover a case this path produces.
+     */
+    const remembered = {
+      kcal: detail.nutrients.kcal,
+      proteinG: detail.nutrients.proteinG,
+      carbsG: detail.nutrients.carbsG ?? item.per100g.carbsG,
+      fatG: detail.nutrients.fatG ?? item.per100g.fatG,
+      fiberG: detail.nutrients.fiberG ?? item.per100g.fiberG,
+    };
+
+    /**
+     * Scaled from the STORED rates, not the ones this call produced.
+     *
+     * They are the same figures the first time and they can differ afterwards,
+     * and when they differ the stored ones are what the row holds, what the
+     * portion screen will show, and what a future log freezes. Scaling from the
+     * model's answer instead would put a number on this screen that nothing
+     * else in the system agrees with.
+     */
     return {
       food: {
         id: detail.id,
@@ -194,7 +252,7 @@ export class AiMealService {
         brand: detail.brand,
         kcalPer100g: detail.kcalPer100g,
       },
-      ...scaleToPortion(item),
+      ...scaleToPortion({ ...item, grams, per100g: remembered }),
     };
   }
 }
@@ -208,6 +266,30 @@ export class AiMealService {
  * per-100g values and a gram weight; every figure below is a product of those
  * two, computed here. Nothing the model returned is passed through as a total.
  */
+/**
+ * What a food is called, for the purpose of remembering it.
+ *
+ * Time and sequence words are dropped, because they describe the sentence
+ * rather than the food: somebody narrating a day says "mathiyam chicken
+ * biryani" and "chicken biryani" about the same plate, and a key that keeps the
+ * adverb files them as two dishes with two independent estimates.
+ *
+ * Nothing else is stripped. This is not a stop-word list and it must not become
+ * one — "green" in "green chutney" and "half" in "half boiled egg" change what
+ * the food IS, and a key that threw those away would collapse foods that are
+ * genuinely different into one remembered number.
+ *
+ * Falls back to the full normalised name when every token is a time word, which
+ * would otherwise key a food on the empty string and merge unrelated foods.
+ */
+export function memoryKey(name: string): string {
+  const normalized = normalizeSearchText(name);
+  const kept = normalized
+    .split(' ')
+    .filter((word) => word && !TIME_WORDS.has(word) && !SEQUENCE_WORDS.has(word));
+  return kept.length > 0 ? kept.join(' ') : normalized;
+}
+
 export function scaleToPortion(
   item: AiMealItem,
 ): Omit<AiMealItemDraft, 'food'> {

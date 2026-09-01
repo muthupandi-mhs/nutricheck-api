@@ -16,7 +16,8 @@ the mock backend has been deleted. It has been through **two visual passes**:
 | Pass | Result |
 |---|---|
 | v1 — editorial/Swiss, built from `design/*.dc.html` | Rejected. Read as a design exercise, not a product |
-| v2 — warm & rounded, "Airbnb-level" (current) | Built, typechecks, **109 tests pass**. Running on the device against the live API |
+| v2 — warm & rounded, "Airbnb-level" | Built and shipped. Superseded in places by v3 |
+| v3 — ash, drawn against a reference app (current) | Built, typechecks, **197 tests pass**. Running on the device against the live API |
 
 ### The logging flow is AI-first as of 2026-08-27
 
@@ -51,6 +52,57 @@ What that changed on screen:
 The `as Backend` cast on it is load-bearing — without it TypeScript narrows the
 const to its literal and the other branch fails to compile as "types with no
 overlap", so the switch the file exists to provide would not build.
+
+### The voice route is its own flow as of 2026-08-28
+
+The composer is no longer the way in. Logging by voice or by typing now runs
+through three surfaces in `src/screens/voice/`, and the microphone on the tab
+bar opens the first of them:
+
+| Surface | What it is |
+|---|---|
+| `AskSheet` | A **sheet mounted by the tab host**, not a route. Rises over the live tab — same day, same scroll position behind it. One input row with a microphone at the end of it |
+| `ListenScreen` | The full-page microphone, kept for **onboarding only** (`first: true`). One orb, nothing else on the page |
+| `MealScreen` | The read-back. A quoted line, one large figure, a macro spine, and a ledger of what was heard |
+
+Four things worth knowing before changing any of it:
+
+- **The sheet is a component, not a screen.** A route put a back-stack entry in
+  for something that is not a place, and what sat behind the panel was a
+  transparent modal rather than the day. Mounted by `MainTabs`, it also gets the
+  back gesture and its own exit animation by hand — a route was giving both for
+  free. `KeyboardAvoid` gained a `pointerEvents` prop for it: `flex: 1` over a
+  bottom sheet swallows every tap meant for the scrim, and pins the sheet to the
+  top of the window.
+- **It is an agent, and typing goes through it.** `POST /v1/chat` answers from
+  the day or hands back the user's own words to log. **The microphone does
+  not** — speaking is already record → transcribe → parse, and a classification
+  turn in front of that adds a model call and a wait to the action people repeat
+  daily, to classify a sentence spoken into a button labelled "say what you ate".
+- **Nothing auto-commits, on any path.** A phrase from the agent goes to the
+  same read-back a spoken meal does and still needs a deliberate tap.
+- **A day said in one sentence lands as several meals.** "kalaila lemon rice …
+  mathiyam briyani … iravu 3 chappathi" commits one entry per meal, in
+  chronological order. The slot comes from the model where it can, and from
+  `assignMealTimes` on the server where it cannot — the words get the last say,
+  and no time words at all means the clock decides rather than the food.
+
+### Today, and the palette
+
+- **Three dials** replace the single ring: fasting, calories, weight. Fasting is
+  derived from the last logged time and fills against a **day, not a
+  16-hour window** — an arc against a window would be a goal the app never set.
+  Weight has **no arc**, because there is one weight on the profile and no
+  history to diff it against; `progress: null` draws the track and an em dash,
+  never a zero.
+- **The palette is ash.** The blue-to-violet accent is gone from links, arcs and
+  the ring; emphasis is a lighter grey. The two remaining hues are amber for "we
+  do not know this number" and red for "this deletes something", and both now
+  carry at a glance because nothing competes with them.
+- **One exception, and it is named:** `askFrom`/`askTo`/`askWash` tint the ask
+  sheet and the microphone that opens it. Two rules keep it from becoming an
+  accent again — it never encodes a value, and on the panel it never touches
+  text.
 
 ### Device status
 
@@ -404,7 +456,7 @@ apply, that is correct, not a missing file.
 
 ---
 
-## 8. Tests — 198, twelve suites
+## 8. Tests — 197, twelve suites
 
 | Suite | Covers |
 |---|---|

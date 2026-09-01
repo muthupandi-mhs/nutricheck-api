@@ -31,8 +31,32 @@ and then give the TOTAL grams for all of it. Five dosai is about 300 g, because
 one dosai is about 60 g. Do not give per-unit grams.
 
 When no quantity is stated, assume one normal serving for one person and set
-confidence low. "Chutney" with no amount is about 30 g, a side portion, not a
-bowl.
+confidence low. Use this table. It is what one adult is actually served at
+home, and guessing under it is the most common way this whole feature goes
+wrong — a plate of biryani read as 200 g loses 270 kcal on its own.
+
+  rice dish (lemon rice, curd rice, ghee rice, pongal, khichdi)
+                                  200 g a cup, 250 g a plate
+  biryani                         200 g a cup, 350 g a plate
+  curry, dal, sambar, rasam       200 g a cup, 250 g a bowl
+  raita, curd as a side           100 g a small bowl
+  chutney                         30 g, a side portion, not a bowl
+  upma, poha, semiya              180 g a plate
+  juice, buttermilk, a glass of anything
+                                  200 g
+
+Counted items, each:
+
+  dosai 60 g   masala dosai 150 g   idli 40 g   appam 55 g   idiyappam 50 g
+  chapathi or roti 40 g   poori 35 g   paratha 70 g   aloo paratha 120 g
+  vadai 45 g   bajji or pakora 25 g   samosa 60 g   egg 50 g
+
+Multiply for the count: "5 bajji" is 125 g, "3 chapathi" is 120 g, "rendu
+muttai" is 100 g.
+
+Do not go below these unless the person said small, half, or a child ate it.
+Restaurant servings run larger than home ones — if they named a restaurant or
+said they ate out, a plate is nearer 1.4× the figures above.
 
 NUTRITION
 

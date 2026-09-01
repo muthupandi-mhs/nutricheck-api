@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { LogWeight, WeightPoint, WeightSeries, WeightTrend } from '@nutricheck/contracts';
-import { and, asc, count, desc, eq, gte, schema, type Database } from '@nutricheck/database';
+import { and, asc, count, desc, eq, gte, lte, schema, type Database } from '@nutricheck/database';
 import { ConflictProblem, NotFoundProblem } from '../../common/problems';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 import { GoalsService } from '../goals/goals.service';
@@ -222,6 +222,52 @@ export class WeightService {
       .limit(1);
 
     return row ?? null;
+  }
+
+  /**
+   * The fitted trend over a window that ENDS on a given day, for the weekly
+   * review.
+   *
+   * Two things separate this from `series`, and both come from the review being
+   * readable for a week that is not this one:
+   *
+   * **The window ends where the caller says**, not at today. Paging back three
+   * weeks on Insights and reading today's slope beside that week's meals would
+   * be putting one week's food next to another week's outcome, which is the
+   * single most misleading thing this pairing could do.
+   *
+   * **The window is longer than the week it describes.** Seven days holds one
+   * or two weigh-ins for most people, and a least-squares line through two
+   * points is just the two points — the noise this fit exists to absorb would
+   * be the whole of the answer. So it is fitted over `days` (28 at the call
+   * site) ending on the review's last day, and the prompt reports it as a rate
+   * rather than as something that happened during those seven days.
+   *
+   * Null propagates from `trendOf`: under two readings, or every reading on one
+   * day, there is no line, and the review says nothing about weight at all.
+   */
+  async trendEndingOn(userId: string, endDate: string, days: number): Promise<WeightTrend | null> {
+    const from = shiftDays(endDate, -days);
+
+    const [rows, intended] = await Promise.all([
+      this.db
+        .select({
+          date: schema.weightLogs.measuredOn,
+          weightKg: schema.weightLogs.weightKg,
+        })
+        .from(schema.weightLogs)
+        .where(
+          and(
+            eq(schema.weightLogs.userId, userId),
+            gte(schema.weightLogs.measuredOn, from),
+            lte(schema.weightLogs.measuredOn, endDate),
+          ),
+        )
+        .orderBy(asc(schema.weightLogs.measuredOn)),
+      this.intendedRate(userId),
+    ]);
+
+    return trendOf(rows, intended);
   }
 
   /**

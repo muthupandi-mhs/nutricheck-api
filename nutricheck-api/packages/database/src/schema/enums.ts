@@ -98,6 +98,10 @@ export const aiStepEnum = pgEnum('ai_step', [
   // on the same daily ceiling as everything else — which only holds if it is
   // recorded like everything else.
   'chat',
+  // The weekly review on the Insights tab. Fires on navigation like `ideas`,
+  // but at most once per user per week rather than once per day: a past week
+  // cannot change, so its review is cached until the week itself does.
+  'review',
 ]);
 
 /**

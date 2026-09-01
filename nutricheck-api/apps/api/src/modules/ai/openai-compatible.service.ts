@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { ZodTypeAny } from 'zod';
 import { PROMPTS } from '@nutricheck/prompts';
-import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts';
+import type { GoalPreview, MealFacts, UserProfile, WeekFacts } from '@nutricheck/contracts';
 import type { AppConfig } from '../../config/config.schema';
 import {
   AiMalformedError,
@@ -21,12 +21,14 @@ import {
   IdentifyResult,
   InsightResult,
   TargetsResult,
+  WeekReviewResult,
   ParseResult,
   rerankSchemaFor,
   type RerankResult,
 } from './ai.schemas';
 import { ideasToUserTurn, type IdeasInput } from './ideas-input';
 import { factsToUserTurn } from './insight-input';
+import { weekFactsToUserTurn } from './week-review-input';
 import { profileToUserTurn } from './targets-input';
 import { CircuitBreaker, CircuitOpenError } from './circuit-breaker';
 import type { TokenUsage } from './cost';
@@ -144,6 +146,17 @@ export class OpenAiCompatibleService extends AiService {
       factsToUserTurn(facts),
       InsightResult,
       'meal_insight',
+    );
+  }
+
+  async weekReview(facts: WeekFacts): Promise<AiCallResult<WeekReviewResult>> {
+    return this.call(
+      'review',
+      PROMPTS.weekReview.system,
+      PROMPTS.weekReview.version,
+      weekFactsToUserTurn(facts),
+      WeekReviewResult,
+      'week_review',
     );
   }
 
