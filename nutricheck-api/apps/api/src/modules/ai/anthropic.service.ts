@@ -15,6 +15,7 @@ import {
 } from './ai.service';
 import {
   AiMealResult,
+  ChatResult,
   IdeasResult,
   IdentifyResult,
   InsightResult,
@@ -168,6 +169,16 @@ export class AnthropicService extends AiService {
       PROMPTS.meal.version,
       phrase,
       betaZodOutputFormat(AiMealResult),
+    );
+  }
+
+  async chat(turn: string): Promise<AiCallResult<ChatResult>> {
+    return this.call(
+      'chat',
+      PROMPTS.chat.system,
+      PROMPTS.chat.version,
+      turn,
+      betaZodOutputFormat(ChatResult),
     );
   }
 

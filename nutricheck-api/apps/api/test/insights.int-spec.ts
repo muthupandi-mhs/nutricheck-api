@@ -8,6 +8,7 @@ import { AiRunsService } from '../src/modules/ai/ai-runs.service';
 import { AiService, type AiCallResult, type RerankItem } from '../src/modules/ai/ai.service';
 import type {
   AiMealResult,
+  ChatResult,
   IdeasResult,
   IdentifyResult,
   InsightResult,
@@ -94,6 +95,10 @@ class FakeAi extends AiService {
   }
   async interpretMeal(): Promise<AiCallResult<AiMealResult>> {
     throw new Error('the note path does not interpret a meal');
+  }
+
+  async chat(): Promise<AiCallResult<ChatResult>> {
+    throw new Error('the note path does not chat');
   }
 }
 

@@ -16,6 +16,7 @@ import { GoalsModule } from './modules/goals/goals.module';
 import { LogsModule } from './modules/logs/logs.module';
 import { QuotaModule } from './modules/quota/quota.module';
 import { AiMealModule } from './modules/ai-meal/ai-meal.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { ResolverModule } from './modules/resolver/resolver.module';
 import { MealsModule } from './modules/meals/meals.module';
 import { SuggestionsModule } from './modules/suggestions/suggestions.module';
@@ -98,6 +99,7 @@ import { FastingModule } from './modules/fasting/fasting.module';
     IdeasModule,
     QuotaModule,
     AiMealModule,
+    ChatModule,
     ResolverModule,
   ],
   providers: [

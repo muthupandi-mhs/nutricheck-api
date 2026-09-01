@@ -94,6 +94,10 @@ export const aiStepEnum = pgEnum('ai_step', [
   'meal',
   'targets',
   'ideas',
+  // The assistant in the microphone sheet. Open-ended, one call per turn, and
+  // on the same daily ceiling as everything else — which only holds if it is
+  // recorded like everything else.
+  'chat',
 ]);
 
 /**

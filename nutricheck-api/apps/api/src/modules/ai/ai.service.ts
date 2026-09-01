@@ -2,6 +2,7 @@ import type { GoalPreview, MealFacts, UserProfile } from '@nutricheck/contracts'
 import type { IdeasInput } from './ideas-input';
 import type {
   AiMealResult,
+  ChatResult,
   IdeasResult,
   IdentifyResult,
   InsightResult,
@@ -149,6 +150,20 @@ export abstract class AiService {
    * it out of everybody else's search.
    */
   abstract interpretMeal(phrase: string): Promise<AiCallResult<AiMealResult>>;
+
+  /**
+   * One turn of the assistant: a message plus the day it is about.
+   *
+   * The only open-ended call in this system — every other one answers a shaped
+   * question, and this one has to work out what it was asked before it can
+   * answer. What comes back is something to say and, when the message was food,
+   * the user's own words to log.
+   *
+   * It produces no nutrition. A meal goes on to `interpretMeal`, which is the
+   * one place allowed to put numbers on food, so the figure somebody is told
+   * here and the figure they are shown two seconds later cannot disagree.
+   */
+  abstract chat(turn: string): Promise<AiCallResult<ChatResult>>;
 
   /** False when no API key is configured — the resolver route stays disabled. */
   abstract get isConfigured(): boolean;

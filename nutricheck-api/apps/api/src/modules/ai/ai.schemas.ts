@@ -184,6 +184,32 @@ export const AiMealResult = z.object({
 });
 export type AiMealResult = z.infer<typeof AiMealResult>;
 
+/**
+ * One turn of the assistant.
+ *
+ * Deliberately NOT the contract's `ChatReply`, though it is nearly the same
+ * shape. This is what the model is asked to produce; that is what the client is
+ * promised. Keeping them apart is what lets the service refuse a reply — a
+ * fabricated number, an empty text — without the refusal being a contract
+ * change, and it is the same separation `AiMealItem` has from
+ * `AiMealItemDraft`.
+ */
+export const ChatResult = z.object({
+  /** What to say. One or two sentences; the sheet is a panel, not a page. */
+  text: z.string().min(1).max(600),
+  /**
+   * The user's own words, when the message was a meal rather than a question.
+   *
+   * Null is the common case and has to be easy for the model to choose:
+   * questions outnumber meals in any conversation, and a required object here
+   * would push it to invent a phrase to fill.
+   */
+  log: z
+    .object({ phrase: z.string().min(1).max(500) })
+    .nullable(),
+});
+export type ChatResult = z.infer<typeof ChatResult>;
+
 export const IdentifyResult = z.object({
   isFood: z.boolean(),
   /** English search terms, most likely first. Empty when isFood is false. */

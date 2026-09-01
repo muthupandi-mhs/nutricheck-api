@@ -32,7 +32,7 @@ import { atwaterCheck, fibreIsPossible } from './atwater';
  *
  * Four things bound that, in the order they run:
  *
- *   1. The gap is computed HERE, from the same day view the Today screen
+ *   1. The gap is computed HERE, from the same day view the Home screen
  *      renders. The model is handed "480 kcal left, 52 g of protein left" and
  *      never the entries — so there is no arithmetic available for it to get
  *      wrong, and this tab cannot disagree with that screen about a total.

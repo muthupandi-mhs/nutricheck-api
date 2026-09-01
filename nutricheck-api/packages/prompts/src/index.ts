@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { CHAT_SYSTEM } from './chat';
 import { IDENTIFY_SYSTEM } from './identify';
 import { IDEAS_SYSTEM } from './ideas';
 import { INSIGHT_SYSTEM } from './insight';
@@ -7,7 +8,16 @@ import { PARSE_SYSTEM } from './parse';
 import { RERANK_SYSTEM } from './rerank';
 import { TARGETS_SYSTEM } from './targets';
 
-export { IDEAS_SYSTEM, IDENTIFY_SYSTEM, INSIGHT_SYSTEM, MEAL_SYSTEM, PARSE_SYSTEM, RERANK_SYSTEM, TARGETS_SYSTEM };
+export {
+  CHAT_SYSTEM,
+  IDEAS_SYSTEM,
+  IDENTIFY_SYSTEM,
+  INSIGHT_SYSTEM,
+  MEAL_SYSTEM,
+  PARSE_SYSTEM,
+  RERANK_SYSTEM,
+  TARGETS_SYSTEM,
+};
 
 /**
  * Prompt version, derived from the prompt's own bytes.
@@ -50,6 +60,10 @@ export const PROMPTS = {
   ideas: {
     system: IDEAS_SYSTEM,
     version: versionOf(IDEAS_SYSTEM),
+  },
+  chat: {
+    system: CHAT_SYSTEM,
+    version: versionOf(CHAT_SYSTEM),
   },
 } as const;
 

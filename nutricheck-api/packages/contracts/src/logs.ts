@@ -213,7 +213,7 @@ export const WeekSummary = z.object({
 export type WeekSummary = z.infer<typeof WeekSummary>;
 
 /**
- * A calendar month, for the history view behind the Today masthead.
+ * A calendar month, for the history view behind the Home masthead.
  *
  * `date` is any day inside the month wanted — the server snaps to the first and
  * last of that month itself. Passing an anchor rather than a `2026-08` string

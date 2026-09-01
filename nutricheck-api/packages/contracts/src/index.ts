@@ -18,6 +18,7 @@ export * from './profile';
 export * from './auth';
 export * from './meals';
 export * from './suggestions';
+export * from './chat';
 export * from './transcription';
 export * from './insights';
 export * from './ai-meal';

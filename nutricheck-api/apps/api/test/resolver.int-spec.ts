@@ -15,6 +15,7 @@ import {
 } from '../src/modules/ai/ai.service';
 import type {
   AiMealResult,
+  ChatResult,
   IdeasResult,
   IdentifyResult,
   InsightResult,
@@ -126,6 +127,10 @@ class FakeAi extends AiService {
     this.interpretCalls += 1;
     if (this.failWith) throw this.failWith;
     return wrap(this.mealResult, 'meal-v1');
+  }
+
+  async chat(_turn: string): Promise<AiCallResult<ChatResult>> {
+    throw new Error('the resolver path does not chat');
   }
 
   async rerank(items: RerankItem[]): Promise<AiCallResult<RerankResult>> {

@@ -16,6 +16,7 @@ import {
 } from './ai.service';
 import {
   AiMealResult,
+  ChatResult,
   IdeasResult,
   IdentifyResult,
   InsightResult,
@@ -184,6 +185,10 @@ export class OpenAiCompatibleService extends AiService {
       AiMealResult,
       'meal_result',
     );
+  }
+
+  async chat(turn: string): Promise<AiCallResult<ChatResult>> {
+    return this.call('chat', PROMPTS.chat.system, PROMPTS.chat.version, turn, ChatResult, 'chat_reply');
   }
 
   async identify(phrase: string): Promise<AiCallResult<IdentifyResult>> {

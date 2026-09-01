@@ -94,7 +94,7 @@ export class LogsController {
 
   /**
    * A whole calendar month, one point per day — the history calendar behind
-   * Today's masthead.
+   * Home's masthead.
    *
    * Above `GET :id` for the same reason `day` and `week` are: Nest matches in
    * declaration order, and a `:id` route ahead of this would swallow `/month`
