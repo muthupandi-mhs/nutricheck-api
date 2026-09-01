@@ -8,15 +8,33 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { AuthResponse, CheckEmailResponse, TokenPair } from '@nutricheck/contracts';
+import {
+  PROBLEM_TYPES,
+  type AuthResponse,
+  type CheckEmailResponse,
+  type TokenPair,
+} from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { ProblemThrottlerGuard } from '../../common/guards/problem-throttler.guard';
+import { ProblemException, UnauthorizedProblem } from '../../common/problems';
 import { AuthService } from './auth.service';
-import { ChangePasswordDto, CheckEmailDto, LoginDto, RefreshDto, RegisterDto } from './auth.dto';
+import {
+  ChangePasswordDto,
+  CheckEmailDto,
+  GoogleAuthDto,
+  LoginDto,
+  RefreshDto,
+  RegisterDto,
+} from './auth.dto';
+import {
+  GoogleIdentityService,
+  GoogleTokenInvalid,
+  GoogleUnavailable,
+} from './google-identity.service';
 
 /**
- * Email + password only.
+ * Email + password, and Google.
  *
  * Throttled far harder than the rest of the API and keyed per IP: these are the
  * endpoints credential stuffing aims at, and the default 120/min would let an
@@ -77,11 +95,27 @@ const CHECK_EMAIL_PER_WINDOW = 20;
  */
 const CHANGE_PASSWORD_PER_WINDOW = 15;
 
+/**
+ * Google sign-in, and the most generous of the four, on purpose.
+ *
+ * There is no password to guess here and nothing to enumerate: a request either
+ * carries a token Google signed for this app or it does not, and no amount of
+ * volume improves an attacker's odds of producing one. What the limit is
+ * actually for is a client stuck in a retry loop and the JWKS amplification
+ * described in `GoogleIdentityService` — and the same carrier-NAT reasoning
+ * above applies with more force, because this is the one-tap path a whole
+ * household will take.
+ */
+const GOOGLE_PER_WINDOW = 60;
+
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
 @UseGuards(ProblemThrottlerGuard)
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly google: GoogleIdentityService,
+  ) {}
 
   @Public()
   @Post('check-email')
@@ -110,6 +144,60 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign in with email and password' })
   login(@Body() body: LoginDto): Promise<AuthResponse> {
     return this.auth.login(body);
+  }
+
+  /**
+   * One route, not two. Google already knows whether this person has an
+   * account, so there is no `check-email` step and no `registered` flag to
+   * carry forward — the server decides between signing in, linking to an
+   * existing password account, and creating a new one, from a token it
+   * verified. See `AuthService.resolveGoogleUser`.
+   */
+  @Public()
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: WINDOW_MS, limit: GOOGLE_PER_WINDOW } })
+  @ApiOperation({ summary: 'Sign in with a Google ID token' })
+  async signInWithGoogle(@Body() body: GoogleAuthDto): Promise<AuthResponse> {
+    if (!this.google.isConfigured) {
+      // No client IDs configured: the button should not have been shown, but a
+      // stale build will still press it. Same degradation as the resolver and
+      // transcription without a key — absent, not broken.
+      throw new ProblemException({
+        type: PROBLEM_TYPES.resolverUnavailable,
+        title: 'Google sign-in is unavailable',
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        detail: 'Sign in with an email and password instead.',
+      });
+    }
+
+    try {
+      return await this.auth.signInWithGoogle(body.idToken);
+    } catch (error) {
+      /**
+       * Every rejected token is one 401 with one message. Which of the five
+       * checks failed is diagnostic gold for somebody probing the endpoint and
+       * of no use whatsoever to the phone — it has one thing it can do about
+       * any of them, which is ask Google for a fresh token.
+       */
+      if (error instanceof GoogleTokenInvalid) {
+        throw new UnauthorizedProblem('Could not verify that Google sign-in');
+      }
+      /**
+       * Google unreachable is OUR outage to report, not the user's account
+       * being refused. A 401 here would sign them out and send them to a
+       * password screen for an account that may not have a password.
+       */
+      if (error instanceof GoogleUnavailable) {
+        throw new ProblemException({
+          type: PROBLEM_TYPES.resolverUnavailable,
+          title: 'Could not reach Google',
+          status: HttpStatus.SERVICE_UNAVAILABLE,
+          detail: 'Try again in a moment.',
+        });
+      }
+      throw error;
+    }
   }
 
   @Public()

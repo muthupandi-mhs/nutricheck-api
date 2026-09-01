@@ -13,7 +13,7 @@ import { startTestPostgres, type TestDatabase } from './postgres';
  * hashing something.
  */
 function service(pg: TestDatabase): AuthService {
-  return new AuthService(pg.db, null as never, null as never);
+  return new AuthService(pg.db, null as never, null as never, null as never);
 }
 
 describe('check-email', () => {

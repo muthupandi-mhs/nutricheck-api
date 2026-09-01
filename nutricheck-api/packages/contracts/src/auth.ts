@@ -2,9 +2,16 @@ import { z } from 'zod';
 import { Instant } from './common';
 
 /**
- * Email + password only for this build. The `auth_provider` enum in the schema
- * still carries 'apple' and 'google' so adding them later is a new row, not an
- * ALTER TYPE on a hot enum — the same reasoning that keeps 'photo' in log_source.
+ * Email + password, and Google. Apple is the one still deferred, and it is not
+ * a free choice made independently of this one: App Store guideline 4.8 makes it
+ * mandatory on iOS the moment any other social login is offered, so shipping
+ * Google is what starts that clock. The iOS build must not go to review until
+ * `apple` is served here too.
+ *
+ * Adding Google cost no migration. `auth_provider` has carried all three values
+ * since the first schema and `auth_identities` is keyed on (provider, subject),
+ * so a second way to sign in is a second ROW — the same reasoning that keeps
+ * 'photo' in log_source.
  */
 export const Email = z
   .string()
@@ -123,3 +130,29 @@ export const AccessTokenClaims = z.object({
   sid: z.string().uuid(),
 });
 export type AccessTokenClaims = z.infer<typeof AccessTokenClaims>;
+
+/**
+ * Sign in with Google — step one and two at once.
+ *
+ * The device does the interactive half against Google Play Services and posts
+ * the resulting **ID token** here. Nothing else travels: not the access token,
+ * not the email, not the name. Those are claims inside the token, and the
+ * server reads them from the signature it verified rather than from a body the
+ * client could have written — an `email` field next to this one would be an
+ * account-takeover primitive, since the client chooses what goes in it.
+ *
+ * There is no matching `check-email` step and no `registered` flag. Google
+ * already knows which of the two this is, and the server decides between
+ * signing in, linking, and creating from the verified `sub`. That is the whole
+ * reason this is one call: the flow that makes a person choose "sign in" or
+ * "sign up" before they have proved anything is the flow half of them get
+ * wrong.
+ *
+ * The upper bound is a parse-cost guard, not a spec limit. A Google ID token
+ * runs around 1 KB; RS256 verification on a megabyte of base64 is work done
+ * before anything is known to be genuine.
+ */
+export const GoogleAuthRequest = z.object({
+  idToken: z.string().min(1).max(4096),
+});
+export type GoogleAuthRequest = z.infer<typeof GoogleAuthRequest>;

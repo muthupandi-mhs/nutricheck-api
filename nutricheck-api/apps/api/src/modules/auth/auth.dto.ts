@@ -1,6 +1,7 @@
 import {
   ChangePasswordRequest,
   CheckEmailRequest,
+  GoogleAuthRequest,
   LoginRequest,
   RefreshRequest,
   RegisterRequest,
@@ -17,3 +18,4 @@ export class RegisterDto extends createZodDto(RegisterRequest) {}
 export class LoginDto extends createZodDto(LoginRequest) {}
 export class RefreshDto extends createZodDto(RefreshRequest) {}
 export class ChangePasswordDto extends createZodDto(ChangePasswordRequest) {}
+export class GoogleAuthDto extends createZodDto(GoogleAuthRequest) {}

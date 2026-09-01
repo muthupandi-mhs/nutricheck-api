@@ -424,6 +424,7 @@ One filter produces this for every thrown error. Nest `HttpException`s map by st
 | `POST` | `/v1/auth/register` | write | Email + password. 5/hour per IP |
 | `POST` | `/v1/auth/login` | write | 10 / 15 min per IP |
 | `POST` | `/v1/auth/refresh` | write | Rotating refresh, reuse detection |
+| `POST` | `/v1/auth/google` | write | Sign in, sign up and link, from one verified Google ID token. 60 / 10 min per IP. **503 when `GOOGLE_OAUTH_CLIENT_IDS` is unset** — the app falls back to email + password. Links to an existing password account only on a Google-verified address |
 | `POST` | `/v1/auth/logout` | write | Revoke the refresh family. Idempotent |
 | `POST` | `/v1/auth/change-password` | write | Revokes every session on every device |
 | `GET` | `/v1/me` | read | The signed-in user |
@@ -1489,7 +1490,7 @@ Spend ceilings · account deletion and data export, e2e-tested · load test on `
 | 5 | Managed Postgres provider | Mid-M0 | Needs `pgvector` ≥ 0.7 with HNSW; connection ceiling drives the §11.1 pool math |
 | 6 | PgBouncer | End of M1 | Only if the replica ceiling × pool size approaches `max_connections` |
 | 7 | Monetization boundary | Before M1 | Shapes onboarding and where gating lives in the guard chain |
-| 8 | Sign in with Apple / Google | Before store submission | **Deferred — this build ships email + password only.** Apple is mandatory on iOS the moment any other social login is offered, so it is an all-or-nothing decision. `auth_provider` already carries both values and `auth_identities` is keyed on `(provider, subject)`, so adding one is a new row, not a migration |
+| 8 | Sign in with Apple | **Before the first iOS submission — now a blocker, not a choice** | **Google is BUILT** (`POST /v1/auth/google`, `GOOGLE_OAUTH_CLIENT_IDS`); Apple is not. App Store guideline 4.8 makes Apple mandatory on iOS the moment any other social login is offered, so shipping Google started that clock: the iOS build must not go to review until `apple` is served too. Android is unaffected. Costs no migration — `auth_provider` already carries the value and `auth_identities` is keyed on `(provider, subject)` — but it does need the Apple relay-email decision recorded in §5.3 |
 | 9 | Server-side speech transcription | Before non-English launch | Promised by USER-FLOWS §5, not built. Needs audio ingest and a transcription provider, and contradicts the "no microphone" trust claim in onboarding — see §7.5 |
 | 10 | Password reset by email | Before public beta | Email + password with no recovery path means a forgotten password is a lost account. Needs a mail provider, which nothing else in the stack currently requires |
 

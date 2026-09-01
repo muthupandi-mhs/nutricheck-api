@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { GoogleIdentityService } from './google-identity.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
@@ -15,6 +16,7 @@ import { TokenService } from './token.service';
   controllers: [AuthController],
   providers: [
     AuthService,
+    GoogleIdentityService,
     PasswordService,
     TokenService,
     // Global and fail-closed. A new controller is authenticated unless someone

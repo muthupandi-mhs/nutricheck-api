@@ -53,6 +53,36 @@ export const configSchema = z.object({
   JWT_REFRESH_TTL: durationString.default('30d'),
 
   /**
+   * Which OAuth client IDs a Google ID token is allowed to have been minted
+   * for. Comma-separated, because there is one per platform and they are all
+   * equally valid: the Android app's token carries the **Web** client ID in
+   * `aud` (that is what google-signin's `webClientId` selects, not the Android
+   * client), and an iOS build would add its own.
+   *
+   * This is the whole of the audience check, and the audience check is what
+   * makes verification mean anything. A signature proves Google issued the
+   * token; it does not prove Google issued it to US. Any app on the internet
+   * can hand its users' valid, correctly-signed Google tokens to this endpoint,
+   * and without `aud` pinning every one of them would be accepted as a sign-in.
+   *
+   * Optional, exactly like the AI keys: unset means `/v1/auth/google` answers
+   * 503 and the app falls back to email + password, which is a degradation the
+   * client already renders. It deliberately does NOT default to something
+   * permissive — an empty list rejects every token rather than accepting any.
+   */
+  GOOGLE_OAUTH_CLIENT_IDS: z
+    .string()
+    .optional()
+    .transform((raw) =>
+      raw
+        ? raw
+            .split(',')
+            .map((id) => id.trim())
+            .filter((id) => id.length > 0)
+        : [],
+    ),
+
+  /**
    * Which vendor answers. `anthropic` is the locked decision in PLAN.md §3;
    * `openai-compatible` covers anything speaking that wire format — OpenAI,
    * Groq, Together, OpenRouter, DeepSeek, Fireworks, vLLM, Ollama — via
