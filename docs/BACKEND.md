@@ -430,6 +430,8 @@ One filter produces this for every thrown error. Nest `HttpException`s map by st
 | `GET` | `/v1/me` | read | The signed-in user |
 | `GET`&nbsp;`PUT` | `/v1/me/profile` | read/write | |
 | `GET`&nbsp;`POST` | `/v1/me/goals` | read/write | POST appends; never updates in place |
+| `GET`&nbsp;`POST` | `/v1/me/weight` | read/write | `?days=` bounds the chart only — the latest and earliest readings come back whatever window is asked. POST upserts on (user, local day), so re-posting corrects that day rather than adding to it. Recording the NEWEST reading also writes `user_profiles.weight_kg` and appends a recomputed goal, in one transaction; backfilling an older one does neither |
+| `DELETE` | `/v1/me/weight/:date` | write | Removes one reading. **409 when it is the only one** — every account has a current weight and the goals are derived from it. Deleting the NEWEST reading promotes the one before it onto `user_profiles.weight_kg` and recomputes the goal; deleting an older one touches neither. Returns the remaining series, not 204 |
 | `GET` | `/v1/foods/search` | read | `?q=&limit=` — no model in the path |
 | `GET` | `/v1/foods/:id` | read | Nutrients + household portions |
 | `GET` | `/v1/foods/barcode/:gtin` | read | Conditional on the barcode decision |

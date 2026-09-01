@@ -78,6 +78,29 @@ export class GoalsService {
           },
         });
 
+      /**
+       * The profile's weight and the weight log are the same number at two
+       * resolutions, so a change made here has to appear there. Without this
+       * the chart draws a flat line through a change the user made
+       * deliberately, on the one screen whose whole job is showing changes.
+       *
+       * Dated in UTC rather than the user's local day, because a profile save
+       * carries no timezone — it is a form, not a measurement. The weight
+       * screen's own POST does send a local date; the two landing a few hours
+       * apart costs nothing, since both fall on the same row within a day.
+       *
+       * Upsert, not insert: saving the profile twice on a Tuesday is one
+       * Tuesday weight, and a plain insert would fail the unique index the
+       * second time somebody corrected a typo in their surname.
+       */
+      await tx
+        .insert(schema.weightLogs)
+        .values({ userId, measuredOn: today(), weightKg: merged.weightKg })
+        .onConflictDoUpdate({
+          target: [schema.weightLogs.userId, schema.weightLogs.measuredOn],
+          set: { weightKg: merged.weightKg },
+        });
+
       await this.recalculate(userId, merged, tx);
     });
 
@@ -221,7 +244,13 @@ export class GoalsService {
     return toGoal(row!);
   }
 
-  private async findProfile(userId: string): Promise<UserProfile | null> {
+  /**
+   * The null-returning read. Public because WeightService needs to recompute a
+   * goal after a weight lands, and must not throw at a user who has no profile
+   * — the weight was recorded either way, and a 404 from a successful write is
+   * a lie about what happened.
+   */
+  async findProfile(userId: string): Promise<UserProfile | null> {
     const [row] = await this.db
       .select()
       .from(schema.userProfiles)

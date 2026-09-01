@@ -57,6 +57,22 @@ export class NotFoundProblem extends ProblemException {
  * "ThrottlerException: Too Many Requests". `resetAt` is the contract's
  * 429-only field and is what lets the screen say when to come back.
  */
+/**
+ * The request was understood and refused because of the state it would leave
+ * behind — not because the input was wrong. 409, never 422: nothing about the
+ * body could be edited to make it succeed.
+ */
+export class ConflictProblem extends ProblemException {
+  constructor(title: string, detail: string) {
+    super({
+      type: PROBLEM_TYPES.conflict,
+      title,
+      status: HttpStatus.CONFLICT,
+      detail,
+    });
+  }
+}
+
 export class RateLimitedException extends ProblemException {
   constructor(retryAfterSeconds: number) {
     super({

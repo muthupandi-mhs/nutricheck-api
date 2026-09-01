@@ -164,3 +164,41 @@ export const userPortions = pgTable(
     index('user_portions_user_idx').on(t.userId),
   ],
 );
+
+/**
+ * One weight per day — the history the profile's single `weight_kg` cannot hold.
+ *
+ * `user_profiles.weight_kg` stays as the CURRENT weight rather than being
+ * replaced by a lookup here. Every goal calculation, AI prompt and targets
+ * preview reads that column, and a join for a number that changes monthly is
+ * work done on every request to save a write done occasionally. The two are
+ * kept in step at both doors instead: logging a weight for the latest date
+ * writes the profile, and saving the profile writes a row here.
+ *
+ * Unique on (user, day) because a weight is a measurement OF a day, not an
+ * event in it. Somebody who steps on the scale twice on Tuesday has corrected
+ * Tuesday; they have not recorded two Tuesdays. That makes the write an upsert
+ * and makes a replayed request harmless.
+ *
+ * One index, not two. The unique constraint's btree serves the descending scan
+ * the series query does — Postgres reads an index backwards at the same cost —
+ * so a second `(user_id, measured_on DESC)` index would be a write to maintain
+ * for a read that is already covered.
+ */
+export const weightLogs = pgTable(
+  'weight_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /**
+     * The LOCAL day the user weighed themselves, sent by the client. Not
+     * derived from `createdAt`: somebody in Auckland logging Monday's weight
+     * would otherwise have it filed under Sunday for the rest of time.
+     */
+    measuredOn: date('measured_on').notNull(),
+    weightKg: doublePrecision('weight_kg').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex('weight_logs_user_date_uq').on(t.userId, t.measuredOn)],

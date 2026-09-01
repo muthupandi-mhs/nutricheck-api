@@ -85,6 +85,13 @@
       "when": 1787895791406,
       "tag": "0011_profile_name",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788237423115,
+      "tag": "0012_weight_logs",
+      "breakpoints": true
     }
   ]
 }
