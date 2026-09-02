@@ -224,11 +224,12 @@ export class AuthController {
   @Post('change-password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { ttl: WINDOW_MS, limit: CHANGE_PASSWORD_PER_WINDOW } })
-  @ApiOperation({ summary: 'Change the password and sign out every device' })
+  @ApiOperation({ summary: 'Change the password and sign out every other device' })
   async changePassword(
     @CurrentUser('sub') userId: string,
+    @CurrentUser('sid') currentFamilyId: string,
     @Body() body: ChangePasswordDto,
   ): Promise<void> {
-    await this.auth.changePassword(userId, body);
+    await this.auth.changePassword(userId, body, currentFamilyId);
   }
 }

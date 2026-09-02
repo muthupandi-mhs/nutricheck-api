@@ -7,7 +7,7 @@ import type { AiMealItem } from '../../ai/ai.schemas';
  * model supplies RATES and the multiplication happens here — so this is the
  * test that the bargain is actually kept.
  */
-function item(over: Partial<AiMealItem> = {}): AiMealItem {
+function item(over: Partial<AiMealItem> = {}): AiMealItem & { date: string | null } {
   return {
     name: 'Dosai, plain',
     spokenAs: 'dosai',
@@ -17,6 +17,7 @@ function item(over: Partial<AiMealItem> = {}): AiMealItem {
     per100g: { kcal: 168, proteinG: 3.9, carbsG: 27.4, fatG: 5.5, fiberG: 1.2 },
     confidence: 'high',
     meal: null,
+    date: null,
     ...over,
   };
 }

@@ -135,7 +135,12 @@ function markersIn(phrase: string): Array<{ at: number; slot: MealSlot }> {
   });
 
   const found: Array<{ at: number; slot: MealSlot }> = [];
-  const token = /[\p{L}\p{N}]+/gu;
+  // `\p{M}` alongside `\p{L}`: Tamil vowel signs and the virama are Unicode
+  // MARKS, not letters, so a word regex missing them would only ever match
+  // isolated consonants out of a native-script word — dormant here only
+  // because MARKERS above is Latin-only, and caught the moment a Tamil-script
+  // marker word exists (see `meal-dates.ts`, which shipped exactly that word).
+  const token = /[\p{L}\p{M}\p{N}]+/gu;
   let match: RegExpExecArray | null;
   while ((match = token.exec(phrase)) !== null) {
     const slot = BY_WORD.get(match[0].toLowerCase());
@@ -187,6 +192,18 @@ export const SEQUENCE_WORDS: ReadonlySet<string> = new Set([
   'innaikku',
   'inniku',
   'today',
+  'இன்று',
+  'இன்னைக்கு',
+  'இன்னிக்கு',
+  // The same reasoning, for yesterday: `meal-dates.ts` reads these as a date
+  // marker, and left here they would still key a food's memory on the day
+  // it happened to be mentioned.
+  'yesterday',
+  'nethu',
+  'netru',
+  'nerathu',
+  'நேற்று',
+  'நேத்து',
 ]);
 
 export function assignMealTimes<T extends { spokenAs: string; meal: MealSlot | null }>(

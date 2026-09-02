@@ -59,7 +59,7 @@ export class AiMealController {
 
     // QuotaGuard has already turned an exhausted allowance into a 429 with a
     // reset time, so there is nothing to catch here.
-    return this.aiMeal.interpret(userId, body.phrase);
+    return this.aiMeal.interpret(userId, body.phrase, body.today);
   }
 }
 

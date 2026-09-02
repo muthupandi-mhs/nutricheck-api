@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { AccessTokenClaims, TokenPair } from '@nutricheck/contracts';
-import { and, eq, isNull, schema, type Database } from '@nutricheck/database';
+import { and, eq, isNull, ne, schema, type Database } from '@nutricheck/database';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AppConfig } from '../../config/config.schema';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
@@ -207,8 +207,15 @@ export class TokenService {
     await this.revokeFamily(row.familyId);
   }
 
-  /** Password change invalidates every session on every device. */
-  async revokeAllForUser(userId: string): Promise<void> {
+  /**
+   * Revokes every session on the account.
+   *
+   * `exceptFamilyId` spares one family — the caller's own — so a password
+   * change can sign out every OTHER device without also signing out the
+   * device the change was made from. Omit it (account deletion, the
+   * account-takeover path) to revoke everything with no exception.
+   */
+  async revokeAllForUser(userId: string, exceptFamilyId?: string): Promise<void> {
     await this.db
       .update(schema.refreshTokens)
       .set({ revokedAt: new Date() })
@@ -216,6 +223,7 @@ export class TokenService {
         and(
           eq(schema.refreshTokens.userId, userId),
           isNull(schema.refreshTokens.revokedAt),
+          exceptFamilyId ? ne(schema.refreshTokens.familyId, exceptFamilyId) : undefined,
         ),
       );
   }

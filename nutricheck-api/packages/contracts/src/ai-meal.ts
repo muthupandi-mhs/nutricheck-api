@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { FoodSummary } from './food';
+import { LocalDate } from './common';
 import { MealSlot } from './logs';
 
 /**
@@ -50,6 +51,22 @@ export const AiMealItemDraft = z.object({
    * food would be inventing a fact about somebody's day.
    */
   meal: MealSlot.nullable(),
+  /**
+   * Which calendar day the sentence put this item on, or null when it did not
+   * say.
+   *
+   * Per item rather than per draft, for the same reason `meal` is: one
+   * sentence is routinely more than one day — "nethu poori saptutten, aprm
+   * innaiku rendu idli" is yesterday and today said at once, and a single
+   * date on the draft would force the client to file yesterday's poori under
+   * today.
+   *
+   * Null is not a failure and not a default: it means the words carried no
+   * date, and the client fills it from whichever day was selected when the
+   * sheet was opened. Guessing a date from the food would be inventing a fact
+   * about somebody's day.
+   */
+  date: LocalDate.nullable(),
 });
 export type AiMealItemDraft = z.infer<typeof AiMealItemDraft>;
 
@@ -79,5 +96,12 @@ export type AiMealDraft = z.infer<typeof AiMealDraft>;
 
 export const AiMealRequest = z.object({
   phrase: z.string().trim().min(1).max(500),
+  /**
+   * The client's own local "today" — the anchor "today"/"yesterday" in the
+   * phrase resolve against. The server has no reliable notion of the user's
+   * local day otherwise; sent the same way `ChatRequest` already sends its
+   * date for context.
+   */
+  today: LocalDate,
 });
 export type AiMealRequest = z.infer<typeof AiMealRequest>;

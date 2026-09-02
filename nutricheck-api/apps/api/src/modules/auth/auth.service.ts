@@ -343,7 +343,18 @@ export class AuthService {
     await this.tokens.revokeFamilyOf(refreshToken);
   }
 
-  async changePassword(userId: string, input: ChangePasswordRequest): Promise<void> {
+  /**
+   * `currentFamilyId` is the session making the change — its `sid` claim —
+   * and is spared from the sign-out. Every OTHER device still goes: the
+   * point of the sweep is that a stolen session elsewhere does not survive
+   * the owner recovering their account, not that the owner has to sign back
+   * in on the device they just used to do it.
+   */
+  async changePassword(
+    userId: string,
+    input: ChangePasswordRequest,
+    currentFamilyId?: string,
+  ): Promise<void> {
     const [identity] = await this.db
       .select()
       .from(schema.authIdentities)
@@ -367,8 +378,26 @@ export class AuthService {
       .set({ passwordHash })
       .where(eq(schema.authIdentities.id, identity.id));
 
-    // Every device signs out. A password change that leaves a stolen session
-    // alive has not actually recovered the account.
+    await this.tokens.revokeAllForUser(userId, currentFamilyId);
+  }
+
+  /**
+   * Soft-deletes the account: stamps `deletedAt` rather than removing the
+   * row, and signs out every device the same way `changePassword` does.
+   *
+   * A stamp rather than a row deletion because the account is meant to stay
+   * recoverable for a 30-day grace window — every place that gates on it
+   * (`login`, `checkEmail`, `signInWithGoogle`) already reads `deletedAt`, so
+   * setting it is what actually turns the account off. Purging the row once
+   * the window has passed is a separate, later concern; this method only
+   * marks the moment the window starts.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    await this.db
+      .update(schema.users)
+      .set({ deletedAt: new Date() })
+      .where(eq(schema.users.id, userId));
+
     await this.tokens.revokeAllForUser(userId);
   }
 

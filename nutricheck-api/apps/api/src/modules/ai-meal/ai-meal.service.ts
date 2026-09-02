@@ -11,6 +11,7 @@ import { AiRunsService } from '../ai/ai-runs.service';
 import { AiService } from '../ai/ai.service';
 import type { AiMealItem } from '../ai/ai.schemas';
 import { FoodsService } from '../foods/foods.service';
+import { assignMealDates } from './meal-dates';
 import { assignMealTimes, SEQUENCE_WORDS, TIME_WORDS } from './meal-times';
 import { QuotaService } from '../quota/quota.service';
 
@@ -46,7 +47,7 @@ export class AiMealService {
     return this.ai.isConfigured;
   }
 
-  async interpret(userId: string, phrase: string): Promise<AiMealDraft> {
+  async interpret(userId: string, phrase: string, today: string): Promise<AiMealDraft> {
     // QuotaGuard has already refused an exhausted user; this books the unit.
     // A call that then fails is refunded, on the resolver's reasoning: a user
     // should not pay a daily unit for our provider having a bad minute.
@@ -72,8 +73,13 @@ export class AiMealService {
     // of it by a model having an off minute.
     const timed = assignMealTimes(phrase, result.value.items);
 
+    // Same reasoning as the words above, for WHICH DAY: deterministic,
+    // anchored to the caller's own "today" rather than the server's clock,
+    // which knows nothing about where the user is.
+    const dated = assignMealDates(phrase, timed, today);
+
     const items: AiMealItemDraft[] = [];
-    for (const item of timed) {
+    for (const item of dated) {
       items.push(await this.materialise(userId, item));
     }
 
@@ -136,7 +142,7 @@ export class AiMealService {
    */
   private async materialise(
     userId: string,
-    item: AiMealItem,
+    item: AiMealItem & { date: string | null },
   ): Promise<AiMealItemDraft> {
     const sourceId = `${userId}:${memoryKey(item.name)}`;
 
@@ -291,7 +297,7 @@ export function memoryKey(name: string): string {
 }
 
 export function scaleToPortion(
-  item: AiMealItem,
+  item: AiMealItem & { date: string | null },
 ): Omit<AiMealItemDraft, 'food'> {
   const factor = item.grams / 100;
   return {
@@ -299,8 +305,9 @@ export function scaleToPortion(
     quantity: item.quantity,
     unit: item.unit,
     // Passed straight through, null included. This function multiplies; it
-    // does not decide what time anybody ate.
+    // does not decide what time, or which day, anybody ate.
     meal: item.meal ?? null,
+    date: item.date,
     grams: round(item.grams),
     kcal: round(item.per100g.kcal * factor),
     proteinG: round(item.per100g.proteinG * factor),

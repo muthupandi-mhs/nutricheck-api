@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { SessionUser } from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -17,5 +17,12 @@ export class UsersController {
     // Reachable with a still-valid access token after the account was deleted.
     if (!user) throw new NotFoundProblem('User');
     return user;
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete the account — soft-deleted for 30 days, then purged' })
+  async deleteAccount(@CurrentUser('sub') userId: string): Promise<void> {
+    await this.auth.deleteAccount(userId);
   }
 }
