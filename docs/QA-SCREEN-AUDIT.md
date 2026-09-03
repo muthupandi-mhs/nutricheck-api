@@ -110,6 +110,14 @@ Requested by the user directly: is decimal entry consistent everywhere it's rele
 
 Portion grams typed directly on `PortionScreen.tsx`/`CreateFoodScreen.tsx` (plain `Field`, not `Stepper`) already accepted decimals via `portionGramsField`'s schema — never affected by the Stepper bug.
 
+## Backend: a day/week/month before the account's first goal showed a zero target
+
+Reported by the user with a screenshot: viewing a day with a logged meal showed an empty calorie ring and every macro bar reading `value/0 g`. Root cause was in `nutricheck-api`, not the client — `LogsService.day()`/`.week()`/`.month()` (`apps/api/src/modules/logs/logs.service.ts`) zero-filled the goal whenever `GoalsService.goalInEffect()` legitimately returned `null` for a date before the account's very first goal. That's a real, easily-reached state now: the AI-meal date parser lets someone log "yesterday I had a dosai" the moment onboarding finishes, dating an entry to a day before the account's first goal (effective today) existed. `goalInEffect`'s own date comparison was already correct (inclusive `lte`, no off-by-one) — confirmed by a dedicated investigation before touching anything.
+
+**Fixed**: added `GoalsService.earliestGoal()` (oldest goal on record, ordered by `effectiveFrom` ascending) and used it as the fallback before zero in all three methods — the account's first target is a far more honest stand-in than an invented zero. Added a regression test in `gaps.int-spec.ts` distinguishing this from the pre-existing "no goal at all" case (which correctly still zero-fills). Verified against a real Postgres instance via `test:int`.
+
+While running that suite, found an unrelated, pre-existing, self-documented flaky test (`reports the goal in effect at the end of the window...`) whose own comment predicted it would break once real wall-clock time passed the dates it hardcodes — which it now has. Left alone: confirmed via the math that this fix's fallback logic is never on the code path that fails there.
+
 ---
 
 ## Open items
@@ -137,3 +145,4 @@ Issues found that were deferred rather than fixed inline, because they need a pr
 15. `src/components/Field.tsx` — the shared `Stepper` no longer silently turns a typed decimal into a wrong whole number on every integer field in the app (e.g. `150.5` becoming `1505`); added regression tests.
 16. `src/screens/onboarding/ProfileScreen.tsx`, `src/screens/settings/ProfileEditorScreen.tsx` — Height and Weight now take one decimal place, matching `WeightScreen`'s own logging precision.
 17. `src/screens/entry/EntryDetailScreen.tsx` — the per-item gram editor no longer silently rounds away a portion's fraction the instant it's opened, and its Stepper now takes a decimal like every other gram-entry field in the app.
+18. **(backend)** `nutricheck-api`'s `goals.service.ts` + `logs.service.ts` — a day/week/month before the account's first-ever goal no longer shows a zero target (empty ring, `value/0 g` bars); it now falls back to the account's earliest goal.
