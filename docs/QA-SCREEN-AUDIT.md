@@ -47,7 +47,7 @@ Also reviewed as shared/backing code for this flow: `AuthStep.tsx`, `OnboardStep
 | Portion | `src/screens/search/PortionScreen.tsx` | ✅ | |
 | Create food | `src/screens/search/CreateFoodScreen.tsx` | ✅ | |
 | Confirm sheet | `src/screens/confirm/ConfirmSheetScreen.tsx` (+ `ConfirmRow.tsx`) | ✅ | |
-| Entry detail | `src/screens/entry/EntryDetailScreen.tsx` | 🔧 | "Save as a meal" was a dead chip (`onPress={() => {}}`) — same class of bug as onboarding's forgot-password button. Unlike that one, the backend was fully ready for it: `POST /v1/meals` already accepts `{ name, fromEntryId }` — "save an existing log entry as a meal" is a documented, tested path (`meals.controller.ts`/`meals.service.ts`) — but there was no client-side plumbing at all (no method on `NutriCheckApi`, nothing in `httpApi.ts`, nothing in `AppState.tsx`). It was also only reachable when the entry had a `phrase`, even though the server's `fromEntryId` works for any entry (search-logged, repeat-logged, anything). **Fixed end to end**: added `createMealFromEntry` to `api/client.ts` + `httpApi.ts` (+ a stub in `__tests__/fixtures/stubApi.ts` for the render-test suite), added a `mealNameSchema`/`MEAL_NAME_MAX` to `forms/schemas.ts` (mirrors `contracts/meals.ts`'s `CreateMeal.name` bound), and built a small naming `Sheet` on `EntryDetailScreen` — defaults the name to the food name (single-item entries) or the meal slot label, validates it, calls the new endpoint, and surfaces a failure without touching the entry itself. The chip now sits outside the phrase-only block so it shows for every entry. Verified: `tsc --noEmit` clean, full suite passes. |
+| Entry detail | `src/screens/entry/EntryDetailScreen.tsx` | 🔧 | "Save as a meal" was a dead chip (`onPress={() => {}}`) — same class of bug as onboarding's forgot-password button. Unlike that one, the backend was fully ready for it: `POST /v1/meals` already accepts `{ name, fromEntryId }` — "save an existing log entry as a meal" is a documented, tested path (`meals.controller.ts`/`meals.service.ts`) — but there was no client-side plumbing at all (no method on `NutriCheckApi`, nothing in `httpApi.ts`, nothing in `AppState.tsx`). It was also only reachable when the entry had a `phrase`, even though the server's `fromEntryId` works for any entry (search-logged, repeat-logged, anything). **Fixed end to end**: added `createMealFromEntry` to `api/client.ts` + `httpApi.ts` (+ a stub in `__tests__/fixtures/stubApi.ts` for the render-test suite), added a `mealNameSchema`/`MEAL_NAME_MAX` to `forms/schemas.ts` (mirrors `contracts/meals.ts`'s `CreateMeal.name` bound), and built a small naming `Sheet` on `EntryDetailScreen` — defaults the name to the food name (single-item entries) or the meal slot label, validates it, calls the new endpoint, and surfaces a failure without touching the entry itself. The chip now sits outside the phrase-only block so it shows for every entry. Separately, found while auditing decimal support app-wide: opening the per-item gram editor did `setPendingGrams(Math.round(item.grams))`, silently rounding away any fraction the instant the sheet opened — a standard portion routinely carries one (a food table's "1 medium" can be 182.5 g), and Search's own initial entry already accepts a decimal gram amount, so editing was the one place that could round it away just by opening and saving with no other change. **Fixed**: seed from the real value, and gave the Stepper `decimals={1}` so a fraction displays and types correctly instead of being silently mangled by the whole-number Stepper bug below. Verified: `tsc --noEmit` clean, full suite passes. |
 
 ## 3. Secondary tabs
 
@@ -95,6 +95,21 @@ Reported by the user: on the password step, navigating back to the email step le
 
 **Fixed**: all three now gate `disabled` on there being text only. A genuinely invalid value still gets caught and shown the moment the button is pressed — nothing about real validation changed — it just never pre-emptively blocks the tap based on stale state.
 
+## Decimal-entry audit: every Height/Weight/target field in the app
+
+Requested by the user directly: is decimal entry consistent everywhere it's relevant? Checked every `Stepper`/`FormStepper` usage in the app:
+
+| Field(s) | Where | decimals | Correct? |
+|---|---|---|---|
+| Height, Weight | onboarding `ProfileScreen.tsx` | 1 | ✅ (fixed this session) |
+| Height, Weight | `ProfileEditorScreen.tsx` | 1 | ✅ (fixed this session) |
+| Weight | `WeightScreen.tsx` (logging sheet) | 1 | ✅ (already correct) |
+| Item grams | `EntryDetailScreen.tsx` (edit sheet) | was 0, silently rounding on open | 🔧 fixed — see the Entry detail row above |
+| Rate (kg/week) | onboarding `RateScreen.tsx` | 2 | ✅ |
+| Calories, Protein, Carbs, Fat, Fibre (goal targets) | `GoalEditorScreen.tsx`, onboarding `TargetsEditScreen.tsx` | 0 | ✅ — correct as whole numbers; the server's `goalTargetsSchema` is `.int()` on purpose, so this is by design, not a gap. Now also protected by the whole-number Stepper fix above, so a stray decimal is refused instead of silently mangled. |
+
+Portion grams typed directly on `PortionScreen.tsx`/`CreateFoodScreen.tsx` (plain `Field`, not `Stepper`) already accepted decimals via `portionGramsField`'s schema — never affected by the Stepper bug.
+
 ---
 
 ## Open items
@@ -121,3 +136,4 @@ Issues found that were deferred rather than fixed inline, because they need a pr
 14. `src/screens/onboarding/AuthEmailScreen.tsx`, `AuthPasswordScreen.tsx`, `NameScreen.tsx` — Continue no longer gets stuck disabled after navigating back with valid data still in the field; also switched `NameScreen`'s fields onto the same `AuthFormField` the login screens use.
 15. `src/components/Field.tsx` — the shared `Stepper` no longer silently turns a typed decimal into a wrong whole number on every integer field in the app (e.g. `150.5` becoming `1505`); added regression tests.
 16. `src/screens/onboarding/ProfileScreen.tsx`, `src/screens/settings/ProfileEditorScreen.tsx` — Height and Weight now take one decimal place, matching `WeightScreen`'s own logging precision.
+17. `src/screens/entry/EntryDetailScreen.tsx` — the per-item gram editor no longer silently rounds away a portion's fraction the instant it's opened, and its Stepper now takes a decimal like every other gram-entry field in the app.
