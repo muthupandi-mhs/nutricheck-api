@@ -401,8 +401,12 @@ export class LogsService {
     const withItems = await this.loadItems(entries);
     const totals = sumDay(withItems.flatMap((e) => e.items.map((i) => i.nutrients)));
 
-    // The goal in effect on THAT date, never today's.
-    const goal = await this.goals.goalInEffect(userId, date);
+    // The goal in effect on THAT date, never today's — falling back to the
+    // account's earliest goal for a date before its very first one, rather
+    // than a target of zero. See GoalsService.earliestGoal for why: a
+    // sentence can log a day like this the moment onboarding finishes, and
+    // zero draws as a broken-looking ring rather than as "no target yet".
+    const goal = (await this.goals.goalInEffect(userId, date)) ?? (await this.goals.earliestGoal(userId));
 
     return {
       date,
@@ -462,8 +466,10 @@ export class LogsService {
     const days = await this.dayPointsBetween(userId, from, to, tz);
 
     // The goal in effect at the END of the window, matching `week()`. See the
-    // note on MonthSummary: per-day resolution is a lookup per cell.
-    const goal = await this.goals.goalInEffect(userId, to);
+    // note on MonthSummary: per-day resolution is a lookup per cell. Falls
+    // back to the earliest goal on record for a month entirely before the
+    // account's first one — see `day()`'s note on why that beats zero.
+    const goal = (await this.goals.goalInEffect(userId, to)) ?? (await this.goals.earliestGoal(userId));
 
     return {
       from,
@@ -488,8 +494,11 @@ export class LogsService {
         : round2(logged.reduce((sum, d) => sum + pick(d), 0) / logged.length);
 
     // The goal in effect at the END of the window, not today's. A week viewed
-    // in hindsight is measured against the target that was actually in force.
-    const goal = await this.goals.goalInEffect(userId, date);
+    // in hindsight is measured against the target that was actually in
+    // force. Falls back to the earliest goal on record for a week entirely
+    // before the account's first one — see `day()`'s note on why that beats
+    // zero.
+    const goal = (await this.goals.goalInEffect(userId, date)) ?? (await this.goals.earliestGoal(userId));
 
     return {
       from,

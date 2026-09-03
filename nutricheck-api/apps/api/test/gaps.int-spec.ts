@@ -501,6 +501,30 @@ describe('client/backend gaps', () => {
       });
     });
 
+    it('falls back to the account\'s EARLIEST goal, not zero, for a day before its first one', async () => {
+      // Distinct from the "no goal yet" case above: this account has a real
+      // goal, just not one in effect on the date being viewed. A sentence can
+      // log a day like that the moment onboarding finishes -- "yesterday I
+      // had a dosai" dates an entry to a day before the account's first goal
+      // even existed -- and a target of zero there drew as a broken-looking
+      // ring and every macro bar reading "9.6/0 g" rather than as a day with
+      // no target yet.
+      const userId = await newUser('week-before-first-goal');
+      await goals.upsertProfile(userId, PROFILE);
+      await goals.override(userId, { effectiveFrom: '2026-08-26' });
+      const firstGoal = (await goals.currentGoal(userId)).kcal;
+
+      const dayBefore = await logs.day(userId, '2026-08-25', 'UTC');
+      expect(dayBefore.goal.kcal).toBe(firstGoal);
+      expect(dayBefore.goal.kcal).toBeGreaterThan(0);
+
+      const weekBefore = await logs.week(userId, '2026-08-25', 'UTC');
+      expect(weekBefore.goal.kcal).toBe(firstGoal);
+
+      const monthBefore = await logs.month(userId, '2026-07-15', 'UTC');
+      expect(monthBefore.goal.kcal).toBe(firstGoal);
+    });
+
     it('buckets by the user timezone, not UTC', async () => {
       // 23:30 in Asia/Kolkata is 18:00 UTC the same day. Bucketing in UTC puts
       // this on the right date by luck; the next case is the one that bites.

@@ -6,7 +6,7 @@ import type {
   UpdateUserProfile,
   UserProfile,
 } from '@nutricheck/contracts';
-import { and, desc, eq, lte, schema, type Database } from '@nutricheck/database';
+import { and, asc, desc, eq, lte, schema, type Database } from '@nutricheck/database';
 import { NotFoundProblem } from '../../common/problems';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 import { computeGoal, type GoalBasis } from './goal-calculator';
@@ -182,6 +182,32 @@ export class GoalsService {
         and(eq(schema.goals.userId, userId), lte(schema.goals.effectiveFrom, date)),
       )
       .orderBy(desc(schema.goals.effectiveFrom))
+      .limit(1);
+
+    return row ? toGoal(row) : null;
+  }
+
+  /**
+   * The oldest goal on record — the fallback for a day, week or month view
+   * that falls before the account's very first goal.
+   *
+   * That is a real state, not a hole nobody can reach: a sentence can log
+   * "yesterday I had a dosai" the moment onboarding finishes, dating an
+   * entry to a day that came before the account's first goal even existed.
+   * `goalInEffect` correctly returns null there — there truly was no goal in
+   * force on that date — but null-into-zero is what a caller does with it,
+   * and a target of zero draws as an empty ring and every macro bar reading
+   * "9.6/0 g" rather than as "no target existed yet". The account's first
+   * target is the honest stand-in: it is the number that WOULD have applied
+   * if the day had come a moment later, which is closer to true than zero
+   * ever is.
+   */
+  async earliestGoal(userId: string): Promise<Goal | null> {
+    const [row] = await this.db
+      .select()
+      .from(schema.goals)
+      .where(eq(schema.goals.userId, userId))
+      .orderBy(asc(schema.goals.effectiveFrom))
       .limit(1);
 
     return row ? toGoal(row) : null;
