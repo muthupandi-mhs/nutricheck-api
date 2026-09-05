@@ -48,3 +48,6 @@ nutricheck/
 
 # USDA bulk downloads — large, re-fetchable, not ours to redistribute
 .usda/
+
+# Design assets — not code, not meant for this repo's history
+/design/
