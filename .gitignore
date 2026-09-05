@@ -51,3 +51,7 @@ nutricheck/
 
 # Design assets — not code, not meant for this repo's history
 /design/
+
+# Working docs — QA notes, plans, status write-ups. Edited constantly and not
+# meant to be pushed; kept on disk, not in this repo's history.
+/docs/
