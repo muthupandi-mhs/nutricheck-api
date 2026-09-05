@@ -173,8 +173,17 @@ export const AiMealItem = z.object({
     fatG: z.number().nonnegative().max(100),
     fiberG: z.number().nonnegative().max(100),
   }),
-  /** Low when the dish is unfamiliar or the portion was never stated. */
+  /** Low when the dish is unfamiliar or its name is ambiguous — a judgment about the food, not the amount. */
   confidence: z.enum(['high', 'low']),
+  /**
+   * Whether the sentence itself gave a count, amount, or measure for this
+   * food, as opposed to the model filling in the QUANTITIES table's default
+   * serving because nothing was said. Kept separate from `confidence`: a
+   * familiar dish eaten in an unstated amount is high confidence and an
+   * unstated quantity at once, and the read-back needs to ask about the
+   * portion specifically rather than flag the whole item as uncertain.
+   */
+  quantityStated: z.boolean(),
   /**
    * Which meal the WORDS put this in, or null when they said nothing about it.
    *

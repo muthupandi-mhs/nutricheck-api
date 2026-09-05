@@ -315,6 +315,7 @@ export function scaleToPortion(
     fatG: round(item.per100g.fatG * factor),
     fiberG: round(item.per100g.fiberG * factor),
     confidence: item.confidence,
+    quantityStated: item.quantityStated,
   };
 }
 

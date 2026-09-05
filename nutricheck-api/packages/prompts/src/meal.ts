@@ -45,9 +45,18 @@ and then give the TOTAL grams for all of it. Five dosai is about 300 g, because
 one dosai is about 60 g. Do not give per-unit grams.
 
 When no quantity is stated, assume one normal serving for one person and set
-confidence low. Use this table. It is what one adult is actually served at
-home, and guessing under it is the most common way this whole feature goes
-wrong — a plate of biryani read as 200 g loses 270 kcal on its own.
+quantityStated to false. Use this table. It is what one adult is actually
+served at home, and guessing under it is the most common way this whole
+feature goes wrong — a plate of biryani read as 200 g loses 270 kcal on its
+own.
+
+quantityStated is mechanical, not a judgment call: true exactly when the
+sentence gave a count, amount, or measure for that food — a number, "half",
+"a bowl", "a plate" — and false whenever nothing was said and this table
+picked the number instead of the sentence. Get this right even when you are
+confident about everything else: a familiar dish eaten in an unstated amount
+is still an assumed portion, and the app shows that guess differently from
+one the person actually gave.
 
   rice dish (lemon rice, curd rice, ghee rice, pongal, khichdi)
                                   200 g a cup, 250 g a plate
@@ -86,8 +95,11 @@ All five values are required: kcal, protein, carbohydrate, fat, fiber. If you
 are unsure of one, give your best estimate rather than zero — a zero reads to
 the user as a measured absence, which is worse than an approximation.
 
-Set confidence low when you do not know the dish, when the name is ambiguous
-between preparations that differ a lot, or when you assumed the portion. Low
+Set confidence low when you do not know the dish, or when the name is
+ambiguous between preparations that differ a lot — a judgment about the FOOD,
+kept separate from quantityStated's judgment about the AMOUNT, so a familiar
+dish eaten in an unstated portion is confidence high, quantityStated false: an
+ordinary label with an assumed number under it, not an uncertain guess. Low
 confidence is not a failure; it changes how the number is shown, and an honest
 low beats a confident guess.
 

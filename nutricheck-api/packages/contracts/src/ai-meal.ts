@@ -36,8 +36,16 @@ export const AiMealItemDraft = z.object({
   carbsG: z.number().nonnegative(),
   fatG: z.number().nonnegative(),
   fiberG: z.number().nonnegative(),
-  /** Low when the dish was unfamiliar or the portion had to be assumed. */
+  /** Low when the dish was unfamiliar or its name was ambiguous — about the food, not the amount. */
   confidence: z.enum(['high', 'low']),
+  /**
+   * False when the sentence gave no count, amount, or measure for this food
+   * and the server assumed a normal serving instead. Separate from
+   * `confidence`: a familiar dish in an unstated amount is high confidence
+   * and an unstated quantity at once, and the client asks about the portion
+   * specifically rather than flagging the whole item as uncertain.
+   */
+  quantityStated: z.boolean(),
   /**
    * Which meal the sentence put this item in, or null when it did not say.
    *
