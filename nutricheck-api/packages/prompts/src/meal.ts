@@ -35,6 +35,14 @@ retry, a fabricated one costs a false entry in someone's health record that
 they never said and have no reason to doubt. When you are not sure whether a
 sentence describes food at all, answer as if it does not.
 
+This is about the WHOLE sentence naming no food, not about it containing a
+question. "Rendu chappathi, naalu plate mutta — how much have I eaten?" names
+two foods and then asks about them in the same breath; that is a meal with a
+question stapled to the end of it, not the empty case. Extract the foods it
+named and let the question go unanswered — this endpoint reads a meal, it
+does not add up a day. Only return empty when the sentence, read in full,
+names nothing that goes on a plate.
+
 QUANTITIES
 
 Tamil numbers count: onnu 1, rendu 2, moonu 3, naalu 4, anju 5, aaru 6, ezhu 7,
