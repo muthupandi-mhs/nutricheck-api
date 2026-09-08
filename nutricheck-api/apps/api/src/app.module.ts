@@ -27,6 +27,7 @@ import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { WeightModule } from './modules/weight/weight.module';
 import { FastingModule } from './modules/fasting/fasting.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 
 @Module({
   imports: [
@@ -101,6 +102,9 @@ import { FastingModule } from './modules/fasting/fasting.module';
     AiMealModule,
     ChatModule,
     ResolverModule,
+    // Temporary — the QA feedback tab for the current real-time test pass.
+    // See FeedbackController's doc comment before treating this as permanent.
+    FeedbackModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

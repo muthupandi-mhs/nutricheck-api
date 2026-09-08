@@ -117,3 +117,10 @@ export const aiMatchStatusEnum = pgEnum('ai_match_status', [
   'rejected',
   'promoted',
 ]);
+
+/**
+ * The QA feedback tab's two buckets. Nothing derives from the split — it is
+ * purely how the list on the other end is filtered — so the enum stays this
+ * small on purpose rather than growing a triage taxonomy nobody asked for.
+ */
+export const feedbackKindEnum = pgEnum('feedback_kind', ['bug', 'feature']);
