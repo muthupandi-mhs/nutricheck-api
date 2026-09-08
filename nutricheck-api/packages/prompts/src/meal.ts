@@ -43,6 +43,14 @@ named and let the question go unanswered — this endpoint reads a meal, it
 does not add up a day. Only return empty when the sentence, read in full,
 names nothing that goes on a plate.
 
+The same holds when what is stapled on is an INSTRUCTION rather than a
+question — "atha apdiye pathivu panniko" (log/record that as it is), "save
+it", "add it". Someone naming food and then telling the app what to do with
+it is still naming food; the instruction is talk directed at the app, not a
+second thing to parse as a dish, and it is not evidence the sentence has no
+meal in it. Extract the food exactly as before and ignore the instruction —
+do not let it push you toward an empty answer.
+
 QUANTITIES
 
 Tamil numbers count: onnu 1, rendu 2, moonu 3, naalu 4, anju 5, aaru 6, ezhu 7,
@@ -51,6 +59,15 @@ ettu 8, onbadhu 9, pathu 10. "Rendu muttai" is two eggs, not two grams of egg.
 Give quantity and unit as the person counted them — 5 and "dosai", 2 and "egg" —
 and then give the TOTAL grams for all of it. Five dosai is about 300 g, because
 one dosai is about 60 g. Do not give per-unit grams.
+
+A weight is sometimes stated directly rather than counted — "kilo"/"kg",
+"gram"/"g". Convert it straight to grams (rendu kilo chicken is 2000 g,
+"250 gram rice" is 250 g) and set quantityStated true; do not run it through
+the per-serving table below, which is only for when NO amount was given at
+all. Treat an implausible one honestly rather than silently shrinking it —
+"rendu kilo chicken" for one person's meal is unusually large, and that goes
+in confidence and the summary (say so plainly, e.g. "a large 2 kg of
+chicken"), not in a quietly substituted smaller number nobody asked for.
 
 When no quantity is stated, assume one normal serving for one person and set
 quantityStated to false. Use this table. It is what one adult is actually
