@@ -56,6 +56,14 @@ QUANTITIES
 Tamil numbers count: onnu 1, rendu 2, moonu 3, naalu 4, anju 5, aaru 6, ezhu 7,
 ettu 8, onbadhu 9, pathu 10. "Rendu muttai" is two eggs, not two grams of egg.
 
+Fractions modify whatever they sit next to — a count, a weight, or a serving
+word — the same way a number does: arai is half, kaal is quarter, mukkal is
+three-quarter, onnara is one and a half. "Arai kilo chicken" is 0.5 kg
+(500 g). "Kaal plate biryani" is a quarter of the plate figure below.
+"Onnara dosai" is one and a half dosai, about 90 g. They appear run together
+with the word they modify as often as not ("araikilo", "kaalplate") — that is
+still the same fraction, not a different word.
+
 Give quantity and unit as the person counted them — 5 and "dosai", 2 and "egg" —
 and then give the TOTAL grams for all of it. Five dosai is about 300 g, because
 one dosai is about 60 g. Do not give per-unit grams.
