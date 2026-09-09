@@ -26,6 +26,7 @@ import { TranscriptionModule } from './modules/transcription/transcription.modul
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { WeightModule } from './modules/weight/weight.module';
+import { StepsModule } from './modules/steps/steps.module';
 import { FastingModule } from './modules/fasting/fasting.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 
@@ -91,6 +92,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     FoodsModule,
     GoalsModule,
     WeightModule,
+    StepsModule,
     FastingModule,
     LogsModule,
     MealsModule,

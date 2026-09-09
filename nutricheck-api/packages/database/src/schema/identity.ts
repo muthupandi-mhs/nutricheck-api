@@ -207,6 +207,31 @@ export const weightLogs = pgTable(
 );
 
 /**
+ * Steps per day. Same shape as `weightLogs` and the same reasoning: a step
+ * count is a measurement OF a day, not an event in it, so it is unique on
+ * `(user, day)` and a second log for a day corrects it rather than adding to
+ * it.
+ *
+ * Unlike weight, nothing else in the app reads this — there is no profile
+ * column tracking "current steps" and no goal derived from it, so a write
+ * here never needs to reach another table.
+ */
+export const stepLogs = pgTable(
+  'step_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** The LOCAL day walked, sent by the client — same reasoning as `weightLogs.measuredOn`. */
+    measuredOn: date('measured_on').notNull(),
+    steps: integer('steps').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex('step_logs_user_date_uq').on(t.userId, t.measuredOn)],
+);
+
+/**
  * Declared fasts — a start, an end, and the length somebody was aiming for.
  *
  * **Instants, not dates.** `weight_logs` above is keyed by a local `date`

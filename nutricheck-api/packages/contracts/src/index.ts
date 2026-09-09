@@ -24,5 +24,6 @@ export * from './insights';
 export * from './ai-meal';
 export * from './ideas';
 export * from './weight';
+export * from './steps';
 export * from './fasting';
 export * from './feedback';
