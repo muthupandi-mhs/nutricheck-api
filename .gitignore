@@ -3,6 +3,7 @@ dist/
 build/
 coverage/
 .turbo/
+.next/
 *.tsbuildinfo
 
 .env
@@ -45,6 +46,9 @@ Thumbs.db
 
 # Mobile app — tracked separately in nutricheck-mobile
 nutricheck/
+
+# Admin web app — tracked separately in its own GitHub repo (MyHealthSchool/nutricheck-admin)
+nutricheck-admin/
 
 # USDA bulk downloads — large, re-fetchable, not ours to redistribute
 .usda/

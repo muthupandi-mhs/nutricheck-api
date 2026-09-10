@@ -12,6 +12,14 @@ import { DATABASE } from '../../infrastructure/database/database.tokens';
  * profile or the goal calculator — nothing else in the app derives from a
  * step count, so a write here never has to reach another table.
  */
+/**
+ * Everyone's target, for now — the reference screen this ring is modelled on
+ * uses one fixed goal rather than a personal one. Living here rather than as
+ * a magic number in the controller, so `report()` is the only place that
+ * needs to change if this becomes per-user later.
+ */
+const DAILY_GOAL_STEPS = 8000;
+
 @Injectable()
 export class StepsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
@@ -25,8 +33,7 @@ export class StepsService {
    * for steps to fill.
    */
   async report(userId: string, days: number): Promise<StepsReport> {
-    const to = todayUtc();
-    const from = shiftDays(to, -(days - 1));
+    const { from, to } = stepsWindow(days);
 
     const rows = await this.db
       .select({ date: schema.stepLogs.measuredOn, steps: schema.stepLogs.steps })
@@ -61,6 +68,7 @@ export class StepsService {
       averageSteps: logged.length === 0 ? 0 : totalSteps / logged.length,
       loggedDays: logged.length,
       bestDay,
+      dailyGoalSteps: DAILY_GOAL_STEPS,
     };
   }
 
@@ -99,6 +107,17 @@ const MS_PER_DAY = 86_400_000;
 
 function shiftDays(date: string, by: number): string {
   return new Date(Date.parse(date) + by * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+/**
+ * `[today - days + 1, today]` — the one definition of "the window" a step
+ * count is judged over. Exported so a group's and Stars' leaderboards sum
+ * the same days the personal report does, rather than each picking their
+ * own.
+ */
+export function stepsWindow(days: number): { from: string; to: string } {
+  const to = todayUtc();
+  return { from: shiftDays(to, -(days - 1)), to };
 }
 
 /**

@@ -52,9 +52,20 @@ async function bootstrap(): Promise<void> {
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // A native client sends no Origin, so CORS stays off in production. It is
-  // enabled in development only so the OpenAPI page can be driven from a browser.
-  if (!isProduction) {
+  // The mobile app sends no Origin, so CORS was off in production until the
+  // admin web app needed one: that IS a browser, and a browser enforces CORS
+  // on the response whether or not the request looks like it "needs" it.
+  // Origin is allowlisted to ADMIN_WEB_ORIGIN specifically — not `true` — so
+  // production does not accept credentialed cross-origin calls from anywhere
+  // that merely guesses the API host.
+  if (isProduction) {
+    const adminOrigins = config.get('ADMIN_WEB_ORIGIN', { infer: true });
+    if (adminOrigins.length > 0) {
+      app.enableCors({ origin: adminOrigins });
+    }
+  } else {
+    // Enabled for everything in development so the OpenAPI page and a
+    // locally-run admin app can both be driven from a browser.
     app.enableCors({ origin: true });
   }
 

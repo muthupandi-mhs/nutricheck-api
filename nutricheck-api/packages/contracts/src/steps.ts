@@ -53,5 +53,23 @@ export const StepsReport = z.object({
   loggedDays: z.number().int().nonnegative(),
   /** The best logged day in the window, or null when nothing was logged. */
   bestDay: StepPoint.nullable(),
+  /**
+   * A flat constant today (8000, matching the reference this screen is
+   * modelled on), server-computed rather than a client default so a later
+   * per-user goal costs no contract change.
+   */
+  dailyGoalSteps: z.number().int().positive(),
 });
 export type StepsReport = z.infer<typeof StepsReport>;
+
+/**
+ * One ranked row — a group's leaderboard and the admin-curated Stars list
+ * are the same question ("who, and how many steps") asked of two different
+ * audiences, so they share this shape rather than each declaring their own.
+ */
+export const StepsLeaderboardEntry = z.object({
+  userId: z.string().uuid(),
+  name: z.string().nullable(),
+  steps: z.number().int().nonnegative(),
+});
+export type StepsLeaderboardEntry = z.infer<typeof StepsLeaderboardEntry>;

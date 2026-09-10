@@ -18,6 +18,7 @@ export {
   notInArray,
   isNull,
   isNotNull,
+  ilike,
   count,
   sum,
 } from 'drizzle-orm';

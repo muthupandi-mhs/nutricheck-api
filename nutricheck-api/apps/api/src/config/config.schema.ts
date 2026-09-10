@@ -53,6 +53,40 @@ export const configSchema = z.object({
   JWT_REFRESH_TTL: durationString.default('30d'),
 
   /**
+   * A distinct signing key for the admin web app's tokens, so an app-user
+   * access token can never be replayed against an /v1/admin route and vice
+   * versa — the two are different principals entirely, not two roles sharing
+   * one secret. See `admin_users` in packages/database.
+   *
+   * One token, no rotation pair: admin sessions are low-volume and re-logging
+   * in every TTL is a reasonable cost for skipping a refresh-token table and
+   * its reuse-detection machinery, which exists in the app's auth to protect
+   * a mobile session that runs for weeks unattended. An admin re-authenticates
+   * from a browser they are sitting in front of.
+   */
+  ADMIN_JWT_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  ADMIN_JWT_TTL: durationString.default('12h'),
+
+  /**
+   * Origin(s) the admin web app is served from. Comma-separated, same shape as
+   * `GOOGLE_OAUTH_CLIENT_IDS`. CORS stays off for the mobile app's traffic
+   * (see main.ts) — this exists only so a browser at that origin is allowed to
+   * call the API at all. Unset means no browser origin is allowed in
+   * production, which is the safe default until a deploy sets it.
+   */
+  ADMIN_WEB_ORIGIN: z
+    .string()
+    .optional()
+    .transform((raw) =>
+      raw
+        ? raw
+            .split(',')
+            .map((origin) => origin.trim())
+            .filter((origin) => origin.length > 0)
+        : [],
+    ),
+
+  /**
    * Which OAuth client IDs a Google ID token is allowed to have been minted
    * for. Comma-separated, because there is one per platform and they are all
    * equally valid: the Android app's token carries the **Web** client ID in
@@ -188,7 +222,7 @@ export function validateConfig(raw: Record<string, unknown>): AppConfig {
 
   // Production must not run on the placeholder secrets from .env.example.
   if (parsed.data.NODE_ENV === 'production') {
-    for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const) {
+    for (const key of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'ADMIN_JWT_SECRET'] as const) {
       if (parsed.data[key].startsWith('dev-only-')) {
         throw new Error(`${key} is still set to the development placeholder`);
       }

@@ -10,12 +10,14 @@ AI nutrition tracker. Daily calories, protein and fiber.
 
 ```
 apps/api/            NestJS service — HTTP (main.ts) and worker (worker.ts) entrypoints
-packages/contracts/  Zod schemas — the wire contract, shared with the mobile app
+packages/contracts/  Zod schemas — the wire contract, shared with the mobile app and the admin app
 packages/database/   Drizzle schema + migrations
 docker/              Dockerfile (one image, three commands) and the local stack
 ```
 
-Shared design docs and the mobile app are siblings of this directory, one level up.
+Shared design docs, the mobile app, and the admin web app (`../nutricheck-admin`) are
+siblings of this directory, one level up — same pattern as the mobile app: versioned
+and run independently of this workspace, not an npm workspace member of it.
 
 ## Auth
 
@@ -38,6 +40,44 @@ probes 401 and the pod never becomes ready.
 
 There is **no password reset yet**, so a forgotten password is currently an
 unrecoverable account. That needs a mail provider; see open item 9 in the design.
+
+## Admin app
+
+[`../nutricheck-admin`](../nutricheck-admin) is a separate Next.js app for internal
+use — user accounts, the QA feedback tab, and the food corpus. It is a sibling
+project, not a workspace of this repo (same reasoning as the mobile app — see
+Layout above); it consumes `@nutricheck/contracts` via a `file:` dependency
+rather than the npm workspace protocol, so the wire types still have one
+definition.
+
+The backend surface it calls is **not** another role on `users`: it signs in
+against its own `admin_users` table with its own JWT signing key
+(`ADMIN_JWT_SECRET`), under `/v1/admin/*`. An app-user access token does not
+authenticate here and an admin token does not authenticate the app's routes.
+
+| Route | Notes |
+|---|---|
+| `POST /v1/admin/auth/login` | Throttled 10 / 10 min / IP |
+| `GET /v1/admin/auth/me` | |
+| `GET /v1/admin/dashboard` | Headline counts: users, feedback, corpus, AI spend |
+| `GET/POST /v1/admin/users`, `/:id`, `/:id/delete`, `/:id/restore` | Soft-delete reuses `AuthService.deleteAccount` |
+| `GET /v1/admin/feedback` | Same data as the app's QA tab, behind admin auth |
+| `GET/POST/PATCH/DELETE /v1/admin/foods` | USDA/OFF rows and rows in use refuse delete with a 409 |
+
+No self-registration — create the first admin with:
+
+```bash
+npm run admin:create -w @nutricheck/api -- --email you@nutricheck.app --password 'x' --name 'Jane'
+```
+
+Re-running with the same email rotates that admin's password instead of failing
+on the unique index.
+
+To run the admin app locally, from `../nutricheck-admin`:
+`cp .env.example .env.local && npm install && npm run dev` (needs this API
+running — CORS is open to any origin outside production). In production, set
+`ADMIN_WEB_ORIGIN` to the app's deployed origin(s) or the browser's own CORS
+check will block every request — see `main.ts`.
 
 ## Requirements
 

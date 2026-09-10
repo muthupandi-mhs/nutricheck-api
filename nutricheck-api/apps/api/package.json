@@ -12,6 +12,7 @@
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest",
     "test:int": "jest --config jest.int.config.js --runInBand",
+    "admin:create": "tsx src/scripts/create-admin.ts",
     "clean": "rimraf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
@@ -59,6 +60,7 @@
     "supertest": "^7.0.0",
     "testcontainers": "^10.28.0",
     "ts-jest": "^29.2.5",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }

@@ -27,8 +27,12 @@ import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { WeightModule } from './modules/weight/weight.module';
 import { StepsModule } from './modules/steps/steps.module';
+import { GroupsModule } from './modules/groups/groups.module';
+import { StarsModule } from './modules/stars/stars.module';
+import { CampaignModule } from './modules/campaign/campaign.module';
 import { FastingModule } from './modules/fasting/fasting.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -93,6 +97,9 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     GoalsModule,
     WeightModule,
     StepsModule,
+    GroupsModule,
+    StarsModule,
+    CampaignModule,
     FastingModule,
     LogsModule,
     MealsModule,
@@ -107,6 +114,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     // Temporary — the QA feedback tab for the current real-time test pass.
     // See FeedbackController's doc comment before treating this as permanent.
     FeedbackModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },

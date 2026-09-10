@@ -5,6 +5,7 @@ import type { AccessTokenClaims, TokenPair } from '@nutricheck/contracts';
 import { and, eq, isNull, ne, schema, type Database } from '@nutricheck/database';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AppConfig } from '../../config/config.schema';
+import { ttlToSeconds } from '../../common/duration';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 
 /** Presented refresh token was already rotated => it leaked. Family is revoked. */
@@ -18,13 +19,6 @@ type RotateOutcome =
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
-}
-
-function ttlToSeconds(ttl: string): number {
-  const unit = ttl.slice(-1);
-  const amount = Number(ttl.slice(0, -1));
-  const multiplier = { s: 1, m: 60, h: 3600, d: 86400 }[unit] ?? 1;
-  return amount * multiplier;
 }
 
 @Injectable()
