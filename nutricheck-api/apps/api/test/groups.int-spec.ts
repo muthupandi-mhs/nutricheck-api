@@ -129,6 +129,29 @@ describe('groups', () => {
       ]);
     });
 
+    it('narrows to day, week or month as asked, defaulting to month', async () => {
+      const owner = await newUser('window-owner');
+      const created = await groups.create(owner, { name: 'Window Test' });
+
+      await logSteps(owner, 1000, today);
+      await logSteps(owner, 2000, daysAgo(3)); // inside week and month, outside day
+      await logSteps(owner, 4000, daysAgo(10)); // inside month only
+
+      const day = await groups.detail(owner, created.id, 'day');
+      const week = await groups.detail(owner, created.id, 'week');
+      const month = await groups.detail(owner, created.id, 'month');
+      const defaulted = await groups.detail(owner, created.id);
+
+      expect(day.window).toBe('day');
+      expect(day.leaderboard[0]?.steps).toBe(1000);
+      expect(week.window).toBe('week');
+      expect(week.leaderboard[0]?.steps).toBe(3000);
+      expect(month.window).toBe('month');
+      expect(month.leaderboard[0]?.steps).toBe(7000);
+      expect(defaulted.window).toBe('month');
+      expect(defaulted.leaderboard[0]?.steps).toBe(7000);
+    });
+
     it('ranks each member by the same totals in myGroups, ties sharing a rank', async () => {
       const owner = await newUser('rank-owner');
       const middle = await newUser('rank-middle');

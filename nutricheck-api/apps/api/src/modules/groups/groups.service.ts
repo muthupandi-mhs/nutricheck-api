@@ -4,6 +4,7 @@ import type {
   CreateGroup,
   GroupDetail,
   JoinGroup,
+  LeaderboardWindow,
   MyGroupsResponse,
   StepsLeaderboardEntry,
 } from '@nutricheck/contracts';
@@ -12,8 +13,12 @@ import { ConflictProblem, NotFoundProblem } from '../../common/problems';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 import { stepsWindow } from '../steps/steps.service';
 
-/** Same rolling window the personal report defaults to — one definition of "recent." */
-const LEADERBOARD_WINDOW_DAYS = 30;
+/**
+ * How many days back each leaderboard window looks. `month` is also what
+ * `myGroups`'s own rank badge uses — one definition of "recent" for the
+ * group list, same as the personal report's default.
+ */
+const WINDOW_DAYS: Record<LeaderboardWindow, number> = { day: 1, week: 7, month: 30 };
 
 /**
  * Walking groups. Anyone can create or join one — there is no admin
@@ -69,7 +74,7 @@ export class GroupsService {
    * than one leaderboard query per group.
    */
   async myGroups(userId: string): Promise<MyGroupsResponse> {
-    const { from, to } = stepsWindow(LEADERBOARD_WINDOW_DAYS);
+    const { from, to } = stepsWindow(WINDOW_DAYS.month);
 
     const result = await this.db.execute<{
       id: string;
@@ -120,7 +125,7 @@ export class GroupsService {
   }
 
   /** 404s on a group that exists but the caller isn't in — membership, not existence, is what's asked. */
-  async detail(userId: string, groupId: string): Promise<GroupDetail> {
+  async detail(userId: string, groupId: string, window: LeaderboardWindow = 'month'): Promise<GroupDetail> {
     const [group] = await this.db
       .select()
       .from(schema.stepGroups)
@@ -140,7 +145,8 @@ export class GroupsService {
       name: group.name,
       inviteCode: group.inviteCode,
       createdAt: group.createdAt.toISOString(),
-      leaderboard: await this.leaderboardFor(groupId),
+      window,
+      leaderboard: await this.leaderboardFor(groupId, WINDOW_DAYS[window]),
     };
   }
 
@@ -153,12 +159,12 @@ export class GroupsService {
   }
 
   /**
-   * Every member ranked by steps over the last 30 days — a raw aggregate
+   * Every member ranked by steps over the given window — a raw aggregate
    * query, the same shape `LogsService.dayPointsBetween` uses for its own
    * per-day sums, grouped by member instead of by day.
    */
-  private async leaderboardFor(groupId: string): Promise<StepsLeaderboardEntry[]> {
-    const { from, to } = stepsWindow(LEADERBOARD_WINDOW_DAYS);
+  private async leaderboardFor(groupId: string, days: number): Promise<StepsLeaderboardEntry[]> {
+    const { from, to } = stepsWindow(days);
 
     const result = await this.db.execute<{ user_id: string; name: string | null; total: string }>(sql`
       SELECT

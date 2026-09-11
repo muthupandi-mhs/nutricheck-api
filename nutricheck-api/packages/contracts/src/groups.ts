@@ -19,6 +19,15 @@ export const JoinGroup = z.object({
 });
 export type JoinGroup = z.infer<typeof JoinGroup>;
 
+/** How far back a leaderboard looks — today only, the last 7 days, or the last 30. */
+export const LeaderboardWindow = z.enum(['day', 'week', 'month']);
+export type LeaderboardWindow = z.infer<typeof LeaderboardWindow>;
+
+export const GroupDetailQuery = z.object({
+  window: LeaderboardWindow.default('month'),
+});
+export type GroupDetailQuery = z.infer<typeof GroupDetailQuery>;
+
 /**
  * One row in "the groups I'm in" — no full leaderboard here, just enough to
  * list, show standing, and open one. `yourRank` is 1-based and standard
@@ -49,7 +58,8 @@ export const GroupDetail = z.object({
   name: z.string(),
   inviteCode: z.string(),
   createdAt: Instant,
-  /** Ranked by steps over the same rolling window `StepsReport` uses. */
+  /** Which window `leaderboard` was ranked over — echoed back rather than assumed, so a toggle and an in-flight response can never disagree about what's on screen. */
+  window: LeaderboardWindow,
   leaderboard: z.array(StepsLeaderboardEntry),
 });
 export type GroupDetail = z.infer<typeof GroupDetail>;

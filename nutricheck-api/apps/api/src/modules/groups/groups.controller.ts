@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { GroupDetail, MyGroupsResponse } from '@nutricheck/contracts';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CreateGroupDto, GroupIdParamDto, JoinGroupDto } from './groups.dto';
+import { CreateGroupDto, GroupDetailQueryDto, GroupIdParamDto, JoinGroupDto } from './groups.dto';
 import { GroupsService } from './groups.service';
 
 /**
@@ -34,9 +34,13 @@ export class GroupsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'One group in full: invite code and its leaderboard' })
-  detail(@CurrentUser('sub') userId: string, @Param() params: GroupIdParamDto): Promise<GroupDetail> {
-    return this.groups.detail(userId, params.id);
+  @ApiOperation({ summary: 'One group in full: invite code and its leaderboard, over day/week/month' })
+  detail(
+    @CurrentUser('sub') userId: string,
+    @Param() params: GroupIdParamDto,
+    @Query() query: GroupDetailQueryDto,
+  ): Promise<GroupDetail> {
+    return this.groups.detail(userId, params.id, query.window);
   }
 
   @Delete(':id/leave')
