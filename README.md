@@ -13,6 +13,7 @@ logged by speaking a sentence in English, Tamil or Tanglish.
 |---|---|
 | **[nutricheck-api/](nutricheck-api/)** | Backend — NestJS service, Postgres, Redis, Docker. Start here to run anything |
 | [nutricheck/](nutricheck/) | React Native app. Own git repo, ignored by this one — see **[MOBILEAPP.STATUS.md](MOBILEAPP.STATUS.md)** |
+| [nutricheck-admin/](nutricheck-admin/) | Internal admin console (Next.js). Own git repo, ignored by this one — [MyHealthSchool/nutricheck-admin](https://github.com/MyHealthSchool/nutricheck-admin) on GitHub, deploys to AWS Amplify |
 | [docs/](docs/) | Product, flows and technical design — shared by both |
 | [design/](design/) | Design canvas artboards |
 
@@ -45,3 +46,17 @@ curl http://localhost:3000/health/ready
 ```
 
 See [nutricheck-api/README.md](nutricheck-api/README.md) for everything else.
+
+## Run the admin app
+
+Needs the backend above running first.
+
+```bash
+cd nutricheck-admin
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+See [nutricheck-admin/README.md](nutricheck-admin/README.md) for the route
+list and how to create the first admin account.

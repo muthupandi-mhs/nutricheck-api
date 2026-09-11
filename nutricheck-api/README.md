@@ -44,11 +44,16 @@ unrecoverable account. That needs a mail provider; see open item 9 in the design
 ## Admin app
 
 [`../nutricheck-admin`](../nutricheck-admin) is a separate Next.js app for internal
-use — user accounts, the QA feedback tab, and the food corpus. It is a sibling
-project, not a workspace of this repo (same reasoning as the mobile app — see
-Layout above); it consumes `@nutricheck/contracts` via a `file:` dependency
-rather than the npm workspace protocol, so the wire types still have one
-definition.
+use — user accounts, the QA feedback tab, the food corpus, the Stars leaderboard
+and the steps campaign banner. It is a sibling project with **its own GitHub
+repo** ([MyHealthSchool/nutricheck-admin](https://github.com/MyHealthSchool/nutricheck-admin),
+`main` + `staging`), not a workspace of this repo (same reasoning as the mobile
+app — see Layout above). It does **not** depend on `@nutricheck/contracts` —
+a `file:` path to a sibling folder only resolves on a machine that happens to
+have both repos checked out side by side, and breaks the moment Amplify (which
+checks this repo out alone) tries to install it. `nutricheck-admin/lib/types.ts`
+hand-keeps plain TypeScript mirrors of the admin response shapes instead —
+update both together when an admin contract changes.
 
 The backend surface it calls is **not** another role on `users`: it signs in
 against its own `admin_users` table with its own JWT signing key
@@ -63,6 +68,10 @@ authenticate here and an admin token does not authenticate the app's routes.
 | `GET/POST /v1/admin/users`, `/:id`, `/:id/delete`, `/:id/restore` | Soft-delete reuses `AuthService.deleteAccount` |
 | `GET /v1/admin/feedback` | Same data as the app's QA tab, behind admin auth |
 | `GET/POST/PATCH/DELETE /v1/admin/foods` | USDA/OFF rows and rows in use refuse delete with a 409 |
+| `GET/POST /v1/admin/stars`, `DELETE /v1/admin/stars/:userId` | Who is featured on the Stars leaderboard |
+| `GET /v1/admin/groups` | Search groups by name, for the campaign banner picker |
+| `GET /v1/admin/steps` | Every user ranked by all-time step total |
+| `GET/POST/DELETE /v1/admin/steps-campaign` | The banner config (everyone, or one group, against a goal) and its live totals |
 
 No self-registration — create the first admin with:
 
@@ -75,9 +84,10 @@ on the unique index.
 
 To run the admin app locally, from `../nutricheck-admin`:
 `cp .env.example .env.local && npm install && npm run dev` (needs this API
-running — CORS is open to any origin outside production). In production, set
-`ADMIN_WEB_ORIGIN` to the app's deployed origin(s) or the browser's own CORS
-check will block every request — see `main.ts`.
+running — CORS is open to any origin outside production). In production it
+deploys to **AWS Amplify**, not the Docker image above — set `ADMIN_WEB_ORIGIN`
+here to that deployed origin(s) or the browser's own CORS check will block
+every request — see `main.ts`.
 
 ## Requirements
 
