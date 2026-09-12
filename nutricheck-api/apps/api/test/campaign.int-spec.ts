@@ -46,8 +46,11 @@ describe('campaign', () => {
     await pg.db.insert(schema.stepLogs).values({ userId, measuredOn: today, steps });
   }
 
-  it('is off until an admin sets one', async () => {
-    expect(await campaign.current()).toBeNull();
+  it('defaults to everyone, no goal, until an admin sets one', async () => {
+    const current = await campaign.current();
+    expect(current.scope).toBe('all');
+    expect(current.goalSteps).toBeNull();
+    expect(current.title).toBeNull();
   });
 
   it('totals every user’s steps for scope "all"', async () => {
@@ -60,12 +63,12 @@ describe('campaign', () => {
     await campaign.set(admin, { scope: 'all', goalSteps: 100_000, title: 'Community Steps' });
     const current = await campaign.current();
 
-    expect(current?.scope).toBe('all');
-    expect(current?.title).toBe('Community Steps');
-    expect(current?.goalSteps).toBe(100_000);
-    expect(current?.totalSteps).toBeGreaterThanOrEqual(10_000); // other tests share this DB
-    expect(current?.participantCount).toBeGreaterThanOrEqual(2);
-    expect(current?.groupName).toBeNull();
+    expect(current.scope).toBe('all');
+    expect(current.title).toBe('Community Steps');
+    expect(current.goalSteps).toBe(100_000);
+    expect(current.totalSteps).toBeGreaterThanOrEqual(10_000); // other tests share this DB
+    expect(current.participantCount).toBeGreaterThanOrEqual(2);
+    expect(current.groupName).toBeNull();
 
     await campaign.clear();
   });
@@ -105,12 +108,14 @@ describe('campaign', () => {
     ).rejects.toMatchObject({ problem: { status: 404 } });
   });
 
-  it('clearing is idempotent, and turns the banner back off', async () => {
+  it('clearing is idempotent, and reverts the banner to the default', async () => {
     const admin = await newAdmin('clear-admin');
     await campaign.set(admin, { scope: 'all', goalSteps: 1000 });
     await campaign.clear();
     await campaign.clear();
-    expect(await campaign.current()).toBeNull();
+    const current = await campaign.current();
+    expect(current.scope).toBe('all');
+    expect(current.goalSteps).toBeNull();
   });
 
   it('adminView reports the raw config alongside the same computed totals', async () => {
@@ -122,8 +127,16 @@ describe('campaign', () => {
     const view = await campaign.adminView();
     expect(view.scope).toBe('group');
     expect(view.groupId).toBe(group.id);
-    expect(view.campaign?.groupName).toBe('View Group');
+    expect(view.campaign.groupName).toBe('View Group');
 
     await campaign.clear();
+  });
+
+  it('adminView reports null scope/groupId but a real default campaign when nothing is saved', async () => {
+    const view = await campaign.adminView();
+    expect(view.scope).toBeNull();
+    expect(view.groupId).toBeNull();
+    expect(view.campaign.scope).toBe('all');
+    expect(view.campaign.goalSteps).toBeNull();
   });
 });

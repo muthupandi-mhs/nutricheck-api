@@ -15,7 +15,7 @@ export class CampaignController {
   constructor(private readonly campaign: CampaignService) {}
 
   @Get()
-  @ApiOperation({ summary: 'The Steps screen banner, or null if no admin has configured one' })
+  @ApiOperation({ summary: "The Steps screen banner — everyone's steps by default, or whatever an admin narrowed it to" })
   async current(): Promise<StepsCampaignResponse> {
     return { campaign: await this.campaign.current() };
   }

@@ -5,13 +5,31 @@ import { NotFoundProblem } from '../../common/problems';
 import { DATABASE } from '../../infrastructure/database/database.tokens';
 
 type CampaignConfig = typeof schema.stepCampaign.$inferSelect;
+/** What `computeFor` actually needs — loose enough to cover a real row and the synthetic default below. */
+type CampaignConfigLike = Pick<CampaignConfig, 'scope' | 'groupId' | 'title' | 'tagline'> & {
+  goalSteps: number | null;
+};
 
 /** The one row `stepCampaign` ever holds. See the schema's own doc comment for why. */
 const SINGLETON_ID = 'default';
 
 /**
+ * Stands in for a saved row when nothing has been configured yet — everyone,
+ * no goal, no name. The banner is always on; this is what "on" defaults to
+ * until an admin points it at a goal or narrows it to one group.
+ */
+const DEFAULT_CONFIG: CampaignConfigLike = {
+  scope: 'all',
+  groupId: null,
+  goalSteps: null,
+  title: null,
+  tagline: null,
+};
+
+/**
  * Computes the Steps screen's banner from whatever an admin last configured
- * — every user's steps, or one group's — against a goal.
+ * — every user's steps by default, or one group's — against a goal, if one
+ * has been set.
  *
  * All-time, not the rolling 30-day window the report and leaderboards use:
  * this is a milestone tally, not a recent-activity figure, so a day
@@ -21,20 +39,18 @@ const SINGLETON_ID = 'default';
 export class CampaignService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  /** The banner as the app sees it — null when no admin has configured one. */
-  async current(): Promise<StepsCampaign | null> {
-    const config = await this.config();
-    return config ? this.computeFor(config) : null;
+  /** The banner as the app sees it — always something, see `DEFAULT_CONFIG`. */
+  async current(): Promise<StepsCampaign> {
+    return this.computeFor((await this.config()) ?? DEFAULT_CONFIG);
   }
 
   /** The same computed totals, plus the raw config an admin's form needs to re-populate itself. */
   async adminView(): Promise<AdminCampaignResponse> {
     const config = await this.config();
-    if (!config) return { campaign: null, scope: null, groupId: null };
     return {
-      campaign: await this.computeFor(config),
-      scope: config.scope,
-      groupId: config.groupId,
+      campaign: await this.computeFor(config ?? DEFAULT_CONFIG),
+      scope: config?.scope ?? null,
+      groupId: config?.groupId ?? null,
     };
   }
 
@@ -81,7 +97,7 @@ export class CampaignService {
     return config ?? null;
   }
 
-  private async computeFor(config: CampaignConfig): Promise<StepsCampaign> {
+  private async computeFor(config: CampaignConfigLike): Promise<StepsCampaign> {
     const shared = { title: config.title, tagline: config.tagline, goalSteps: config.goalSteps };
 
     if (config.scope === 'all') {

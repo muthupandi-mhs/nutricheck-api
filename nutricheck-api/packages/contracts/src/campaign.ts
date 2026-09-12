@@ -12,7 +12,8 @@ export const StepsCampaign = z.object({
   title: z.string().nullable(),
   tagline: z.string().nullable(),
   totalSteps: z.number().int(),
-  goalSteps: z.number().int(),
+  /** Null until an admin sets one — the banner still shows the total, just without a goal to measure it against. */
+  goalSteps: z.number().int().nullable(),
   /** Distinct users counted toward `totalSteps` — everyone, or the group's members. */
   participantCount: z.number().int(),
   /** Set when `scope` is `'group'`. */
@@ -20,8 +21,13 @@ export const StepsCampaign = z.object({
 });
 export type StepsCampaign = z.infer<typeof StepsCampaign>;
 
-/** `campaign` is null when no admin has configured one — the screen renders nothing. */
-export const StepsCampaignResponse = z.object({ campaign: StepsCampaign.nullable() });
+/**
+ * Never null: with nothing configured yet, the screen still gets the
+ * "everyone" scope and a real total, un-set fields and all — a banner an
+ * admin can later point at a goal or a single group, not one that has to be
+ * switched on first.
+ */
+export const StepsCampaignResponse = z.object({ campaign: StepsCampaign });
 export type StepsCampaignResponse = z.infer<typeof StepsCampaignResponse>;
 
 // --- admin ---------------------------------------------------------------
@@ -40,9 +46,13 @@ export const AdminSetCampaign = z
   });
 export type AdminSetCampaign = z.infer<typeof AdminSetCampaign>;
 
-/** The same computed totals the app sees, plus the raw config to re-populate the admin form. */
+/**
+ * The same computed totals the app sees, plus the raw config to re-populate
+ * the admin form. `scope`/`groupId` are null only when nothing has been
+ * explicitly saved yet — `campaign` itself is never null, see `StepsCampaignResponse`.
+ */
 export const AdminCampaignResponse = z.object({
-  campaign: StepsCampaign.nullable(),
+  campaign: StepsCampaign,
   scope: CampaignScope.nullable(),
   groupId: z.string().uuid().nullable(),
 });
